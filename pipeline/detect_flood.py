@@ -81,6 +81,10 @@ def main():
     ap.add_argument("--qa", default=str(ROOT / "docs" / "preview"))
     ap.add_argument("--hh-thr", type=float, help="override the HH threshold (dB)")
     ap.add_argument("--hv-thr", type=float, help="override the HV threshold (dB)")
+    ap.add_argument("--loosen", type=float, default=0.0,
+                    help="dB added to both thresholds for pixels that also got clearly darker since the first date (0 = strict)")
+    ap.add_argument("--min-drop", type=float, default=3.0,
+                    help="how many dB darker than the whole-scene change a pixel must be to use the looser threshold")
     ap.add_argument("--relative-before", action="store_true",
                     help="shift the 'before' thresholds by the difference of the land peaks (use if the whole scene is brighter/darker)")
     ap.add_argument("--min-pixels", type=int, default=8, help="drop water blobs smaller than this")
@@ -118,13 +122,33 @@ def main():
         print(f"{pol} land peak: {a.before} {land_mode(arr[(a.before, pol)]):.1f} dB, {a.during} {land_mode(arr[(a.during, pol)]):.1f} dB (before - during = {shift[pol]:+.1f} dB)")
 
     w_before, w_during = water_of(a.before), water_of(a.during)
+    w_during_strict = w_during
+
+    # change criterion: a pixel that got much darker than the scene as a whole (land is ~3 dB brighter on the second date)
+    d_hh = arr[(a.during, "HH")] - arr[(a.before, "HH")]
+    drop = d_hh - np.nanmedian(d_hh[common])
+
+    def extra_water(loosen):
+        m = ((arr[(a.during, "HH")] < t_hh + loosen) & (arr[(a.during, "HV")] < t_hv + loosen)
+             & (drop <= -a.min_drop) & common)
+        return water.water_mask(np.where(m, -99.0, 0.0), -50.0, min_pixels=a.min_pixels)
+
+    print(f"whole-scene HH change (median): {np.nanmedian(d_hh[common]):+.1f} dB")
+    print("sensitivity table (new flood km2 if the thresholds are loosened by X dB for pixels >= "
+          f"{a.min_drop:.0f} dB darker than the scene change):")
+    for lo in (0, 2, 3, 4, 6):
+        print(f"   loosen {lo} dB: {km((w_during_strict | (extra_water(lo) if lo else False)) & ~w_before):8.0f} km2")
+    if a.loosen > 0:
+        w_during = w_during_strict | extra_water(a.loosen)
+        print(f"using loosen = {a.loosen} dB")
     permanent = w_before & w_during
     for pol in ("HH", "HV"):
         print(f"{pol} median over permanent water: {a.before} {np.median(arr[(a.before, pol)][permanent]):.1f} dB, "
               f"{a.during} {np.median(arr[(a.during, pol)][permanent]):.1f} dB")
     w_before_rel = water_of(a.before, shift["HH"], shift["HV"])
-    new_abs_km2 = km(w_during & ~w_before)
-    new_rel_km2 = km(w_during & ~w_before_rel)
+    new_abs_km2 = km(w_during_strict & ~w_before)       # strict, absolute thresholds
+    new_rel_km2 = km(w_during & ~w_before_rel)          # relative thresholds on the first date
+    new_chosen_km2 = km(w_during & ~w_before)
     print(f"[variant] thresholds on {a.before} moved by the land-peak difference: water {km(w_before_rel):.0f} km2, "
           f"NEW {km(w_during & ~w_before_rel):.0f} km2, water only before {km(w_before_rel & ~w_during):.0f} km2")
     if a.relative_before:
@@ -147,11 +171,12 @@ def main():
     (lon_w, lat_s), (lon_e, lat_n) = to_ll.transform(west, south), to_ll.transform(east, north)
     bounds = [[round(lat_s, 5), round(lon_w, 5)], [round(lat_n, 5), round(lon_e, 5)]]
 
-    # QA image: HH (during) in gray, permanent water blue, new flood red
+    # QA image: HH (during) in gray, permanent water blue, new flood red, loosened-threshold additions orange
+    added = w_during & ~w_during_strict & ~w_before
     g = np.clip((arr[(a.during, "HH")] + 25) / 25, 0, 1)
     g = np.where(np.isfinite(g), g, 1.0)
     rgb = (np.dstack([g, g, g]) * 255).astype(np.uint8)
-    rgb[permanent] = (31, 120, 200); rgb[new] = (228, 40, 30)
+    rgb[permanent] = (31, 120, 200); rgb[new] = (228, 40, 30); rgb[added] = (255, 160, 0)
     Image.fromarray(rgb[::4, ::4]).save(qa / "flood_qa.png", optimize=True)
 
     stats = {
@@ -168,7 +193,8 @@ def main():
                        "direction": "ascending", "polarizations": ["HH", "HV"]},
         },
         "flooded_area_km2": round(km(new), 1),
-        "flooded_area_range_km2": [round(min(new_abs_km2, new_rel_km2), 1), round(max(new_abs_km2, new_rel_km2), 1)],
+        "flooded_area_range_km2": [round(min(new_abs_km2, new_rel_km2, new_chosen_km2), 1),
+                                   round(max(new_abs_km2, new_rel_km2, new_chosen_km2), 1)],
         "permanent_water_km2": round(km(permanent), 1),
         "method": {
             "threshold_db": {"HH": round(t_hh, 1), "HV": round(t_hv, 1)},
