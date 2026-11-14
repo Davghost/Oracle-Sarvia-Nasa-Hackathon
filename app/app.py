@@ -21,6 +21,11 @@ def index():
     return render_template("index.html")
 
 
+@app.get("/how-to-read-radar")
+def how_to_read_radar():
+    return render_template("radar.html")
+
+
 @app.get("/api/stats")
 def api_stats():
     path = stats_path()

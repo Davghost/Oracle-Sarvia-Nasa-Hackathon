@@ -14,3 +14,9 @@ html,body{margin:0;height:100%;font-family:Arial,Helvetica,sans-serif}
 #numbers dt{font-weight:bold}#numbers dd{margin:0}
 #limits{font-size:14px;padding-left:18px;margin:0}
 @media (max-width:600px){#panel{top:auto;bottom:8px;right:8px;left:8px;width:auto;max-height:45%}}
+.page-body{background:#fff;color:#111}
+.page{max-width:760px;margin:0 auto;padding:56px 16px 40px;font-size:17px;line-height:1.55}
+.page h1{font-size:30px;margin:8px 0}
+.page h2{font-size:21px;margin:28px 0 6px}
+.page .lead{font-size:19px;color:#444}
+.page a,#panel a{color:#1f5fa8}

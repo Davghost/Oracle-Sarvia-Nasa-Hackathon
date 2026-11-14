@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to read the radar</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page-body">
+<div id="banner">NISAR data are <b>provisional</b> and may be reprocessed.</div>
+<main class="page">
+  <p><a href="{{ url_for('index') }}">← Back to the map</a></p>
+  <h1>How to read the radar</h1>
+  <p class="lead">A short guide to what the NISAR radar sees, and why it helps when floods hide under clouds.</p>
+
+  <h2>1. Why radar sees through clouds</h2>
+  <p>NISAR sends its own microwave signal (L-band, a wavelength of about 24 cm) and listens for the echo. Clouds are almost transparent at this wavelength, and the radar works day and night. Optical satellites need sunlight and a clear sky. In January 2026 the optical satellite Sentinel-2 saw only clouds over southern Mozambique, while NISAR imaged the floods (NASA Scientific Visualization Studio #5661).</p>
+
+  <h2>2. Why water looks dark</h2>
+  <p>Calm water is smooth, like a mirror. It bounces the radar signal away from the satellite, so very little comes back and the pixel is dark. Rough ground, crops and buildings send more signal back, so they look brighter. This is the main idea behind our flood map: new dark areas that were not water before are candidate flooded land.</p>
+
+  <h2>3. Reading the colors</h2>
+  <ul>
+    <li><b>On our map:</b> blue is water detected in the "before" scene, red is water detected in the "during" scene. The slider fades between them.</li>
+    <li><b>In NASA's false-color images:</b> HH is red, HV is green and their ratio is blue. Dark blue is open water, magenta is flooded forest and green is tree canopy.</li>
+  </ul>
+
+  <h2>4. What the radar may be showing (hypotheses)</h2>
+  <p>These are physical explanations, not results. We check them against the data as far as we can.</p>
+  <ul>
+    <li><b>Open water:</b> smooth surface, little echo, dark.</li>
+    <li><b>Flooded forest or crops:</b> the signal can bounce between the water and the trunks (a "double bounce"). The echo can then get brighter, not darker. A simple "dark means water" rule can miss these areas.</li>
+    <li><b>Wet soil:</b> water has a high dielectric constant, so wetter soil changes the echo. This can be mistaken for flooding, or hide it.</li>
+    <li><b>Wind on the water:</b> a rough water surface sends more signal back and can look like land.</li>
+    <li><b>Hills and steep terrain:</b> radar shadows are dark too and can look like water.</li>
+  </ul>
+
+  <h2>5. Polarizations: HH and HV</h2>
+  <p>A radar can send and receive the signal with different orientations. <b>HH</b> sends and receives horizontally. <b>HV</b> sends horizontally and receives vertically. HH reacts strongly to smooth surfaces and to double bounces. HV reacts to scattering inside leaves and branches. Using both helps tell open water, flooded vegetation and tree canopy apart. Our analysis uses the polarizations available in the GCOV files.</p>
+
+  <h2>6. What comes next</h2>
+  <p>NISAR repeats the same view about every 12 days, so a longer series can show a flood rising and falling. The same radar is also used to study soil moisture, forests, crops and ground movement. Future versions of this tool could add more dates, more polarizations and independent maps for validation.</p>
+
+  <h2>Limits you should know</h2>
+  <ul>
+    <li>The data are provisional and may be reprocessed.</li>
+    <li>We use a simple threshold. It is easy to explain, but it is not perfect.</li>
+    <li>Numbers such as flooded area are estimates, not an official assessment.</li>
+  </ul>
+</main>
+</body>
+</html>
