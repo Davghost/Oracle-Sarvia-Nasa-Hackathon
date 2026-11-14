@@ -1,0 +1,16 @@
+html,body{margin:0;height:100%;font-family:Arial,Helvetica,sans-serif}
+#banner{position:fixed;top:0;left:0;right:0;z-index:1000;background:#7a1f1f;color:#fff;
+  padding:8px 12px;font-size:16px;text-align:center}
+#mock-flag{margin-left:8px;background:#ffd24d;color:#000;padding:2px 6px;border-radius:3px}
+#map{position:absolute;top:38px;bottom:0;left:0;right:0}
+#panel{position:absolute;z-index:999;top:52px;right:12px;width:320px;max-width:calc(100% - 24px);
+  background:#fff;color:#111;padding:14px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.3);
+  max-height:calc(100% - 70px);overflow:auto}
+#panel h1{font-size:20px;margin:0 0 10px}
+#panel h2{font-size:16px;margin:12px 0 4px}
+#panel label{font-size:16px;display:block;margin-bottom:6px}
+#slider{width:100%}
+#numbers{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:16px}
+#numbers dt{font-weight:bold}#numbers dd{margin:0}
+#limits{font-size:14px;padding-left:18px;margin:0}
+@media (max-width:600px){#panel{top:auto;bottom:8px;right:8px;left:8px;width:auto;max-height:45%}}

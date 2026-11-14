@@ -1,0 +1,22 @@
+# stats.json contract (T46)
+
+The pipeline (T13) writes `outputs/stats.json`. The Flask app reads it through `/api/stats`.
+If `outputs/stats.json` does not exist, the app falls back to `outputs/mock/stats.json`.
+Example: `outputs/mock/stats.json` (all values there are fake).
+
+| Field | Type | Notes |
+|---|---|---|
+| `mock` | bool | `true` only in mock data. The UI shows a MOCK warning. Omit or `false` in real output. |
+| `area_name` | string | Title shown in the panel. |
+| `bbox` | [west, south, east, north] | Degrees, WGS84. |
+| `maturity` | string | `BETA` or `PROVISIONAL` (from the collection used). Always shown to the user. |
+| `collection` | string or null | CMR collection short name. Fill after T03/T09. |
+| `product` | string | e.g. `NISAR GCOV`. |
+| `scenes.before` / `scenes.during` | object | `date` (YYYY-MM-DD), `granule`, `track`, `frame`, `direction`, `polarizations` (list, or `null` until confirmed in T37). |
+| `flooded_area_km2` | number | New water: water(during) minus water(before). |
+| `permanent_water_km2` | number | Water already present before the flood. |
+| `method` | object | `threshold_db`, `speckle_filter`, `notes`. Fill after T11. |
+| `layers.before` / `layers.during` | object | `{"type":"geojson","url":...}` or `{"type":"image","url":...,"bounds":[[south,west],[north,east]]}`. URLs start with `/outputs/`. |
+| `limitations` | list of strings | Shown in the panel. |
+
+Rules: never invent values; use `null` when something is not confirmed. Keep layer files small (they go in git).

@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Oracle: dados e segredos (nunca versionar) ---
+data/*
+!data/.gitkeep
+*.h5
+*.hdf5
+*.he5
+.netrc
+*earthdata*token*

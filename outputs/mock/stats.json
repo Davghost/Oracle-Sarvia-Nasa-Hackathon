@@ -1,0 +1,37 @@
+{
+  "mock": true,
+  "mock_notice": "MOCK DATA FOR UI DEVELOPMENT. Numbers and shapes below are NOT real NISAR results.",
+  "area_name": "Limpopo / Incomati basins, southern Mozambique",
+  "bbox": [32.0, -26.0, 33.5, -24.0],
+  "maturity": "MOCK",
+  "collection": null,
+  "product": "NISAR GCOV",
+  "scenes": {
+    "before": {
+      "date": "2026-01-05",
+      "granule": "NISAR_L2_PR_GCOV_009_114_A_165_4005_DHDH_A_20260105T034232_20260105T034253_X05010_N_P_J_001",
+      "track": 114, "frame": 165, "direction": "ascending", "polarizations": null
+    },
+    "during": {
+      "date": "2026-01-17",
+      "granule": "NISAR_L2_PR_GCOV_010_114_A_165_4005_DHDH_A_20260117T034232_20260117T034254_X05010_N_P_J_001",
+      "track": 114, "frame": 165, "direction": "ascending", "polarizations": null
+    }
+  },
+  "flooded_area_km2": 123.4,
+  "permanent_water_km2": 45.6,
+  "method": {
+    "threshold_db": null,
+    "speckle_filter": null,
+    "notes": "Fill in after T11."
+  },
+  "layers": {
+    "before": {"type": "geojson", "url": "/outputs/mock/water_before.geojson"},
+    "during": {"type": "geojson", "url": "/outputs/mock/flood_during.geojson"}
+  },
+  "limitations": [
+    "NISAR data are provisional and may be reprocessed.",
+    "Flooded forest can be missed by a simple dB threshold.",
+    "Rough water (wind) and relief shadows can cause errors."
+  ]
+}

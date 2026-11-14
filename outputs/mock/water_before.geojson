@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"mock":true},"geometry":{"type":"Polygon","coordinates":[[[32.3,-24.9],[32.9,-24.85],[33.3,-25.2],[33.25,-25.3],[32.9,-25.0],[32.35,-25.05],[32.3,-24.9]]]}}]}
