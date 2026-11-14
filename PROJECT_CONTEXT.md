@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md — The Algorithm's Oracle
 
 > **Memória compartilhada do projeto.** Qualquer agente de IA ou integrante deve ler este arquivo inteiro antes de trabalhar e **atualizar a seção 13 e o log (seção 15)** depois de qualquer decisão.
-> Última atualização: **14/11/2026, ~10:00 (horário de Brasília)** · Versão **0.1**
+> Última atualização: **14/11/2026, ~12:00 (horário de Brasília)** · Versão **0.2**
 
 Legenda de confiança usada neste documento:
 - **[CONFIRMADO]** vem de fonte oficial (NASA / Space Apps / ASF) ou da própria equipe.
@@ -245,11 +245,11 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 
 ## 12. Estado atual do desenvolvimento
 
-- **Código:** nada ainda. Existe apenas um script auxiliar de reconhecimento (`nisar_recon.py`) que consulta o CMR e lista cenas NISAR GCOV por data. **Não foi testado contra a API real** e usa por padrão a coleção provisional; precisa do nome da coleção BETA para janeiro/2026.
-- **Contas Earthdata:** nenhuma criada até 14/11 ~09:30. Mensagem com instruções já enviada ao grupo.
-- **Registro no Space Apps / Local Event:** [A VERIFICAR] se os três estão no mesmo evento.
-- **Dados:** nenhuma cena baixada. Disponibilidade das cenas de 05 e 17/01/2026 **[A VERIFICAR]**.
-- **Codespace:** Victor prevê funcionando por volta de 14:30 de 14/11.
+- **Código (14/11 ~12:00):** estrutura do repo criada (`app/`, `pipeline/`, `outputs/`, `docs/`, `data/`). Existe um **esqueleto Flask** (`app/app.py`) com mapa Leaflet, slider antes/durante e painel, rodando sobre **dados MOCK** (`outputs/mock/`). **O mapa Leaflet nunca foi aberto no navegador** (rede do ambiente de desenvolvimento bloqueou o CDN); só o servidor e a sintaxe do JS foram testados. Contrato do `stats.json` em `docs/stats_contract.md`. O pipeline de dados **ainda não existe**. O script `nisar_recon.py` não está no repo.
+- **Contas Earthdata:** [A VERIFICAR] se os três já criaram.
+- **Registro no Space Apps / Local Event:** [A VERIFICAR] se os três estão no mesmo evento e qual o fuso.
+- **Dados:** a busca no ASF Vertex (Davi, T03) achou **10 cenas** sobre a área (lista em `TASKS.xlsx`, aba "Cenas NISAR"). **Par válido para o MVP [CONFIRMADO pelos nomes dos arquivos]:** dois GCOV, ciclo 009 (05/01/2026) e ciclo 010 (17/01/2026), ambos trilha **114**, direção **A (ascendente)**, frame **165**. Nada baixado ainda. **[A VERIFICAR]** coleção (BETA?), polarizações (o código "DHDH" do nome sugere dual-pol, é suposição) e estrutura do HDF5. Os nomes sugerem também uma aquisição em 24/12/2025 (ciclo 008), que pode servir como data "antes" (T38).
+- **Codespace:** Victor prevê funcionando por volta de 14:30 de 14/11; é a primeira tarefa dele no turno.
 
 ---
 
@@ -257,6 +257,15 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 
 **Decisões tomadas**
 - Caso Moçambique (A), plano B Índia/Nepal. Previsão de risco cortada. Flask. Começar simples e evoluir em fases. Trabalho em turnos.
+
+**Turnos (suposição de 14/11, ajustar se mudar)**
+- **1 · Flau (sozinho):** agora até ~15:30 de sáb. Conta, confirmar GO, baixar os 2 GCOV, inspecionar o HDF5, começar o recorte em dB.
+- **2 · Victor:** ~15:30 até ~23:30 de sáb. **Primeira tarefa: Codespace.** Depois hospedagem, Flask, interface, integração, deploy. Flau continua no pipeline (recorte, água, exportação).
+- **3 · Davi:** ~23:30 de sáb até ~08:00 de dom. Aceitação do MVP, fallback, OSM, validação.
+- **Dom:** todos. Meta de envio 21:00; prazo duro 23:59 (fuso a confirmar).
+- Detalhes por tarefa em `TASKS.xlsx`. Quem passa o turno atualiza este arquivo (seções 12, 13, 15).
+
+**Decisão proposta (aguarda OK de Victor e Davi):** **GO em Moçambique**, usando os dois GCOV de 05/01 e 17/01/2026 (trilha 114, direção A, frame 165). Licença sugerida: Apache-2.0 (ainda sem arquivo LICENSE, aguardando OK).
 
 **Pendências (preencher e mover para "tomadas")**
 1. Os 3 criarem conta Earthdata e confirmarem registro no mesmo Local Event + fuso do prazo.
@@ -293,3 +302,4 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 | Data/hora | Quem | Mudança |
 |---|---|---|
 | 14/11/2026 ~10:00 | Planejamento (Claude + equipe) | Versão 0.1: pesquisa do evento e do desafio, caso Moçambique escolhido, escopo cortado, arquitetura proposta. |
+| 14/11/2026 ~12:00 | Flau (com Claude) | Versão 0.2: 10 cenas encontradas (par GCOV 05/01 e 17/01, trilha 114, A, frame 165), GO proposto, turnos registrados, estrutura do repo, esqueleto Flask com dados mock e contrato do `stats.json`. |
