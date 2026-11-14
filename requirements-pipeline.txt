@@ -8,3 +8,4 @@ pytest
 shapely
 networkx
 osmnx
+pyproj
