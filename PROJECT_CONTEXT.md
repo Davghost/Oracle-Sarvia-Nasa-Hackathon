@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md — The Algorithm's Oracle
 
 > **Memória compartilhada do projeto.** Qualquer agente de IA ou integrante deve ler este arquivo inteiro antes de trabalhar e **atualizar a seção 13 e o log (seção 15)** depois de qualquer decisão.
-> Última atualização: **14/11/2026, ~12:00 (horário de Brasília)** · Versão **0.2**
+> Última atualização: **14/11/2026, ~13:46 (horário de Brasília)** · Versão **0.3**
 
 Legenda de confiança usada neste documento:
 - **[CONFIRMADO]** vem de fonte oficial (NASA / Space Apps / ASF) ou da própria equipe.
@@ -245,11 +245,27 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 
 ## 12. Estado atual do desenvolvimento
 
-- **Código (14/11 ~12:00):** estrutura do repo criada (`app/`, `pipeline/`, `outputs/`, `docs/`, `data/`). Existe um **esqueleto Flask** (`app/app.py`) com mapa Leaflet, slider antes/durante e painel, rodando sobre **dados MOCK** (`outputs/mock/`). **O mapa Leaflet nunca foi aberto no navegador** (rede do ambiente de desenvolvimento bloqueou o CDN); só o servidor e a sintaxe do JS foram testados. Contrato do `stats.json` em `docs/stats_contract.md`. O pipeline de dados **ainda não existe**. O script `nisar_recon.py` não está no repo.
-- **Contas Earthdata:** [A VERIFICAR] se os três já criaram.
-- **Registro no Space Apps / Local Event:** [A VERIFICAR] se os três estão no mesmo evento e qual o fuso.
-- **Dados:** a busca no ASF Vertex (Davi, T03) achou **10 cenas** sobre a área (lista em `TASKS.xlsx`, aba "Cenas NISAR"). **Par válido para o MVP [CONFIRMADO pelos nomes dos arquivos]:** dois GCOV, ciclo 009 (05/01/2026) e ciclo 010 (17/01/2026), ambos trilha **114**, direção **A (ascendente)**, frame **165**. Nada baixado ainda. **[A VERIFICAR]** coleção (BETA?), polarizações (o código "DHDH" do nome sugere dual-pol, é suposição) e estrutura do HDF5. Os nomes sugerem também uma aquisição em 24/12/2025 (ciclo 008), que pode servir como data "antes" (T38).
-- **Codespace:** Victor prevê funcionando por volta de 14:30 de 14/11; é a primeira tarefa dele no turno.
+**Código no repositório (branch `main`)**
+- `app/`: esqueleto **Flask** com mapa Leaflet, slider antes/durante, painel e aviso fixo de dados provisórios, sobre **dados MOCK** (`outputs/mock/`). Página `/how-to-read-radar` (T22/T43, em inglês, **rascunho**: física geral, sem afirmar nada sobre nossos resultados). **O Flau abriu o `app.py` e confirmou que funciona.** O mapa Leaflet (CDN `unpkg`) nunca foi renderizado no ambiente de desenvolvimento do assistente (rede bloqueada).
+- `pipeline/water.py` (+ `tests/test_water.py`): dB, filtro de speckle (boxcar), limiar Otsu, máscara de água, água nova, área em km². **6 testes passam, só com dados sintéticos.** Limiares **não calibrados** em dado real. O leitor do HDF5 **não existe** (espera o T37).
+- `pipeline/routing.py` (+ `tests/test_routing.py`): rota que evita área alagada e contagem de edificações afetadas. **7 testes passam, só com grafo sintético e no formato do `osmnx`.** Nunca rodou com ruas reais. Protótipo, não ferramenta de resgate.
+- `pipeline/download_gcov.py`: baixa os 2 GCOV via `asf_search`. **Nunca foi executado** (rede da NASA bloqueada para o assistente). Plano B com `wget` em `docs/download.md`.
+- `docs/stats_contract.md` (contrato do `stats.json`), `docs/video_script.md` (rascunho do roteiro de 30 s, com `[X]` no lugar do número real), `docs/validation_references.md` (candidatos de validação).
+- `AI_USAGE_LOG.md` criado e atualizado. `TASKS.xlsx` (checklist por pessoa e por turno). `requirements.txt` (app) e `requirements-pipeline.txt`.
+
+**Dados**
+- A busca no ASF Vertex (Davi, T03) achou **10 cenas** (lista em `TASKS.xlsx`, aba "Cenas NISAR"). **Par válido para o MVP [CONFIRMADO pelos nomes dos arquivos]:** dois GCOV, ciclo 009 (05/01/2026) e ciclo 010 (17/01/2026), ambos trilha **114**, direção **A**, frame **165**.
+- **Cada GCOV tem 3,8 GB. O download na casa do Flau estimou ~4 h por arquivo (~260 KB/s).** Decisão (14/11): **baixar no Codespace**, não local. Nada baixado ainda.
+- **[A VERIFICAR]** nome exato da coleção (existe uma coleção **GCOV BETA V1** no catálogo, provavelmente onde estão as cenas de janeiro), polarizações (o "DHDH" do nome sugere dual-pol, é suposição), estrutura do HDF5 (a especificação oficial está em `docs/validation_references.md`), CRS e resolução.
+- **T38:** os nomes indicam uma aquisição em 24/12/2025 (ciclo 008). Se há GCOV dessa data é **desconhecido**.
+
+**Validação (T41)**: candidatos em `docs/validation_references.md`, **ninguém abriu os arquivos**. Principal: Copernicus EMS **EMSR857** (ativado em 17/01/2026). Plano B: UNOSAT Sentinel-1 de 23 a 24/01. Falta conferir se cobrem Chokwe e Macia e se há vetores para baixar.
+
+**Guias de 2026 (T33)**: não foi possível abrir as páginas oficiais. Resumos de terceiros confirmam 30 s ou 7 slides, link público e legendas em inglês. **Ninguém verificou o que mudou em 2026.**
+
+- **Contas Earthdata e registro no Local Event:** [A VERIFICAR] se os três têm. Fuso do prazo **[A VERIFICAR]**.
+- **Codespace:** Victor previa ~14:30 de 14/11. Agora é urgente, porque o download dos GCOV depende dele (token em Codespaces secrets, nome `EARTHDATA_TOKEN`).
+- **Avaliação do Flau (14/11):** o projeto "não tem cara de vencedor" hoje. Diagnóstico: falta o resultado real, e polígonos com slider são o padrão das outras equipes. Proposta (aguarda OK): front em história em passos (nuvens, radar, água, impacto), cortina antes/durante, imagem falsa-cor HH/HV como camada, impacto com vias e edificações, validação visível, Leaflet dentro do repo (sem CDN).
 
 ---
 
@@ -257,6 +273,9 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 
 **Decisões tomadas**
 - Caso Moçambique (A), plano B Índia/Nepal. Previsão de risco cortada. Flask. Começar simples e evoluir em fases. Trabalho em turnos.
+- **D14 (14/11, Flau):** baixar os GCOV no Codespace, não na máquina local (3,8 GB e ~4 h cada).
+- **D15 (14/11, Flau):** commits direto na `main`, no nome do Flau, sem co-autoria e sem menção ao assistente. A branch `claude/new-session-rttll5` foi apagada localmente; **apagar a remota no GitHub é pendência do Flau** (o proxy do assistente bloqueou).
+- Sem ML para detectar água. IA só na explicação (T21), rotulada.
 
 **Turnos (suposição de 14/11, ajustar se mudar)**
 - **1 · Flau (sozinho):** agora até ~15:30 de sáb. Conta, confirmar GO, baixar os 2 GCOV, inspecionar o HDF5, começar o recorte em dB.
@@ -268,18 +287,20 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 **Decisão proposta (aguarda OK de Victor e Davi):** **GO em Moçambique**, usando os dois GCOV de 05/01 e 17/01/2026 (trilha 114, direção A, frame 165). Licença sugerida: Apache-2.0 (ainda sem arquivo LICENSE, aguardando OK).
 
 **Pendências (preencher e mover para "tomadas")**
-1. Os 3 criarem conta Earthdata e confirmarem registro no mesmo Local Event + fuso do prazo.
-2. **Go/no-go de dados:** existem ≥2 cenas NISAR GCOV (mesma trilha/direção, HH/HV) sobre Limpopo/Incomati em janeiro/2026? Qual coleção (BETA ou provisional)?
-3. Escolha de hospedagem pública (D11) e licença (D12).
-4. Referência de validação (qual produto, para qual data).
-5. Fonte de estradas/edificações (OSM) e limite da área de estudo.
-6. Nome do projeto/tagline (inglês, curto).
-7. Responsável final pelo vídeo e combinação com o Jhuan.
+1. **Codespace do Victor + token Earthdata nos secrets** (bloqueia T09, T37, T10, T11).
+2. Os 3 criarem conta Earthdata, confirmarem o mesmo Local Event e o fuso do prazo.
+3. Confirmar o GO e a licença Apache-2.0 (Victor e Davi). Criar o arquivo `LICENSE` depois do OK.
+4. **T09/T37:** baixar os 2 GCOV no Codespace e mandar a saída de `h5ls -r` (estrutura, CRS, resolução, polarizações). Só então escrever o leitor e o recorte em dB.
+5. T38 (GCOV de 24/12/2025?), T41 (abrir EMSR857 e conferir cobertura), T33 (ler o guia oficial de 2026).
+6. Hospedagem pública (D11).
+7. Nome e tagline em inglês (T42). Responsável pelo vídeo e horário do Jhuan (T23).
+8. Decidir o redesenho do front (ver seção 12).
+9. Apagar a branch remota `claude/new-session-rttll5` no GitHub.
 
 **Próximos passos imediatos**
-1. Contas Earthdata → busca de cenas (bbox aproximado: oeste 32.0, sul -26.0, leste 33.5, norte -24.0; datas 01–20/01/2026) → decisão go/no-go até ~12:00.
-2. Criar repositório e esqueleto Flask com mapa e dados de exemplo.
-3. Baixar cenas e extrair HH/HV recortadas.
+1. Victor: Codespace e secret. Flau: baixar os 2 GCOV de lá, rodar `h5ls -r`.
+2. Com a estrutura do HDF5: leitor com recorte por janela, GeoTIFFs em dB (T10), máscara de água calibrada (T11), exportação (T13).
+3. Integrar no Flask (T14), deploy (T15), aceitação (T16).
 
 ---
 
@@ -303,3 +324,4 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 |---|---|---|
 | 14/11/2026 ~10:00 | Planejamento (Claude + equipe) | Versão 0.1: pesquisa do evento e do desafio, caso Moçambique escolhido, escopo cortado, arquitetura proposta. |
 | 14/11/2026 ~12:00 | Flau (com Claude) | Versão 0.2: 10 cenas encontradas (par GCOV 05/01 e 17/01, trilha 114, A, frame 165), GO proposto, turnos registrados, estrutura do repo, esqueleto Flask com dados mock e contrato do `stats.json`. |
+| 14/11/2026 ~13:46 | Flau (com Claude) | Versão 0.3: download dos GCOV passa para o Codespace (3,8 GB, ~4 h local); núcleo de detecção de água e de rota segura com testes sintéticos; página "How to read the radar"; rascunho do roteiro do vídeo; candidatos de validação (EMSR857, UNOSAT); coleção GCOV BETA existe no catálogo; avaliação do projeto e proposta de redesenho do front; commits na `main`. |
