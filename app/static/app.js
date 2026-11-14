@@ -78,7 +78,7 @@ function card(label, value, mock) {
 }
 
 (async () => {
-  stats = await (await fetch('/api/stats')).json();
+  stats = await (await fetch(window.STATS_URL || '/api/stats')).json();
   if (stats.mock) $('mock-flag').hidden = false;
 
   const [w, so, e, n] = stats.bbox;
@@ -92,6 +92,13 @@ function card(label, value, mock) {
   $('date-before').textContent = fmtDate(stats.scenes.before.date);
   $('date-during').textContent = fmtDate(stats.scenes.during.date);
   $('big-km2').textContent = stats.flooded_area_km2 == null ? '…' : Math.round(stats.flooded_area_km2).toLocaleString('en-US');
+
+  const rg = stats.flooded_area_range_km2;
+  if (rg) {
+    const f = (v) => Math.round(v).toLocaleString('en-US');
+    $('range-note').textContent = `Conservative estimate. Treating the darker land of the first scene differently gives up to ${f(rg[1])} km² (range ${f(rg[0])} to ${f(rg[1])} km²).`;
+    $('range-note').hidden = false;
+  }
 
   const ctx = stats.context_figures;
   if (ctx) {

@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md — The Algorithm's Oracle
 
 > **Memória compartilhada do projeto.** Qualquer agente de IA ou integrante deve ler este arquivo inteiro antes de trabalhar e **atualizar a seção 13 e o log (seção 15)** depois de qualquer decisão.
-> Última atualização: **14/11/2026, ~13:46 (horário de Brasília)** · Versão **0.3**
+> Última atualização: **14/11/2026, ~13:46 (horário de Brasília)** · Versão **0.4**
 
 Legenda de confiança usada neste documento:
 - **[CONFIRMADO]** vem de fonte oficial (NASA / Space Apps / ASF) ou da própria equipe.
@@ -259,6 +259,9 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 - **[A VERIFICAR]** nome exato da coleção (existe uma coleção **GCOV BETA V1** no catálogo, provavelmente onde estão as cenas de janeiro), polarizações (o "DHDH" do nome sugere dual-pol, é suposição), estrutura do HDF5 (a especificação oficial está em `docs/validation_references.md`), CRS e resolução.
 - **T38:** os nomes indicam uma aquisição em 24/12/2025 (ciclo 008). Se há GCOV dessa data é **desconhecido**.
 
+**Resultado da primeira detecção (14/11, dados reais, ainda não validado):** limiares HH < -14,6 dB e HV < -21,4 dB (vale do histograma de 17/01). Água nova **710 km²** (estimativa conservadora; **faixa 710 a 1.179 km²** conforme o tratamento do brilho da cena de 05/01, que tem a terra ~3 dB mais escura; a água permanente tem o mesmo brilho nas duas datas, por isso o limiar é absoluto). Água permanente 969 km². Imagem de conferência em `docs/preview/flood_qa.png`. A cena de 05/01 provavelmente já tinha enchente em curso. Floresta alagada provavelmente perdida.
+**Site (14/11):** versão estática gerada por `python pipeline/build_static.py` em `docs/`, para o GitHub Pages (Settings > Pages > main > /docs). **Link ainda não publicado.** Refazer o build a cada mudança no app ou no `stats.json`.
+
 **Validação (T41)**: candidatos em `docs/validation_references.md`, **ninguém abriu os arquivos**. Principal: Copernicus EMS **EMSR857** (ativado em 17/01/2026). Plano B: UNOSAT Sentinel-1 de 23 a 24/01. Falta conferir se cobrem Chokwe e Macia e se há vetores para baixar.
 
 **Guias de 2026 (T33)**: não foi possível abrir as páginas oficiais. Resumos de terceiros confirmam 30 s ou 7 slides, link público e legendas em inglês. **Ninguém verificou o que mudou em 2026.**
@@ -325,3 +328,4 @@ Equipe trabalha em **turnos** (inclui noite). Quem passa o turno atualiza a seç
 | 14/11/2026 ~10:00 | Planejamento (Claude + equipe) | Versão 0.1: pesquisa do evento e do desafio, caso Moçambique escolhido, escopo cortado, arquitetura proposta. |
 | 14/11/2026 ~12:00 | Flau (com Claude) | Versão 0.2: 10 cenas encontradas (par GCOV 05/01 e 17/01, trilha 114, A, frame 165), GO proposto, turnos registrados, estrutura do repo, esqueleto Flask com dados mock e contrato do `stats.json`. |
 | 14/11/2026 ~13:46 | Flau (com Claude) | Versão 0.3: download dos GCOV passa para o Codespace (3,8 GB, ~4 h local); núcleo de detecção de água e de rota segura com testes sintéticos; página "How to read the radar"; rascunho do roteiro do vídeo; candidatos de validação (EMSR857, UNOSAT); coleção GCOV BETA existe no catálogo; avaliação do projeto e proposta de redesenho do front; commits na `main`. |
+| 14/11/2026 ~16:30 | Flau (com Claude) | Versão 0.4: leitor do GCOV, detecção de água com dados reais (710 km² de água nova, faixa 710 a 1.179), `stats.json` real, camadas PNG, site estático em `docs/` para o GitHub Pages. |

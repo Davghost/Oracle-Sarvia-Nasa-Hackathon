@@ -29,6 +29,7 @@ a{color:var(--before)}
 .big span{font-size:52px;font-weight:800;line-height:1;color:var(--during)}
 .big small{font-size:16px;color:var(--muted);margin-top:4px}
 
+.range{font-size:14px;color:var(--ink);background:var(--bg);border-left:4px solid var(--during);padding:8px 10px;border-radius:4px;margin:0 0 12px}
 .facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .fact{background:var(--bg);border-radius:8px;padding:10px 12px}
 .fact b{display:block;font-size:26px;line-height:1.1}

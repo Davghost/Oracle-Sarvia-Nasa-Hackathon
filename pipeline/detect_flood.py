@@ -61,9 +61,14 @@ def warp(mask, tr, crs, dst=None):
     return out, (dtr, dw, dh)
 
 
-def save_overlay(mask3857, path, rgb, alpha=175):
-    rgba = np.zeros(mask3857.shape + (4,), np.uint8)
-    rgba[mask3857 > 0] = (*rgb, alpha)
+BLUE, RED = (31, 120, 200), (228, 87, 46)
+
+
+def save_overlay(path, layers, alpha=175):
+    """layers: list of (mask3857, rgb); later layers are drawn over earlier ones."""
+    rgba = np.zeros(layers[0][0].shape + (4,), np.uint8)
+    for mask, rgb in layers:
+        rgba[mask > 0] = (*rgb, alpha)
     Image.fromarray(rgba, "RGBA").save(path, optimize=True)
 
 
@@ -79,7 +84,7 @@ def main():
     ap.add_argument("--relative-before", action="store_true",
                     help="shift the 'before' thresholds by the difference of the land peaks (use if the whole scene is brighter/darker)")
     ap.add_argument("--min-pixels", type=int, default=8, help="drop water blobs smaller than this")
-    ap.add_argument("--maturity", default="UNCONFIRMED (BETA or PROVISIONAL)")
+    ap.add_argument("--maturity", default="Pre-validation release (Beta or Provisional), L2 GCOV product version 1.0.2")
     a = ap.parse_args()
     d, out, qa = Path(a.dir), Path(a.out), Path(a.qa)
     out.mkdir(parents=True, exist_ok=True); qa.mkdir(parents=True, exist_ok=True)
@@ -118,6 +123,8 @@ def main():
         print(f"{pol} median over permanent water: {a.before} {np.median(arr[(a.before, pol)][permanent]):.1f} dB, "
               f"{a.during} {np.median(arr[(a.during, pol)][permanent]):.1f} dB")
     w_before_rel = water_of(a.before, shift["HH"], shift["HV"])
+    new_abs_km2 = km(w_during & ~w_before)
+    new_rel_km2 = km(w_during & ~w_before_rel)
     print(f"[variant] thresholds on {a.before} moved by the land-peak difference: water {km(w_before_rel):.0f} km2, "
           f"NEW {km(w_during & ~w_before_rel):.0f} km2, water only before {km(w_before_rel & ~w_during):.0f} km2")
     if a.relative_before:
@@ -131,9 +138,10 @@ def main():
 
     # web overlays
     mb, dst = warp(w_before, tr, crs)
-    md, _ = warp(w_during, tr, crs, dst)
-    save_overlay(mb, out / "water_before.png", (31, 120, 200))
-    save_overlay(md, out / "water_during.png", (228, 87, 46))
+    mp, _ = warp(permanent, tr, crs, dst)
+    mn, _ = warp(new, tr, crs, dst)
+    save_overlay(out / "water_before.png", [(mb, BLUE)])
+    save_overlay(out / "water_during.png", [(mp, BLUE), (mn, RED)])   # blue = already water, red = new
     west, south, east, north = array_bounds(dst[2], dst[1], dst[0])
     to_ll = Transformer.from_crs(3857, 4326, always_xy=True)
     (lon_w, lat_s), (lon_e, lat_n) = to_ll.transform(west, south), to_ll.transform(east, north)
@@ -160,12 +168,15 @@ def main():
                        "direction": "ascending", "polarizations": ["HH", "HV"]},
         },
         "flooded_area_km2": round(km(new), 1),
+        "flooded_area_range_km2": [round(min(new_abs_km2, new_rel_km2), 1), round(max(new_abs_km2, new_rel_km2), 1)],
         "permanent_water_km2": round(km(permanent), 1),
         "method": {
             "threshold_db": {"HH": round(t_hh, 1), "HV": round(t_hv, 1)},
             "speckle_filter": "4x4 multilook in linear power (40 m pixels)",
             "notes": "Water = HH and HV both below threshold. Thresholds from the valley of the during-scene histogram. "
-                     "New flood = water(during) and not water(before). Pixel area counted only where both dates have data.",
+                     "New flood = water(during) and not water(before). Pixel area counted only where both dates have data. "
+                     "Permanent open water has the same brightness in both dates (HH -18.4 vs -17.7 dB) while land is about 3 dB brighter on 17 Jan, "
+                     "so one absolute threshold is used. Moving the 5 Jan thresholds by the land-peak difference gives a higher estimate; both are reported.",
         },
         "layers": {
             "before": {"type": "image", "url": "/outputs/water_before.png", "bounds": bounds},

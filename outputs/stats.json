@@ -7,7 +7,7 @@
     33.508,
     -23.9967
   ],
-  "maturity": "UNCONFIRMED (BETA or PROVISIONAL)",
+  "maturity": "Pre-validation release (Beta or Provisional), L2 GCOV product version 1.0.2",
   "collection": null,
   "product": "NISAR GCOV (L-band, gamma0)",
   "scenes": {
@@ -35,6 +35,10 @@
     }
   },
   "flooded_area_km2": 709.5,
+  "flooded_area_range_km2": [
+    709.5,
+    1179.0
+  ],
   "permanent_water_km2": 968.8,
   "method": {
     "threshold_db": {
@@ -42,7 +46,7 @@
       "HV": -21.4
     },
     "speckle_filter": "4x4 multilook in linear power (40 m pixels)",
-    "notes": "Water = HH and HV both below threshold. Thresholds from the valley of the during-scene histogram. New flood = water(during) and not water(before). Pixel area counted only where both dates have data."
+    "notes": "Water = HH and HV both below threshold. Thresholds from the valley of the during-scene histogram. New flood = water(during) and not water(before). Pixel area counted only where both dates have data. Permanent open water has the same brightness in both dates (HH -18.4 vs -17.7 dB) while land is about 3 dB brighter on 17 Jan, so one absolute threshold is used. Moving the 5 Jan thresholds by the land-peak difference gives a higher estimate; both are reported."
   },
   "layers": {
     "before": {
