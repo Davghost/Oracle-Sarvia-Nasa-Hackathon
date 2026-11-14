@@ -34,12 +34,12 @@
       ]
     }
   },
-  "flooded_area_km2": 709.5,
+  "flooded_area_km2": 982.5,
   "flooded_area_range_km2": [
     709.5,
-    1179.0
+    1455.6
   ],
-  "permanent_water_km2": 968.8,
+  "permanent_water_km2": 972.0,
   "method": {
     "threshold_db": {
       "HH": -14.6,
