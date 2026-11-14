@@ -55,6 +55,36 @@ def otsu_db(db: np.ndarray, max_samples: int = 2_000_000, seed: int = 0) -> floa
     return float(centers[np.argmax(between)])
 
 
+def valley_threshold(db, lo=-35.0, hi=5.0, bins=160, smooth=5, min_gap_db=4.0, min_ratio=1.15):
+    """Threshold at the valley between the dark (water) peak and the land peak of the histogram.
+
+    Better than Otsu when water is a small fraction of the scene (Otsu then lands on the
+    land peak). Returns None when there is no clear dark peak (e.g. a scene with little
+    water), so the caller can reuse a threshold from another date.
+    """
+    v = db[np.isfinite(db)]
+    if v.size == 0:
+        return None
+    hist, edges = np.histogram(v, bins=bins, range=(lo, hi))
+    centers = (edges[:-1] + edges[1:]) / 2
+    h = np.convolve(hist.astype(np.float64), np.ones(smooth) / smooth, mode="same")
+    land = int(np.argmax(h))
+    lim = int(np.searchsorted(centers, centers[land] - min_gap_db))
+    if lim < 3:
+        return None
+    # the dark mode must be a real local peak: the left tail of the land peak is higher
+    # than a small water peak, but it is not a peak (it only rises towards the land mode)
+    peaks = np.where((h[1:-1] > h[:-2]) & (h[1:-1] >= h[2:]))[0] + 1
+    peaks = peaks[(peaks < lim) & (h[peaks] >= 0.01 * h.max())]
+    if peaks.size == 0:
+        return None
+    dark = int(peaks[np.argmax(h[peaks])])
+    valley = dark + int(np.argmin(h[dark:land + 1]))
+    if valley == dark or h[dark] < min_ratio * h[valley]:
+        return None
+    return float(centers[valley])
+
+
 def water_mask(db: np.ndarray, threshold_db: float, min_pixels: int = 50) -> np.ndarray:
     """True where dB is below the threshold. NaN pixels are never water.
     Blobs smaller than min_pixels are dropped (isolated noise)."""

@@ -60,3 +60,16 @@ def test_small_blobs_removed():
     db[20:40, 20:40] = -30  # real blob
     mask = water.water_mask(db, -15, min_pixels=10)
     assert not mask[10, 10] and mask[25, 25]
+
+
+def test_valley_threshold_between_modes():
+    rng = np.random.default_rng(5)
+    v = np.concatenate([rng.normal(-6, 2, 92000), rng.normal(-18, 2.5, 8000)]).astype("f4")
+    thr = water.valley_threshold(v)
+    assert thr is not None and -16 < thr < -10
+
+
+def test_valley_threshold_none_without_dark_peak():
+    rng = np.random.default_rng(6)
+    v = rng.normal(-8, 2, 50000).astype("f4")
+    assert water.valley_threshold(v) is None

@@ -15,7 +15,7 @@ Example: `outputs/mock/stats.json` (all values there are fake).
 | `scenes.before` / `scenes.during` | object | `date` (YYYY-MM-DD), `granule`, `track`, `frame`, `direction`, `polarizations` (list, or `null` until confirmed in T37). |
 | `flooded_area_km2` | number | New water: water(during) minus water(before). |
 | `permanent_water_km2` | number | Water already present before the flood. |
-| `method` | object | `threshold_db`, `speckle_filter`, `notes`. Fill after T11. |
+| `method` | object | `threshold_db` (a number, or an object like `{"HH": -14.5, "HV": -21}`), `speckle_filter`, `notes`. |
 | `layers.before` / `layers.during` | object | `{"type":"geojson","url":...}` or `{"type":"image","url":...,"bounds":[[south,west],[north,east]]}`. URLs start with `/outputs/`. |
 | `layers.radar_rgb` | object, optional | Same format as other layers. NASA-style false-color radar image (HH red, HV green, ratio blue). Shown in story step 2 when present. |
 | `impact` | object, optional | `roads_blocked_km`, `buildings_affected` (numbers, estimates from OSM, T19). Cards in step 4 appear only for fields that exist. |
