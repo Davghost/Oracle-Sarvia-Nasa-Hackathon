@@ -11,8 +11,6 @@ Known limits: flooded forest (bright, double bounce), wind-roughened water,
 relief shadows. A single dB threshold will miss or confuse these.
 """
 import numpy as np
-from scipy import ndimage as ndi
-from skimage.filters import threshold_otsu
 
 
 def to_db(linear: np.ndarray) -> np.ndarray:
@@ -26,6 +24,7 @@ def to_db(linear: np.ndarray) -> np.ndarray:
 
 def boxcar(linear: np.ndarray, size: int = 5) -> np.ndarray:
     """Mean filter in LINEAR scale (right place to reduce speckle), ignoring NaN."""
+    from scipy import ndimage as ndi  # imported here so otsu_db works without scipy
     lin = np.asarray(linear, dtype=np.float32)
     valid = np.isfinite(lin) & (lin > 0)
     num = ndi.uniform_filter(np.where(valid, lin, 0.0), size=size, mode="nearest")
@@ -45,7 +44,15 @@ def otsu_db(db: np.ndarray, max_samples: int = 2_000_000, seed: int = 0) -> floa
         raise ValueError("no valid pixels")
     if vals.size > max_samples:
         vals = np.random.default_rng(seed).choice(vals, max_samples, replace=False)
-    return float(threshold_otsu(vals))
+    hist, edges = np.histogram(vals, bins=256)
+    centers = (edges[:-1] + edges[1:]) / 2
+    w0 = np.cumsum(hist)
+    w1 = w0[-1] - w0
+    m0 = np.cumsum(hist * centers)
+    mean0 = m0 / np.maximum(w0, 1)
+    mean1 = (m0[-1] - m0) / np.maximum(w1, 1)
+    between = w0 * w1 * (mean0 - mean1) ** 2   # between-class variance (classic Otsu)
+    return float(centers[np.argmax(between)])
 
 
 def water_mask(db: np.ndarray, threshold_db: float, min_pixels: int = 50) -> np.ndarray:
@@ -53,6 +60,7 @@ def water_mask(db: np.ndarray, threshold_db: float, min_pixels: int = 50) -> np.
     Blobs smaller than min_pixels are dropped (isolated noise)."""
     mask = np.isfinite(db) & (db < threshold_db)
     if min_pixels > 1:
+        from scipy import ndimage as ndi
         labels, n = ndi.label(mask)
         if n:
             sizes = np.bincount(labels.ravel())
