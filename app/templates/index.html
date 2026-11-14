@@ -3,23 +3,76 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Flood view with NISAR radar</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>Seeing the flood through the clouds</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <div id="banner">NISAR data are <b>provisional</b> and may be reprocessed. <span id="mock-flag" hidden>MOCK DATA: not real results.</span></div>
-<div id="map"></div>
-<aside id="panel">
-  <h1 id="title">Loading…</h1>
-  <label for="slider">Before <span>◀ ▶</span> During</label>
-  <input id="slider" type="range" min="0" max="100" value="100">
-  <dl id="numbers"></dl>
-  <p><a href="{{ url_for('how_to_read_radar') }}">How to read the radar →</a></p>
-  <h2>Limitations</h2>
-  <ul id="limits"></ul>
-</aside>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<div id="layout">
+  <aside id="story">
+    <nav id="progress" aria-label="Story steps"></nav>
+
+    <section class="step" data-step="1">
+      <p class="kicker">January 2026 · southern Mozambique</p>
+      <h1>The clouds hid the flood</h1>
+      <p>Heavy rain flooded the Limpopo and Incomati basins. Optical satellites could not see the water: NASA reports that Sentinel-2 saw only clouds while the flood was happening.</p>
+      <div id="context-figures" class="facts"></div>
+      <p class="source" id="context-source"></p>
+    </section>
+
+    <section class="step" data-step="2">
+      <p class="kicker">Step 2</p>
+      <h1>Radar sees through clouds</h1>
+      <p>NISAR sends its own signal and listens for the echo. Clouds do not stop it, day or night. Calm water acts like a mirror and sends the signal away, so water looks <b>dark</b>.</p>
+      <p>The map shows the water the radar found <b>before</b> the flood: the rivers and lakes that are always there.</p>
+      <p><a href="{{ url_for('how_to_read_radar') }}">How to read the radar →</a></p>
+    </section>
+
+    <section class="step" data-step="3">
+      <p class="kicker">Step 3</p>
+      <h1>Where the water rose</h1>
+      <p>Drag the bar at the bottom of the map. Left is <span class="dot before"></span><b id="date-before">before</b>, right is <span class="dot during"></span><b id="date-during">during</b> the flood.</p>
+      <div class="big"><span id="big-km2">…</span><small>km² of new water</small></div>
+      <p class="source">New water = water during the flood that was not water before. An estimate from a simple threshold, not an official assessment.</p>
+    </section>
+
+    <section class="step" data-step="4">
+      <p class="kicker">Step 4</p>
+      <h1>Who is affected</h1>
+      <div id="impact" class="facts"></div>
+      <h2>Limitations</h2>
+      <ul id="limits"></ul>
+      <details>
+        <summary>Data details</summary>
+        <dl id="numbers"></dl>
+      </details>
+    </section>
+
+    <div id="controls">
+      <button id="prev" type="button">← Back</button>
+      <span id="stepcount"></span>
+      <button id="next" type="button">Next →</button>
+    </div>
+  </aside>
+
+  <main id="mapwrap">
+    <div id="map"></div>
+    <div id="curtain" hidden>
+      <div id="divider"></div>
+      <span class="tag left">Before</span>
+      <span class="tag right">During</span>
+      <input id="slider" type="range" min="0" max="100" value="50" aria-label="Compare before and during">
+    </div>
+    <div id="legend" hidden>
+      <div><span class="sw before"></span> Water before the flood</div>
+      <div><span class="sw during"></span> Water during the flood</div>
+    </div>
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

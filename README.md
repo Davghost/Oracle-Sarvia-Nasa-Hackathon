@@ -26,3 +26,9 @@ Open http://localhost:5000
 Project memory for the team: `PROJECT_CONTEXT.md`. Tasks: `TASKS.xlsx`. AI use: `AI_USAGE_LOG.md`.
 
 Never commit credentials, tokens or HDF5 files.
+
+## Third-party resources
+
+- [Leaflet](https://leafletjs.com/) 1.9.4 (BSD-2-Clause), copied to `app/static/vendor/leaflet/` so the app does not depend on a CDN
+- Map tiles: OpenStreetMap contributors
+- NISAR data: NASA / ISRO, distributed by ASF DAAC (provisional)

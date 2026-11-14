@@ -17,6 +17,9 @@ Example: `outputs/mock/stats.json` (all values there are fake).
 | `permanent_water_km2` | number | Water already present before the flood. |
 | `method` | object | `threshold_db`, `speckle_filter`, `notes`. Fill after T11. |
 | `layers.before` / `layers.during` | object | `{"type":"geojson","url":...}` or `{"type":"image","url":...,"bounds":[[south,west],[north,east]]}`. URLs start with `/outputs/`. |
+| `layers.radar_rgb` | object, optional | Same format as other layers. NASA-style false-color radar image (HH red, HV green, ratio blue). Shown in story step 2 when present. |
+| `impact` | object, optional | `roads_blocked_km`, `buildings_affected` (numbers, estimates from OSM, T19). Cards in step 4 appear only for fields that exist. |
+| `context_figures` | object | `source` (string) and `items` (list of `{label, value}`). Official figures with a citation, shown in step 1. |
 | `limitations` | list of strings | Shown in the panel. |
 
 Rules: never invent values; use `null` when something is not confirmed. Keep layer files small (they go in git).
