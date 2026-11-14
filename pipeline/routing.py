@@ -15,12 +15,14 @@ from shapely.strtree import STRtree
 
 
 def _edge_list(G):
+    """Normalize simple and multi-graphs to one edge representation."""
     if G.is_multigraph():
         return [(u, v, k, d) for u, v, k, d in G.edges(keys=True, data=True)]
     return [(u, v, None, d) for u, v, d in G.edges(data=True)]
 
 
 def _geom(G, u, v, data):
+    """Use an edge geometry when available, otherwise connect its nodes."""
     g = data.get("geometry")
     if g is not None:
         return g
@@ -28,6 +30,7 @@ def _geom(G, u, v, data):
 
 
 def _length(G, u, v, data):
+    """Prefer OSMnx's meter length and fall back to node-coordinate distance."""
     if "length" in data:
         return data["length"]
     return math.hypot(G.nodes[u]["x"] - G.nodes[v]["x"], G.nodes[u]["y"] - G.nodes[v]["y"])
@@ -35,6 +38,8 @@ def _length(G, u, v, data):
 
 def blocked_edges(G, flood):
     """Edges (u, v, key) whose geometry touches the flooded area."""
+    # STRtree makes the geometry/flood intersection query practical for a
+    # network larger than the small synthetic graphs used by the tests.
     edges = _edge_list(G)
     if not edges:
         return []
@@ -70,6 +75,8 @@ def safe_route(G, origin_xy, dest_xy, flood):
       detour_ratio: safe length / normal length (None if not computable)
       blocked_edges: number of edges removed
     """
+    # The routing core deliberately accepts a generic graph; acquisition of
+    # OSM data and conversion to this shape remain outside this module.
     o = nearest_node(G, *origin_xy)
     d = nearest_node(G, *dest_xy)
 

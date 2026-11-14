@@ -13,6 +13,7 @@ GRID = "/science/LSAR/GCOV/grids/frequencyA"
 
 
 def grid_info(f):
+    """Read the geospatial metadata needed to address the GCOV grid."""
     g = f[GRID]
     x = g["xCoordinates"][()]
     y = g["yCoordinates"][()]
@@ -29,7 +30,8 @@ def bbox_window(info, bbox_lonlat, margin_m=0.0):
     from pyproj import Transformer
     w, s, e, n = bbox_lonlat
     t = Transformer.from_crs(4326, info["epsg"], always_xy=True)
-    # densify the edges: a lon/lat box is not a rectangle in UTM
+    # Densify the edges because a lon/lat box is not a rectangle after UTM
+    # projection. This avoids clipping the study area at curved corners.
     lons = np.concatenate([np.linspace(w, e, 25), np.full(25, e), np.linspace(e, w, 25), np.full(25, w)])
     lats = np.concatenate([np.full(25, s), np.linspace(s, n, 25), np.full(25, n), np.linspace(n, s, 25)])
     xs, ys = t.transform(lons, lats)
@@ -49,6 +51,7 @@ def bbox_window(info, bbox_lonlat, margin_m=0.0):
 
 
 def _block_mean(a, f, min_frac):
+    """Average complete f-by-f blocks while enforcing valid-data coverage."""
     nr, nc = a.shape
     a = a[: nr // f * f, : nc // f * f]
     valid = np.isfinite(a) & (a > 0)
@@ -67,6 +70,7 @@ def read_multilooked(f, term, window, factor=4, strip_rows=2048, sigma0=False, m
     term: 'HHHH' or 'HVHV'. window: from bbox_window. Returns (array, transform_tuple)
     where transform_tuple = (pixel_w, 0, left, 0, -pixel_h, top) in the file's CRS.
     """
+    # Strips keep memory bounded for multi-gigabyte source products.
     info = grid_info(f)
     row0, row1, col0, col1 = window
     nr = (row1 - row0) // factor * factor

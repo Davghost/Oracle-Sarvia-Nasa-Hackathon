@@ -32,6 +32,7 @@ GRANULES = {
 
 
 def load(tag, pol, d):
+    """Load one generated dB raster and preserve its georeferencing."""
     with rasterio.open(d / f"{tag}_{pol}_db.tif") as src:
         return src.read(1), src.transform, src.crs
 
@@ -50,6 +51,8 @@ def iso(tag):
 
 def warp(mask, tr, crs, dst=None):
     """Reproject a boolean mask to EPSG:3857 (what Leaflet draws). Returns (array, transform)."""
+    # All web overlays share one destination grid so the before/during layers
+    # line up exactly in Leaflet.
     if dst is None:
         h, w = mask.shape
         dtr, dw, dh = calculate_default_transform(crs, "EPSG:3857", w, h, *array_bounds(h, w, tr))
@@ -93,6 +96,8 @@ def main():
     d, out, qa = Path(a.dir), Path(a.out), Path(a.qa)
     out.mkdir(parents=True, exist_ok=True); qa.mkdir(parents=True, exist_ok=True)
 
+    # The four rasters must share the same grid: comparisons are pixel-wise and
+    # `common` excludes any pixel lacking data in either date/polarization.
     arr = {}
     for tag in (a.before, a.during):
         for pol in ("HH", "HV"):
@@ -111,12 +116,15 @@ def main():
         common &= np.isfinite(v)
     print(f"pixels with data in both dates: {100 * common.mean():.1f}% of the window")
 
+    # Both polarizations must be dark. The helper also removes isolated blobs
+    # through the public water-mask implementation.
     def water_of(tag, d_hh=0.0, d_hv=0.0):
         m = (arr[(tag, "HH")] < t_hh + d_hh) & (arr[(tag, "HV")] < t_hv + d_hv) & common
         return water.water_mask(np.where(m, -99.0, 0.0), -50.0, min_pixels=a.min_pixels)
 
     km = lambda m: float(m.sum()) * px_km2
-    # the whole scene can be brighter/darker between dates: measure it
+    # The whole scene can be brighter/darker between dates; estimate that
+    # acquisition-wide shift from the land peak before optional normalization.
     shift = {pol: land_mode(arr[(a.before, pol)]) - land_mode(arr[(a.during, pol)]) for pol in ("HH", "HV")}
     for pol in ("HH", "HV"):
         print(f"{pol} land peak: {a.before} {land_mode(arr[(a.before, pol)]):.1f} dB, {a.during} {land_mode(arr[(a.during, pol)]):.1f} dB (before - during = {shift[pol]:+.1f} dB)")
@@ -124,7 +132,8 @@ def main():
     w_before, w_during = water_of(a.before), water_of(a.during)
     w_during_strict = w_during
 
-    # change criterion: a pixel that got much darker than the scene as a whole (land is ~3 dB brighter on the second date)
+    # Optional sensitivity analysis admits pixels substantially darker than the
+    # scene-wide change, without changing the strict result by default.
     d_hh = arr[(a.during, "HH")] - arr[(a.before, "HH")]
     drop = d_hh - np.nanmedian(d_hh[common])
 
@@ -160,7 +169,8 @@ def main():
     print(f"water {a.before}: {km(w_before):8.0f} km2   water {a.during}: {km(w_during):8.0f} km2")
     print(f"permanent (both): {km(permanent):8.0f} km2   NEW flood: {km(new):8.0f} km2   water only before: {km(gone):8.0f} km2")
 
-    # web overlays
+    # Web overlays are reprojected to Web Mercator, the coordinate system used
+    # by Leaflet's tile map.
     mb, dst = warp(w_before, tr, crs)
     mp, _ = warp(permanent, tr, crs, dst)
     mn, _ = warp(new, tr, crs, dst)

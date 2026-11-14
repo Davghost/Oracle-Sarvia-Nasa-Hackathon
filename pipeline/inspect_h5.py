@@ -13,6 +13,7 @@ MAX_ATTR_CHARS = 140
 
 
 def short(v):
+    """Format metadata without dumping large arrays or long attribute values."""
     if isinstance(v, bytes):
         v = v.decode("utf-8", "replace")
     if isinstance(v, np.ndarray):
@@ -22,6 +23,7 @@ def short(v):
 
 
 def show_attrs(obj, indent):
+    """Print attributes using the same indentation as their parent object."""
     for k, v in obj.attrs.items():
         try:
             print(f"{indent}  @{k} = {short(v)}")
@@ -30,6 +32,7 @@ def show_attrs(obj, indent):
 
 
 def describe_dataset(name, ds, indent):
+    """Print dataset metadata and safe previews of small datasets."""
     line = f"{indent}[D] {name}  shape={ds.shape} dtype={ds.dtype}"
     if ds.chunks:
         line += f" chunks={ds.chunks}"
@@ -52,6 +55,7 @@ def describe_dataset(name, ds, indent):
 
 
 def walk(group, path="/", depth=0):
+    """Recursively describe every group and dataset in an HDF5 file."""
     indent = "  " * depth
     for name in sorted(group.keys()):
         item = group[name]
@@ -65,6 +69,7 @@ def walk(group, path="/", depth=0):
 
 
 def main():
+    """Validate the command line and inspect one HDF5 input file."""
     if len(sys.argv) != 2:
         print(__doc__)
         return 1

@@ -19,6 +19,7 @@ TERMS = {"HH": "HHHH", "HV": "HVHV"}
 
 
 def to_db(a):
+    """Convert positive linear-power pixels to dB and preserve nodata as NaN."""
     out = np.full(a.shape, np.nan, np.float32)
     ok = np.isfinite(a) & (a > 0)
     out[ok] = 10 * np.log10(a[ok])
@@ -26,6 +27,7 @@ def to_db(a):
 
 
 def save(path, arr, transform, epsg):
+    """Write a GeoTIFF, or a documented NumPy fallback without rasterio."""
     try:
         import rasterio
         from rasterio.transform import Affine
@@ -54,6 +56,7 @@ def main():
     a = ap.parse_args()
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
 
+    # Only the study-area window is read; the source HDF5 files are several GB.
     with h5py.File(a.file, "r") as f:
         info = gr.grid_info(f)
         win = gr.bbox_window(info, a.bbox)

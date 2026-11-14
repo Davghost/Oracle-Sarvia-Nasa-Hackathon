@@ -12,22 +12,27 @@ app = Flask(__name__)
 
 def stats_path() -> Path:
     """Real results win; fall back to mock data while the pipeline is not ready."""
+    # Keeping the fallback in the server makes the interface usable before a
+    # pipeline run, while a generated real result always takes precedence.
     real = OUTPUTS / "stats.json"
     return real if real.exists() else OUTPUTS / "mock" / "stats.json"
 
 
 @app.get("/")
 def index():
+    """Render the interactive flood-story page."""
     return render_template("index.html")
 
 
 @app.get("/how-to-read-radar")
 def how_to_read_radar():
+    """Render the explanatory page about SAR interpretation."""
     return render_template("radar.html")
 
 
 @app.get("/api/stats")
 def api_stats():
+    """Return the JSON contract consumed by the browser application."""
     path = stats_path()
     if not path.exists():
         abort(404, "stats.json not found")
@@ -36,6 +41,7 @@ def api_stats():
 
 @app.get("/outputs/<path:name>")
 def outputs(name):
+    """Serve the generated overlay files used by the map."""
     return send_from_directory(OUTPUTS, name)
 
 

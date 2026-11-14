@@ -22,12 +22,15 @@ DEST = Path(__file__).resolve().parent.parent / "data"
 
 
 def main() -> int:
+    """Authenticate with ASF, locate the two configured granules and download them."""
     token = os.environ.get("EARTHDATA_TOKEN")
     if not token:
         print("EARTHDATA_TOKEN is not set.", file=sys.stderr)
         return 1
     DEST.mkdir(exist_ok=True)
 
+    # Search by the exact granule identifiers so the before/during pair stays
+    # tied to the same track and frame used by the analysis.
     results = asf.granule_search(GRANULES)
     print(f"Found {len(results)} result(s) for {len(GRANULES)} requested granule(s).")
     for r in results:

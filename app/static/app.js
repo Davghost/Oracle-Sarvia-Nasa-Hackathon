@@ -15,6 +15,7 @@ const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB'
 let stats = null, layers = {}, step = 1;
 
 async function addLayer(spec, pane, style) {
+  // The stats contract allows either vector GeoJSON or raster image overlays.
   if (!spec) return null;
   if (spec.type === 'geojson') {
     const data = await (await fetch(spec.url)).json();
@@ -47,6 +48,7 @@ function updateClip(active) {
 }
 
 function setStep(n) {
+  // Each story step controls both explanatory content and visible map layers.
   step = Math.max(1, Math.min(TOTAL, n));
   document.querySelectorAll('.step').forEach(el => el.classList.toggle('on', +el.dataset.step === step));
   document.querySelectorAll('#progress button').forEach((b, i) => {
@@ -78,6 +80,7 @@ function card(label, value, mock) {
 }
 
 (async () => {
+  // Load the same contract from Flask or, in the static build, from docs/.
   stats = await (await fetch(window.STATS_URL || '/api/stats')).json();
   if (stats.mock) $('mock-flag').hidden = false;
 

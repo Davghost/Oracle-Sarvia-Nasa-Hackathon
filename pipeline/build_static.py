@@ -18,6 +18,7 @@ DOCS = ROOT / "docs"
 
 
 def fix(html, page):
+    """Rewrite Flask absolute URLs to paths that work under GitHub Pages."""
     html = html.replace('href="/static/', 'href="static/').replace('src="/static/', 'src="static/')
     html = html.replace('href="/how-to-read-radar"', 'href="how-to-read-radar.html"')
     html = html.replace('href="/"', 'href="index.html"')
@@ -27,6 +28,8 @@ def fix(html, page):
 
 
 def main():
+    # Publishing mock results would make the public page look like a real
+    # scientific result, so the build stops unless the pipeline produced data.
     stats_src = ROOT / "outputs" / "stats.json"
     if not stats_src.exists():
         raise SystemExit("outputs/stats.json not found: run the pipeline first (this would publish mock data).")

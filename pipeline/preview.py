@@ -25,15 +25,18 @@ STEP = 4  # show every 4th pixel (keeps PNGs small)
 
 
 def load(tag, pol, d):
+    """Load one dB raster and its transform for QA visualizations."""
     with rasterio.open(d / f"{tag}_{pol}_db.tif") as src:
         return src.read(1), src.transform
 
 
 def norm(a, lo, hi):
+    """Map dB values to the [0, 1] range used in RGB output."""
     return np.clip((a - lo) / (hi - lo), 0, 1)
 
 
 def falsecolor(hh, hv):
+    """Build the project approximation of the NASA-style false color."""
     rgb = np.dstack([norm(hh, -25, 0), norm(hv, -30, -5), norm(hh - hv, 0, 15)])
     rgb[~np.isfinite(rgb).all(axis=2)] = 1.0  # no data = white
     return rgb[::STEP, ::STEP]
@@ -49,6 +52,8 @@ def main():
     d, out = Path(a.dir), Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    # Keep both dates and polarizations in memory because the QA compares them
+    # pixel by pixel and produces a common histogram.
     data = {}
     for tag in (a.before, a.during):
         for pol in ("HH", "HV"):
