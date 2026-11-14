@@ -5,3 +5,6 @@ h5py
 rasterio
 asf_search
 pytest
+shapely
+networkx
+osmnx
