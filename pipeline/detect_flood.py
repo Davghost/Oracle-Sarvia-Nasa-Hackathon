@@ -36,6 +36,14 @@ def load(tag, pol, d):
         return src.read(1), src.transform, src.crs
 
 
+def land_mode(db, lo=-35.0, hi=5.0, bins=160):
+    """Most common dB value in the scene (the land peak of the histogram)."""
+    v = db[np.isfinite(db)]
+    hist, edges = np.histogram(v, bins=bins, range=(lo, hi))
+    k = int(np.argmax(np.convolve(hist, np.ones(5) / 5, mode="same")))
+    return float((edges[k] + edges[k + 1]) / 2)
+
+
 def iso(tag):
     return f"{tag[:4]}-{tag[4:6]}-{tag[6:]}"
 
@@ -68,6 +76,8 @@ def main():
     ap.add_argument("--qa", default=str(ROOT / "docs" / "preview"))
     ap.add_argument("--hh-thr", type=float, help="override the HH threshold (dB)")
     ap.add_argument("--hv-thr", type=float, help="override the HV threshold (dB)")
+    ap.add_argument("--relative-before", action="store_true",
+                    help="shift the 'before' thresholds by the difference of the land peaks (use if the whole scene is brighter/darker)")
     ap.add_argument("--min-pixels", type=int, default=8, help="drop water blobs smaller than this")
     ap.add_argument("--maturity", default="UNCONFIRMED (BETA or PROVISIONAL)")
     a = ap.parse_args()
@@ -92,15 +102,30 @@ def main():
         common &= np.isfinite(v)
     print(f"pixels with data in both dates: {100 * common.mean():.1f}% of the window")
 
-    def water_of(tag):
-        m = (arr[(tag, "HH")] < t_hh) & (arr[(tag, "HV")] < t_hv) & common
+    def water_of(tag, d_hh=0.0, d_hv=0.0):
+        m = (arr[(tag, "HH")] < t_hh + d_hh) & (arr[(tag, "HV")] < t_hv + d_hv) & common
         return water.water_mask(np.where(m, -99.0, 0.0), -50.0, min_pixels=a.min_pixels)
+
+    km = lambda m: float(m.sum()) * px_km2
+    # the whole scene can be brighter/darker between dates: measure it
+    shift = {pol: land_mode(arr[(a.before, pol)]) - land_mode(arr[(a.during, pol)]) for pol in ("HH", "HV")}
+    for pol in ("HH", "HV"):
+        print(f"{pol} land peak: {a.before} {land_mode(arr[(a.before, pol)]):.1f} dB, {a.during} {land_mode(arr[(a.during, pol)]):.1f} dB (before - during = {shift[pol]:+.1f} dB)")
 
     w_before, w_during = water_of(a.before), water_of(a.during)
     permanent = w_before & w_during
+    for pol in ("HH", "HV"):
+        print(f"{pol} median over permanent water: {a.before} {np.median(arr[(a.before, pol)][permanent]):.1f} dB, "
+              f"{a.during} {np.median(arr[(a.during, pol)][permanent]):.1f} dB")
+    w_before_rel = water_of(a.before, shift["HH"], shift["HV"])
+    print(f"[variant] thresholds on {a.before} moved by the land-peak difference: water {km(w_before_rel):.0f} km2, "
+          f"NEW {km(w_during & ~w_before_rel):.0f} km2, water only before {km(w_before_rel & ~w_during):.0f} km2")
+    if a.relative_before:
+        w_before = w_before_rel
+        permanent = w_before & w_during
+        print("using the relative 'before' thresholds for the outputs")
     new = w_during & ~w_before
     gone = w_before & ~w_during
-    km = lambda m: float(m.sum()) * px_km2
     print(f"water {a.before}: {km(w_before):8.0f} km2   water {a.during}: {km(w_during):8.0f} km2")
     print(f"permanent (both): {km(permanent):8.0f} km2   NEW flood: {km(new):8.0f} km2   water only before: {km(gone):8.0f} km2")
 
