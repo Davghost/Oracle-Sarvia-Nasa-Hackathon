@@ -1,0 +1,100 @@
+{
+  "mock": false,
+  "area_name": "Limpopo / Incomati basins, southern Mozambique",
+  "bbox": [
+    31.9836,
+    -26.0034,
+    33.508,
+    -23.9967
+  ],
+  "maturity": "UNCONFIRMED (BETA or PROVISIONAL)",
+  "collection": null,
+  "product": "NISAR GCOV (L-band, gamma0)",
+  "scenes": {
+    "before": {
+      "date": "2026-01-05",
+      "granule": "NISAR_L2_PR_GCOV_009_114_A_165_4005_DHDH_A_20260105T034232_20260105T034253_X05010_N_P_J_001",
+      "track": 114,
+      "frame": 165,
+      "direction": "ascending",
+      "polarizations": [
+        "HH",
+        "HV"
+      ]
+    },
+    "during": {
+      "date": "2026-01-17",
+      "granule": "NISAR_L2_PR_GCOV_010_114_A_165_4005_DHDH_A_20260117T034232_20260117T034254_X05010_N_P_J_001",
+      "track": 114,
+      "frame": 165,
+      "direction": "ascending",
+      "polarizations": [
+        "HH",
+        "HV"
+      ]
+    }
+  },
+  "flooded_area_km2": 709.5,
+  "permanent_water_km2": 968.8,
+  "method": {
+    "threshold_db": {
+      "HH": -14.6,
+      "HV": -21.4
+    },
+    "speckle_filter": "4x4 multilook in linear power (40 m pixels)",
+    "notes": "Water = HH and HV both below threshold. Thresholds from the valley of the during-scene histogram. New flood = water(during) and not water(before). Pixel area counted only where both dates have data."
+  },
+  "layers": {
+    "before": {
+      "type": "image",
+      "url": "/outputs/water_before.png",
+      "bounds": [
+        [
+          -26.00341,
+          31.98362
+        ],
+        [
+          -23.99668,
+          33.508
+        ]
+      ]
+    },
+    "during": {
+      "type": "image",
+      "url": "/outputs/water_during.png",
+      "bounds": [
+        [
+          -26.00341,
+          31.98362
+        ],
+        [
+          -23.99668,
+          33.508
+        ]
+      ]
+    }
+  },
+  "context_figures": {
+    "source": "NASA Scientific Visualization Studio #5661, NISAR Reveals Major Flooding in Mozambique",
+    "items": [
+      {
+        "label": "people displaced",
+        "value": "600,000+"
+      },
+      {
+        "label": "homes flooded",
+        "value": "~30,000"
+      },
+      {
+        "label": "acres of cropland damaged",
+        "value": "~400,000"
+      }
+    ]
+  },
+  "limitations": [
+    "NISAR data are provisional and may be reprocessed.",
+    "The first scene (5 Jan) was taken when flooding may already have started in places, so 'new water' means new compared with that date.",
+    "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
+    "Rough water (wind) and relief shadows can cause errors. Thresholds were set on one scene and not validated against an independent map yet."
+  ]
+}
