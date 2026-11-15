@@ -1,5 +1,13 @@
 # Relatório — vias e edificações OSM afetadas (15/11/2026)
 
+> **Registro histórico de desenvolvimento — superado pelos dados atuais.**
+> As afirmações abaixo sobre consulta incompleta, ausência de `impact` em
+> `stats.json` e contagens indisponíveis descrevem o estado desta tarefa em
+> 15/11/2026; não descrevem o estado atual do projeto. Para resultados atuais,
+> consulte `outputs/stats.json`, `docs/stats.json` e
+> [`data_and_methods.md`](technical/data_and_methods.md). Este relatório foi
+> mantido como registro do processo, não como especificação nem fonte vigente.
+
 ## Objetivo
 
 Baixar vias e footprints de edificações do OpenStreetMap, cruzá-los com os

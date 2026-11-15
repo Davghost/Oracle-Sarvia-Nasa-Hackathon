@@ -35,8 +35,8 @@ Pages conclui.
 
 O Pages não executa Flask, não expõe `/api/route`, não carrega uma rede de
 rotas pelo servidor e não pode guardar secrets de provedor atrás de um proxy.
-Por isso o passo 5 fica visível com aviso, mas seus controles de cálculo são
-ocultados. Para usar cálculo de rotas, publique o Flask em um serviço de
+Por isso a aba **Explore routes** fica visível com aviso, mas seus controles de
+cálculo são ocultados. Para usar cálculo de rotas, publique o Flask em um serviço de
 aplicação e aponte a interface para esse backend por HTTPS; essa integração
 cross-origin ainda precisa ser configurada se os domínios forem diferentes.
 

@@ -39,7 +39,21 @@ ambiente `EARTHDATA_TOKEN`; não inclua credenciais no Git.
    python pipeline/detect_flood.py --loosen 3
    ```
 
-4. Comparar a máscara com EMSR857 AOI02. O padrão espera a máscara
+4. Construir a timeline temporal, depois que as duas cenas principais e as
+   aquisições NISAR de 12 e 24/12/2025 estiverem processadas:
+
+   ```bash
+   python pipeline/build_timeline.py --download-missing
+   ```
+
+   Esse comando usa `EARTHDATA_TOKEN` para baixar apenas aquisições extras
+   ausentes, processa cada HDF5 sequencialmente e grava snapshots PNG e
+   metadados em `outputs/`. Para regenerar somente a análise a partir dos
+   GeoTIFFs já preparados, execute `python pipeline/build_timeline.py` sem a
+   opção de download. A timeline usa track 114/frame 165 e acaba em 17/01/2026;
+   não representa a fase de recuo.
+
+5. Comparar a máscara com EMSR857 AOI02. O padrão espera a máscara
    `outputs/flood_extent.geojson` (gerada pelo detector) e o pacote
    `data/reference/EMSR857_products.zip`. Atualiza `outputs/stats.json` e
    `outputs/validation_difference.geojson`:
@@ -48,19 +62,19 @@ ambiente `EARTHDATA_TOKEN`; não inclua credenciais no Git.
    python pipeline/validate_reference.py
    ```
 
-5. Preparar a rede viária para o planejador:
+6. Preparar a rede viária para o planejador:
 
    ```bash
    python pipeline/prepare_network.py --download
    ```
 
-6. Para regenerar resumo e GeoJSON de impacto OSM:
+7. Para regenerar resumo e GeoJSON de impacto OSM:
 
    ```bash
    python pipeline/osm_impact.py
    ```
 
-7. Reconstruir a cópia estática depois de alterar o app ou os artefatos:
+8. Reconstruir a cópia estática depois de alterar o app ou os artefatos:
 
    ```bash
    python pipeline/build_static.py
@@ -72,7 +86,8 @@ ambiente `EARTHDATA_TOKEN`; não inclua credenciais no Git.
 |---|---|
 | `outputs/stats.json` | Contrato de dados usado por Flask e frontend. |
 | `outputs/water_before.png`, `water_during.png` | Overlays de água pré-gerados. |
-| `outputs/flood_new_water.tif` | Máscara de água nova usada na análise e rotas. |
+| `outputs/water_timeline_*.png` | Snapshots NISAR contra a referência temporal de 12/12/2025. |
+| `outputs/flood_new_water.tif` | Máscara de mudança em água aberta detectável usada na análise e rotas. |
 | `outputs/validation_difference.geojson` | Áreas exclusivas NISAR e EMS dentro do recorte comparado. |
 | `outputs/impact_features.geojson`, `impact_roads.geojson` | Feições e vias OSM cruzadas com a estimativa de inundação. |
 | `outputs/routing_network.npz` | Rede compilada carregada pelo servidor para o motor de rotas. |

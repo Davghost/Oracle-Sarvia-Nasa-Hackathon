@@ -12,8 +12,10 @@ GitHub ou um visualizador Markdown local.
   riscos observados e prioridades para apresentação e próximas versões.
 - [Guia de uso](user_guide.md): como navegar pela história, interpretar as
   camadas e usar o planejador quando o servidor está disponível.
+- [Roteiro de retorno local](local_feedback_guide.md): tarefas e perguntas para
+  recolher feedback anónimo de pessoas familiarizadas com o contexto local.
 - [Conceitos](concepts.md): explicação de NISAR, Copernicus, IoU, OpenStreetMap,
-  água nova e outras expressões usadas no app.
+  água aberta detectável e impacto potencial.
 
 ## Documentação técnica
 

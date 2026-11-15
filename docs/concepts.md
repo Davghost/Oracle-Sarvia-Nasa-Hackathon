@@ -14,19 +14,21 @@ projeto. As cenas estudadas são GCOV de banda L. NISAR é a fonte da detecção
 que o sistema calcula; “água detectada” significa resultado do método e dos
 limiares do projeto, não uma classificação oficial do satélite.
 
-## Água permanente e água nova
+## Água permanente e água aberta detectável
 
 O sistema classifica água nas cenas de 5 e 17 de janeiro de 2026. A estimativa
-de **água nova** é:
+de **mudança em água aberta detectável** é:
 
 ```text
-água nova = água em 17/01 AND NOT água em 05/01
+água detectável em 17/01 AND NOT água detectável em 05/01
 ```
 
-Assim, “nova” quer dizer nova em relação à cena de 5 de janeiro. Se a cheia já
-tinha começado antes dessa data, a estimativa não inclui toda a inundação do
-evento. O método atual usa a resposta de HH e HV após multilook 4×4 e limiares
-heurísticos; não é um classificador universal.
+Assim, “adicional” quer dizer detectável em relação à cena de 5 de janeiro.
+Se a cheia já tinha começado antes dessa data, a estimativa não inclui toda a
+inundação do evento. A estimativa principal usa `--loosen 3`; a faixa exibida
+representa cenários de sensibilidade, não intervalo de confiança. O método
+atual usa a resposta de HH e HV após multilook 4×4 e limiares heurísticos; não
+é um classificador universal.
 
 ## Copernicus EMS e a comparação
 
@@ -37,8 +39,8 @@ Sentinel-1 e tem aquisição próxima à cena NISAR de 17 de janeiro.
 
 Essa comparação não mede “verdade” absoluta: os produtos têm sensores,
 métodos e definições diferentes. A camada Copernicus representa uma área
-classificada pelo produto EMS; a camada NISAR representa água nova em relação
-a 5 de janeiro.
+classificada pelo produto EMS; a camada NISAR representa mudança em água
+aberta detectável em relação a 5 de janeiro.
 
 ### IoU
 
@@ -54,18 +56,18 @@ recorte, 50,483 km² são compartilhados, 16,316 km² estão apenas no resultado
 NISAR e 42,565 km² apenas no produto EMS. O valor descreve concordância
 espacial naquele recorte, não precisão geral do sensor.
 
-## OpenStreetMap e “estradas em água nova”
+## OpenStreetMap e exposição potencial
 
 **OpenStreetMap (OSM)** fornece a geometria e os atributos das vias. OSM não é
 o sensor de inundação e não decide se uma estrada está alagada. O projeto
-cruza as vias mapeadas com a estimativa de água nova do NISAR. O trecho
-resultante quer dizer “via OSM que intersecta a máscara de água nova”, não
+cruza as vias mapeadas com a estimativa de água aberta detectável do NISAR.
+O trecho resultante quer dizer “via OSM que intersecta a máscara”, não
 “via confirmada como alagada ou fechada”.
 
 O mapa de impacto usa ainda pontos, polígonos e dados de rede do OSM para
-estimar estados como acessível, perto da água, isolado, sem via mapeada ou fora
-da cobertura de radar. “Potencialmente afetado” não significa dano confirmado;
-as contagens dependem da cobertura e da qualidade do OSM.
+estimar estados como acessível, perto da água, potencialmente isolado, sem via
+mapeada ou fora da cobertura de radar. “Impacto potencial” não significa dano
+confirmado; as contagens dependem da cobertura do radar e da qualidade do OSM.
 
 Dados OSM são distribuídos sob ODbL e exigem atribuição aos colaboradores.
 
@@ -73,8 +75,8 @@ Dados OSM são distribuídos sob ODbL e exigem atribuição aos colaboradores.
 
 O planejador usa uma rede viária OSM compilada e as máscaras NISAR para gerar
 opções de carro e, quando habilitado, trechos de barco e caminhada. “Rota
-seca” significa que a via não intersecta a máscara de água nova considerada
-pelo motor. Isso não confirma que a estrada esteja aberta, segura ou
+seca” significa que a via não intersecta a máscara de água aberta detectável
+considerada pelo motor. Isso não confirma que a estrada esteja aberta, segura ou
 transitável. O radar também não mede profundidade navegável para o barco.
 
 ## Imagem de satélite, mapa híbrido e NDVI

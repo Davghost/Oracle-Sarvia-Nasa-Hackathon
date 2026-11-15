@@ -50,9 +50,10 @@ tiles configurados no servidor sem expor tokens no JavaScript.
 
 `pipeline/build_static.py` renderiza os templates Flask, muda os caminhos para
 URLs relativas, injeta `stats.json` e copia overlays e arquivos estáticos para
-`docs/`. Essa publicação não executa Python nem possui endpoint de rotas ou o
-proxy de tiles autenticado. A interface mantém os cinco passos, mas esconde os
-controles de cálculo e informa que o passo 5 depende do Flask.
+`docs/`. Ela gera `index.html` para a história, `workspace.html` para a área de
+ferramenta e a página de leitura SAR. Essa publicação não executa Python nem
+possui endpoint de rotas ou o proxy de tiles autenticado. A aba de impactos
+usa os dados pré-gerados; a aba de rotas explica que o cálculo depende do Flask.
 
 ## Interfaces entre componentes
 

@@ -8,7 +8,7 @@ avaliação oficial ou auditoria de segurança.
 ## Parecer resumido
 
 O projeto tem uma narrativa acessível e uma cadeia demonstrável: observação
-NISAR, estimativa de água nova, comparação com um produto independente,
+NISAR, estimativa de água aberta detectável, comparação com um produto independente,
 cruzamento com OpenStreetMap e exploração de rotas. A validação espacial e a
 visualização explícita das diferenças dão mais transparência do que apresentar
 somente um número de acurácia. Os resultados, porém, continuam sendo uma
@@ -25,11 +25,15 @@ limitações de cobertura e uma API de rotas que não existe no GitHub Pages.
 
 ### O que funciona bem
 
-- A história em cinco passos conduz do contexto da cheia até a comparação e
-  as rotas.
+- A história em três passos conduz do contexto da cheia até a estimativa; a
+  página separada de ferramenta reúne impactos e rotas sem interromper essa
+  narrativa.
+- A timeline permite explorar quatro aquisições co-registradas, com um quadro
+  por data, reprodução pausável e transição visual entre imagens identificada
+  como dissolve, sem sugerir observações intermediárias.
 - O controle antes/depois e as camadas permitem explorar o resultado no mapa.
-- O passo de impacto informa que a interseção com água é exposição potencial,
-  não dano ou interdição confirmada.
+- A aba informa que os resultados representam impacto potencial segundo a
+  água aberta detectável, não dano ou interdição confirmados.
 - No Pages, o aviso explica que o cálculo de rotas depende do servidor Flask.
 
 ### Atritos que afetam confiança e compreensão
@@ -38,9 +42,13 @@ limitações de cobertura e uma API de rotas que não existe no GitHub Pages.
   apresentação local, uma versão integral em português (ou seletor de idioma)
   reduziria a barreira de leitura; manter terminologia consistente também
   ajudaria avaliadores internacionais.
-- “New water” depende da cena de referência em 5 de janeiro. Não equivale à
+- A mudança em água aberta detectável depende da cena de referência em
+  5 de janeiro. Não equivale à
   extensão total da cheia; essa distinção deve permanecer visível perto do
   número principal.
+- A timeline compatível termina em 17 de janeiro. Ela demonstra as mudanças
+  observadas até a cheia, mas não apresenta o recuo; a limitação aparece na
+  própria interface.
 - O número global de 982,5 km² e o IoU de 0,4616 referem-se a escopos
   espaciais diferentes. A página deve evitar que o usuário interprete o IoU
   como validação de toda a área de 982,5 km².
