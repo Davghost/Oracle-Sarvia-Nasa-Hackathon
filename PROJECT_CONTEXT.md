@@ -109,8 +109,9 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 ### Parcial/prototipal
 
 - `routing.py` aceita um grafo NetworkX com nós `x/y` e geometrias Shapely,
-  bloqueia arestas alagadas e calcula desvio. Não obtém dados OSM, não é uma
-  rota operacional e não é chamado por `app/app.py`.
+  prepara índices offline, bloqueia arestas alagadas e calcula desvio. Não
+  obtém dados OSM, não é uma rota operacional; o `app/app.py` consome somente
+  o cache preparado.
 - `affected_buildings` existe, mas não há integração de footprints OSM no
   fluxo real.
 - `impact` existe no mock, mas o `stats.json` real atual não possui esse campo;
