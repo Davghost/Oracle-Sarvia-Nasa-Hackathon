@@ -29,6 +29,14 @@ def bbox_window(info, bbox_lonlat, margin_m=0.0):
     """(row0, row1, col0, col1) of the pixels covering a lon/lat box (west, south, east, north)."""
     from pyproj import Transformer
     w, s, e, n = bbox_lonlat
+    if not all(np.isfinite(v) for v in (w, s, e, n, margin_m)):
+        raise ValueError("bounding box and margin must be finite numbers")
+    if not (-180 <= w < e <= 180 and -90 <= s < n <= 90):
+        raise ValueError("bounding box must satisfy -180 <= west < east <= 180 and -90 <= south < north <= 90")
+    if margin_m < 0:
+        raise ValueError("margin_m must be non-negative")
+    if not np.isfinite(info["dx"]) or not np.isfinite(info["dy"]) or info["dx"] <= 0 or info["dy"] == 0:
+        raise ValueError("grid spacing must be finite, with positive x spacing and non-zero y spacing")
     t = Transformer.from_crs(4326, info["epsg"], always_xy=True)
     # Densify the edges because a lon/lat box is not a rectangle after UTM
     # projection. This avoids clipping the study area at curved corners.
@@ -71,6 +79,14 @@ def read_multilooked(f, term, window, factor=4, strip_rows=2048, sigma0=False, m
     where transform_tuple = (pixel_w, 0, left, 0, -pixel_h, top) in the file's CRS.
     """
     # Strips keep memory bounded for multi-gigabyte source products.
+    if isinstance(factor, bool) or not isinstance(factor, (int, np.integer)) or factor <= 0:
+        raise ValueError("factor must be a positive integer")
+    if isinstance(strip_rows, bool) or not isinstance(strip_rows, (int, np.integer)) or strip_rows <= 0:
+        raise ValueError("strip_rows must be a positive integer")
+    if not np.isfinite(min_valid_frac) or not 0 < min_valid_frac <= 1:
+        raise ValueError("min_valid_frac must be in (0, 1]")
+    if term not in {"HHHH", "HVHV"}:
+        raise ValueError("term must be HHHH or HVHV")
     info = grid_info(f)
     row0, row1, col0, col1 = window
     nr = (row1 - row0) // factor * factor

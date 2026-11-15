@@ -54,6 +54,11 @@ def main():
     ap.add_argument("--sigma0", action="store_true", help="convert gamma0 to sigma0 with rtcGammaToSigmaFactor")
     ap.add_argument("--out", default=str(Path(__file__).resolve().parent.parent / "data" / "processed"))
     a = ap.parse_args()
+    if a.factor <= 0:
+        ap.error("--factor must be a positive integer")
+    w, s, e, n = a.bbox
+    if not (-180 <= w < e <= 180 and -90 <= s < n <= 90):
+        ap.error("--bbox must satisfy -180 <= W < E <= 180 and -90 <= S < N <= 90")
     out = Path(a.out); out.mkdir(parents=True, exist_ok=True)
 
     # Only the study-area window is read; the source HDF5 files are several GB.

@@ -1,11 +1,12 @@
 import io
 import json
+import math
 from pathlib import Path
 import sys
 from zipfile import ZipFile
 
 import pytest
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon, box, shape
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline"))
 import validate_reference  # noqa: E402
@@ -79,6 +80,44 @@ def test_compare_geometries_exports_each_side_of_spatial_difference():
         "system_only", "reference_only",
     }
     assert all(item["geometry"]["type"] in ("Polygon", "MultiPolygon") for item in features)
+    expected_areas = {
+        "system_only": result["system_only_area_km2"],
+        "reference_only": result["reference_only_area_km2"],
+    }
+    for item in features:
+        exported = validate_reference.project_to_metric(
+            shape(item["geometry"]),
+            validate_reference.metric_epsg(aoi),
+        )
+        assert exported.is_valid
+        assert exported.area / 1_000_000 == pytest.approx(
+            expected_areas[item["properties"]["classification"]], rel=0.01
+        )
+
+
+def test_difference_simplification_preserves_metric_area():
+    aoi = box(32.0, -25.1, 32.1, -25.0)
+    upper_edge = [
+        (32.09 - i * 0.0008, -25.03 + 0.0015 * math.sin(i * math.pi / 10))
+        for i in range(101)
+    ]
+    mask = Polygon([(32.01, -25.08), (32.09, -25.08), *upper_edge])
+    reference = box(32.01, -25.08, 32.05, -25.02)
+
+    result = validate_reference.compare_geometries(mask, reference, aoi, 1)
+    system_only = next(
+        item for item in result["difference_features"]
+        if item["properties"]["classification"] == "system_only"
+    )
+    exported = validate_reference.project_to_metric(
+        shape(system_only["geometry"]),
+        validate_reference.metric_epsg(aoi),
+    )
+
+    assert exported.is_valid
+    assert exported.area / 1_000_000 == pytest.approx(
+        result["system_only_area_km2"], rel=0.01
+    )
 
 
 def test_invalid_input_geometry_is_repaired_and_reported():
