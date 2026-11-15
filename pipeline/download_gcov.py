@@ -1,4 +1,7 @@
-"""Download the two GCOV scenes (before/during) into data/.  [NOT TESTED against the real API]
+"""Download the configured before/during GCOV scenes into data/.
+
+The configured granules were exercised against ASF in November 2026. This
+does not guarantee compatibility with every product or future API version.
 
 Run this in the Codespace (fast network), not on a slow home connection.
 Needs: pip install asf_search

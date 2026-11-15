@@ -1,20 +1,25 @@
-# 30-second video: draft script (T23)
+# Roteiro de demonstração — rascunho de 30 segundos
 
-Rules: 30 s maximum, English subtitles, visible watermark on any AI-generated image/video, no NASA logos, declare AI use. Body of the video = screen recording of the real app.
+O roteiro abaixo mostra a história de dados e a função de rota sem apresentar
+estimativas como fatos confirmados. Grave a etapa de rotas na aplicação Flask:
+no GitHub Pages o passo 5 aparece, mas o cálculo não está disponível.
 
-The rescue route is the main feature, so it gets the most screen time.
-
-| Time | Screen | Voice-over / subtitle (draft) |
+| Tempo | Imagem na tela | Narração/legenda em inglês |
 |---|---|---|
-| 0-4 s | App step 1: clouds covering the map | "January 2026, Mozambique. Clouds hid the flood from optical satellites." |
-| 4-9 s | Step 2/3: clouds lift, red new-water layer, before/after slider | "NISAR's radar sees through clouds: 982 square kilometres of new water." |
-| 9-24 s | Step 5: click the team's base, click a point inside the flood. Route appears: car leg along the dry road, boat icon at the water's edge, dashed boat leg to the pin. Scroll the step-by-step directions | "Rescue teams pick a base and a target in the flood. We drive them on roads the radar saw dry, launch the boat at the water's edge and guide them in." |
-| 24-27 s | Toggle "Car only", then back to "Car and boat"; show the grey alternative lines | "Car only or car and boat, with every option on the map." |
-| 27-30 s | Closing card: team name, link | "The Algorithm's Oracle. Open source." |
+| 0–4 s | Passo 1, nuvens sobre o sul de Moçambique | “January 2026. Clouds hid the flood from optical satellites.” |
+| 4–9 s | Passos 2–3, radar e comparação das datas | “NISAR radar helps map water beneath clouds. This estimate is new water since January 5.” |
+| 9–15 s | Passo 4, polígonos NISAR-only e EMS-only | “We compare it with independent Copernicus flood mapping. In this area, IoU is 0.46—and the differences remain visible.” |
+| 15–25 s | Passo 5 no servidor Flask: origem, destino, opções e trecho de barco | “The experimental planner explores road and boat access using mapped roads and the radar-based water estimate.” |
+| 25–30 s | Tela final com nome e ressalva | “The Algorithm’s Oracle: from radar to rescue. Estimates only; routes are not operational guidance.” |
 
-Notes
-- 982 km² is the real value in `outputs/stats.json` (`flooded_area_km2: 982.5`). Re-check it if the detection is rerun.
-- Good demo trip: base in Chókwè (`33.004, -24.530`), destination `33.0206, -24.7070`. It gives 29.3 km by car and 2.8 km by boat, launched south of Chókwè.
-- The rescue step needs the Flask app with `outputs/routing_network.npz`; the static GitHub Pages copy has no routes. Record from `python app\app.py`.
-- Total spoken text is about 70 words, which fits 30 s at a brisk pace. Trim the 9-24 s line if it runs long.
-- Jhuan edits. Any AI intro/outro must be watermarked and logged in `AI_USAGE_LOG.md`.
+## Preparação e revisão
+
+- Use um resultado atual de outputs/stats.json; o valor da água nova hoje é
+  982,5 km², mas confirme-o antes da gravação.
+- O exemplo de rota documentado no README parte de Chókwè. Confira se os
+  artefatos e a rede atuais ainda produzem esse percurso antes de usá-lo.
+- Mostre a diferença espacial no passo 4 e não descreva IoU como precisão ou
+  verdade-terreno.
+- Grave rotas no app Flask; o fallback estático não calcula rotas.
+- Se usar mídia gerada por IA, declare o uso de acordo com as regras atuais do
+  evento e registre a ferramenta em AI_USAGE_LOG.md.

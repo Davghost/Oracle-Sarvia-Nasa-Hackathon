@@ -1,6 +1,6 @@
-"""Print the structure of an HDF5 file (T37). Reads metadata only, plus tiny 1D/scalar datasets.
+"""Print an HDF5 structure. Reads metadata and only tiny 1D/scalar datasets.
 
-Usage:  python pipeline/inspect_h5.py data/<file>.h5 > docs/h5_structure.txt
+Usage:  python pipeline/inspect_h5.py data/<file>.h5 > docs/h5_structure_17jan.txt
 Needs:  pip install h5py
 Assumes nothing about the NISAR layout: it just walks the whole file.
 """

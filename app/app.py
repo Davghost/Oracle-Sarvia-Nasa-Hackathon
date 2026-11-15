@@ -7,6 +7,8 @@ import json
 import os
 import sys
 import threading
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
 
@@ -19,6 +21,41 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS = ROOT / "outputs"
 
 app = Flask(__name__)
+
+DEFAULT_SATELLITE_TILE_URL = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/"
+    "MapServer/tile/{z}/{y}/{x}"
+)
+DEFAULT_HYBRID_TILE_URL = DEFAULT_SATELLITE_TILE_URL
+DEFAULT_HYBRID_LABELS_URL = (
+    "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/"
+    "World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+)
+
+
+def map_config():
+    """Expose public map metadata; configured provider URLs stay server-side."""
+    satellite_url = os.environ.get("SARVIA_SATELLITE_TILE_URL")
+    hybrid_url = os.environ.get("SARVIA_HYBRID_TILE_URL")
+    config = {
+        "satellite": True,
+        "hybrid": True,
+        "attribution": {
+            "satellite": os.environ.get("SARVIA_SATELLITE_ATTRIBUTION", "© Esri"),
+            "hybrid": os.environ.get(
+                "SARVIA_HYBRID_ATTRIBUTION",
+                "© Esri | © OpenStreetMap contributors",
+            ),
+        },
+    }
+    config["satellite_url"] = (
+        "/map-tiles/satellite/{z}/{x}/{y}" if satellite_url else DEFAULT_SATELLITE_TILE_URL
+    )
+    config["hybrid_url"] = (
+        "/map-tiles/hybrid/{z}/{x}/{y}" if hybrid_url else DEFAULT_HYBRID_TILE_URL
+    )
+    config["hybrid_labels_url"] = DEFAULT_HYBRID_LABELS_URL if not hybrid_url else ""
+    return config
 
 # Route API settings (environment variables, all optional).
 ROUTE_WORKERS = max(1, int(os.environ.get("SARVIA_ROUTE_WORKERS", "2")))
@@ -46,13 +83,43 @@ def stats_path() -> Path:
 @app.get("/")
 def index():
     """Render the interactive flood-story page."""
-    return render_template("index.html")
+    return render_template("index.html", map_config=map_config())
 
 
 @app.get("/how-to-read-radar")
 def how_to_read_radar():
     """Render the explanatory page about SAR interpretation."""
     return render_template("radar.html")
+
+
+@app.get("/map-tiles/<provider>/<int:z>/<int:x>/<int:y>")
+def map_tiles(provider, z, x, y):
+    """Proxy configured provider tiles so credentials never reach the browser."""
+    defaults = {
+        "satellite": DEFAULT_SATELLITE_TILE_URL,
+        "hybrid": DEFAULT_HYBRID_TILE_URL,
+    }
+    template = os.environ.get(f"SARVIA_{provider.upper()}_TILE_URL", defaults.get(provider))
+    if not template or provider not in {"satellite", "hybrid"}:
+        abort(404)
+    if z < 0 or x < 0 or y < 0:
+        abort(404)
+    try:
+        url = template.format(z=z, x=x, y=y, s="a")
+    except (KeyError, ValueError):
+        app.logger.error("invalid tile URL template for %s", provider)
+        abort(502)
+    try:
+        response = urlopen(Request(url, headers={"User-Agent": "SarvIA/1.0"}), timeout=10)
+        payload = response.read()
+        content_type = response.headers.get_content_type()
+    except (HTTPError, URLError, ValueError) as exc:
+        app.logger.warning("map tile unavailable for %s: %s", provider, exc)
+        abort(502)
+    if content_type not in {"image/png", "image/jpeg", "image/webp"}:
+        abort(502)
+    return app.response_class(payload, content_type=content_type,
+                              headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/api/stats")
@@ -167,4 +234,6 @@ def outputs(name):
 if __name__ == "__main__":
     # Warm the routing engine in the background so the first route is fast.
     threading.Thread(target=lambda: network_path().exists() and get_network(), daemon=True).start()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Keep the interactive debugger off by default, including on a public bind.
+    # Enable it explicitly only during local development with FLASK_DEBUG=1.
+    app.run(host="0.0.0.0", port=5000, debug=os.environ.get("FLASK_DEBUG") == "1")

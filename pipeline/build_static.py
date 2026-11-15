@@ -23,7 +23,11 @@ def fix(html, page):
     html = html.replace('href="/how-to-read-radar"', 'href="how-to-read-radar.html"')
     html = html.replace('href="/"', 'href="index.html"')
     if page == "index":
-        html = html.replace('<script src="static/app.js">', '<script>window.STATS_URL = "stats.json";</script>\n<script src="static/app.js">')
+        html = html.replace(
+            '<script src="static/app.js">',
+            '<script>window.STATS_URL = "stats.json"; window.SARVIA_MAP_CONFIG = {};</script>\n'
+            '<script src="static/app.js">',
+        )
     return html
 
 

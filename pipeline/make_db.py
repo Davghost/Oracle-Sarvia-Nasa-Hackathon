@@ -1,4 +1,4 @@
-"""Crop a GCOV scene to the study area, multilook, convert to dB, save GeoTIFFs (T10).
+"""Crop a GCOV scene to the study area, multilook, convert to dB and save GeoTIFFs.
 
 Example (PowerShell):
   python pipeline\\make_db.py --file data\\<scene>.h5 --tag 20260117
