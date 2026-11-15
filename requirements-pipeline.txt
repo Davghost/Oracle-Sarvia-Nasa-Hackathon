@@ -8,7 +8,7 @@ pytest
 pandas
 geopandas
 shapely>=2.0
-networkx
+osmium>=4.0
 osmnx>=2.1,<3.0
 pyproj
 pillow

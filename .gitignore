@@ -222,6 +222,10 @@ __marimo__/
 # --- Oracle: dados e segredos (nunca versionar) ---
 data/*
 !data/.gitkeep
+cache/
+outputs/road_network.graphml
+outputs/road_network.pickle
+outputs/flood_mask.geojson
 *.h5
 *.hdf5
 *.he5
@@ -229,3 +233,6 @@ data/*
 *earthdata*token*
 /data/osmnx_cache/
 /outputs/flood_extent.geojson
+# the compiled route network (outputs/routing_network.npz, ~18 MB) is versioned
+# so the app works right after cloning; only its temporary file is ignored
+/outputs/routing_network.tmp.npz

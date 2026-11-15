@@ -4,12 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>How to read the radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="page-body">
-<div id="banner">NISAR data are <b>provisional</b> and may be reprocessed.</div>
+<div id="banner">NISAR data are provisional and may be reprocessed.</div>
 <main class="page">
-  <p><a href="{{ url_for('index') }}">← Back to the map</a></p>
+  <p class="back"><a href="{{ url_for('index') }}">Back to the map</a></p>
   <h1>How to read the radar</h1>
   <p class="lead">A short guide to what the NISAR radar sees, and why it helps when floods hide under clouds.</p>
 

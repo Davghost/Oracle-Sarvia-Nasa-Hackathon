@@ -77,10 +77,22 @@
         ]
       ]
     },
+    "impact_features": {
+      "type": "geojson",
+      "url": "/outputs/impact_features.geojson"
+    },
+    "impact_roads": {
+      "type": "geojson",
+      "url": "/outputs/impact_roads.geojson"
+    },
     "validation_difference": {
       "type": "geojson",
       "url": "/outputs/validation_difference.geojson"
     }
+  },
+  "routing": {
+    "flood_raster": "outputs/flood_new_water.tif",
+    "network": "outputs/routing_network.npz"
   },
   "context_figures": {
     "source": "NASA Scientific Visualization Studio #5661, NISAR Reveals Major Flooding in Mozambique",
@@ -123,5 +135,187 @@
     "overlap_fraction_nisar": 0.7557,
     "overlap_fraction_ems": 0.5425,
     "interpretation": "Spatial agreement only, not ground truth: NISAR new water is relative to 2026-01-05; EMS maps semi-automatically extracted flooded area."
+  },
+  "impact": {
+    "categories": {
+      "school": {
+        "total": 479,
+        "by_state": {
+          "in_water": 0,
+          "isolated": 130,
+          "near_water": 3,
+          "accessible": 8,
+          "no_road": 10,
+          "not_observed": 328
+        },
+        "by_kind": {
+          "school": 433,
+          "kindergarten": 23,
+          "college": 23
+        },
+        "named": 418,
+        "mapped": 479
+      },
+      "health": {
+        "total": 170,
+        "by_state": {
+          "in_water": 0,
+          "isolated": 35,
+          "near_water": 2,
+          "accessible": 16,
+          "no_road": 1,
+          "not_observed": 116
+        },
+        "by_kind": {
+          "clinic": 57,
+          "hospital": 45,
+          "pharmacy": 38,
+          "doctors": 22,
+          "dentist": 3,
+          "centre": 1,
+          "optometrist": 1,
+          "laboratory": 1,
+          "Urgências_Médicas_e_Laboratório": 1,
+          "yes": 1
+        },
+        "named": 141,
+        "mapped": 170
+      },
+      "community": {
+        "total": 851,
+        "by_state": {
+          "in_water": 34,
+          "isolated": 160,
+          "near_water": 63,
+          "accessible": 139,
+          "no_road": 68,
+          "not_observed": 387
+        },
+        "by_kind": {
+          "building_cluster": 774,
+          "village": 31,
+          "hamlet": 23,
+          "town": 20,
+          "city": 3
+        },
+        "named": 49,
+        "mapped": 77,
+        "places": {
+          "total": 77,
+          "by_state": {
+            "in_water": 4,
+            "isolated": 14,
+            "near_water": 2,
+            "accessible": 11,
+            "no_road": 2,
+            "not_observed": 44
+          }
+        },
+        "clusters": {
+          "total": 774,
+          "by_state": {
+            "in_water": 30,
+            "isolated": 146,
+            "near_water": 61,
+            "accessible": 128,
+            "no_road": 66,
+            "not_observed": 343
+          },
+          "buildings_in_clusters": 701252
+        }
+      },
+      "bridge": {
+        "total": 244,
+        "by_state": {
+          "in_water": 33,
+          "isolated": 56,
+          "near_water": 1,
+          "accessible": 8,
+          "no_road": 0,
+          "not_observed": 146
+        },
+        "by_kind": {
+          "primary": 48,
+          "trunk": 44,
+          "unclassified": 39,
+          "track": 29,
+          "secondary": 28,
+          "tertiary": 23,
+          "residential": 21,
+          "service": 6,
+          "trunk_link": 5,
+          "primary_link": 1
+        }
+      }
+    },
+    "buildings": {
+      "total": 707967,
+      "by_state": {
+        "in_water": 2345,
+        "isolated": 137948,
+        "near_water": 3937,
+        "accessible": 69772,
+        "no_road": 11305,
+        "not_observed": 482660
+      }
+    },
+    "roads": {
+      "flooded_km": 370.6,
+      "by_class": {
+        "primary": {
+          "flooded_km": 13.6,
+          "observed_km": 262.7,
+          "total_km": 755.6
+        },
+        "secondary": {
+          "flooded_km": 8.2,
+          "observed_km": 310.0,
+          "total_km": 683.6
+        },
+        "tertiary": {
+          "flooded_km": 8.9,
+          "observed_km": 670.7,
+          "total_km": 1525.3
+        },
+        "local": {
+          "flooded_km": 168.2,
+          "observed_km": 9759.4,
+          "total_km": 27090.7
+        },
+        "track": {
+          "flooded_km": 171.6,
+          "observed_km": 1774.3,
+          "total_km": 3476.7
+        }
+      }
+    },
+    "states": [
+      "in_water",
+      "isolated",
+      "near_water",
+      "accessible",
+      "no_road",
+      "not_observed"
+    ],
+    "parameters": {
+      "near_water_m": 250.0,
+      "road_snap_m": 500.0,
+      "bridge_approach_m": 250.0,
+      "cluster_cell_m": 100.0,
+      "min_cluster_buildings": 10,
+      "water_pixel_m": 40.0
+    },
+    "coverage": {
+      "radar_observed_fraction": 0.673,
+      "main_network_junctions": 149748,
+      "main_dry_network_junctions": 128064
+    },
+    "source": "OpenStreetMap (Geofabrik extract)",
+    "osm_source": "mozambique-latest.osm.pbf",
+    "osm_timestamp": "2026-11-14T21:20:41Z",
+    "license": "© OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
+    "radar_date": "2026-01-17",
+    "estimated_at_utc": "2026-11-15T16:22:48+00:00",
+    "method": "Each mapped element gets one state from the new water the radar saw on the flood date: on new water; cut off (no dry road from the main road network); within 250 m of new water; dry road access; no mapped road link; or outside the radar footprint. Potentially affected, not confirmed damage."
   }
 }

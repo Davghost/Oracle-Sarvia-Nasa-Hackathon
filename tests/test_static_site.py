@@ -34,12 +34,16 @@ def test_static_site_serves_pages_stats_and_prebuilt_layers():
             assert 'window.STATS_URL = "stats.json"' in page
             assert "static/app.js" in page
             assert "Independent map comparison" in page
+            assert "What the flood may reach" in page
+            assert "OpenStreetMap contributors" in page
 
         with urlopen(f"{base_url}/stats.json") as response:
             stats = json.load(response)
             assert response.status == 200
             assert stats["mock"] is False
             assert stats["validation"]["iou"] == 0.4616
+            assert stats["impact"]["categories"]["school"]["total"] > 0
+            assert {"impact_features", "impact_roads", "validation_difference"} <= set(stats["layers"])
 
         for layer in stats["layers"].values():
             with urlopen(f"{base_url}/{layer['url']}") as response:
@@ -71,39 +75,25 @@ def test_static_build_copies_optional_geojson_layer(tmp_path, monkeypatch):
     (outputs / "stats.json").write_text(json.dumps({
         "mock": False,
         "layers": {
-            "roads_blocked": {
-                "type": "geojson",
-                "url": "/outputs/roads_blocked.geojson",
-            },
-            "validation_difference": {
-                "type": "geojson",
-                "url": "/outputs/validation_difference.geojson",
-            },
+            "impact_features": {"type": "geojson", "url": "/outputs/impact_features.geojson"},
+            "impact_roads": {"type": "geojson", "url": "/outputs/impact_roads.geojson"},
+            "validation_difference": {"type": "geojson", "url": "/outputs/validation_difference.geojson"},
         },
     }))
-    (outputs / "roads_blocked.geojson").write_text(json.dumps({
-        "type": "FeatureCollection",
-        "features": [],
-    }))
-    (outputs / "validation_difference.geojson").write_text(json.dumps({
-        "type": "FeatureCollection",
-        "features": [{
-            "type": "Feature",
-            "properties": {"classification": "system_only"},
-            "geometry": {"type": "Polygon", "coordinates": []},
-        }],
-    }))
+    for name in ("impact_features", "impact_roads", "validation_difference"):
+        (outputs / f"{name}.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": []}))
     monkeypatch.setattr(build_static, "ROOT", root)
     monkeypatch.setattr(build_static, "DOCS", docs)
 
     build_static.main()
 
     built_stats = json.loads((docs / "stats.json").read_text())
-    assert built_stats["layers"]["roads_blocked"]["url"] == "outputs/roads_blocked.geojson"
+    for name in ("impact_features", "impact_roads"):
+        assert built_stats["layers"][name]["url"] == f"outputs/{name}.geojson"
+        assert json.loads((docs / "outputs" / f"{name}.geojson").read_text())["type"] == "FeatureCollection"
     assert built_stats["layers"]["validation_difference"]["url"] == (
         "outputs/validation_difference.geojson"
     )
-    assert json.loads((docs / "outputs" / "roads_blocked.geojson").read_text())["type"] == "FeatureCollection"
     assert json.loads(
         (docs / "outputs" / "validation_difference.geojson").read_text()
-    )["features"][0]["properties"]["classification"] == "system_only"
+    )["type"] == "FeatureCollection"
