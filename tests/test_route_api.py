@@ -40,7 +40,8 @@ def test_route_api_reports_missing_cache(client, tmp_path, monkeypatch):
     assert response.status_code == 503
     body = response.get_json()
     assert body["status"] == "routing_unavailable"
-    assert body["missing_artifacts"] == ["roads.graphml", "flood.geojson"]
+    assert body["missing_artifacts"] == [
+        "road_network_routing_cache.pickle", "flood.geojson"]
 
 
 def test_route_api_returns_normal_and_safe_routes(client, tmp_path, monkeypatch):
@@ -51,12 +52,15 @@ def test_route_api_returns_normal_and_safe_routes(client, tmp_path, monkeypatch)
     graph.add_edge(1, 2, length=1000)
     graph.add_edge(2, 1, length=1000)
     graph_path = tmp_path / "roads.graphml"
+    prepared_path = tmp_path / "road_network_routing_cache.pickle"
     flood_path = tmp_path / "flood.geojson"
     graph_path.write_text("cached", encoding="utf-8")
     flood_path.write_text('{"type":"FeatureCollection","features":[]}', encoding="utf-8")
     monkeypatch.setattr(app_module, "_route_files", lambda: (graph_path, flood_path))
-    fake_osmnx = types.SimpleNamespace(load_graphml=lambda path: graph)
-    monkeypatch.setitem(sys.modules, "osmnx", fake_osmnx)
+    prepared = app_module.routing.build_prepared_routing(graph)
+    app_module.routing.save_prepared_routing(prepared, prepared_path)
+    monkeypatch.setattr(app_module, "_prepared_route_file",
+                        lambda: prepared_path)
     stats = tmp_path / "stats.json"
     stats.write_text('{"bbox": [32, -26, 33.5, -24]}', encoding="utf-8")
     monkeypatch.setattr(app_module, "stats_path", lambda: stats)
@@ -79,10 +83,15 @@ def test_route_api_rejects_points_outside_network_coverage(client, tmp_path, mon
     graph.add_node(1, x=32.1, y=-25.1)
     graph.add_node(2, x=32.2, y=-25.2)
     graph_path = tmp_path / "roads.graphml"
+    prepared_path = tmp_path / "road_network_routing_cache.pickle"
     flood_path = tmp_path / "flood.geojson"
     graph_path.write_text("cached", encoding="utf-8")
     flood_path.write_text('{"type":"FeatureCollection","features":[]}', encoding="utf-8")
     monkeypatch.setattr(app_module, "_route_files", lambda: (graph_path, flood_path))
+    app_module.routing.save_prepared_routing(
+        app_module.routing.build_prepared_routing(graph), prepared_path)
+    monkeypatch.setattr(app_module, "_prepared_route_file",
+                        lambda: prepared_path)
     monkeypatch.setattr(app_module, "_load_route_data", lambda *_: (graph, box(0, 0, 1, 1)))
     stats = tmp_path / "stats.json"
     stats.write_text('{"bbox": [32, -26, 33.5, -24]}', encoding="utf-8")

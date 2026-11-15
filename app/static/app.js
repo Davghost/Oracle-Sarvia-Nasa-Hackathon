@@ -162,7 +162,9 @@ async function calculateRoute() {
       const dt = document.createElement('dt'); dt.textContent = label;
       const dd = document.createElement('dd'); dd.textContent = value; dl.append(dt, dd);
     });
-    routeMessage(result.experimental_warning);
+    routeMessage(result.error
+      ? `${result.status}: ${result.error}` : result.experimental_warning,
+      Boolean(result.error));
     setStep(5);
   } catch (error) {
     clearRoutes();

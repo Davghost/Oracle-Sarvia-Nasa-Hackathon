@@ -141,6 +141,8 @@ def _route_json(info, G):
         "detour_percent": (round((info["detour_ratio"] - 1) * 100, 2)
                            if info["detour_ratio"] is not None else None),
         "blocked_edges": info["blocked_edges"],
+        "snap_distances": info.get("snap_distances"),
+        "snap_distance_units": "graph CRS units",
         "experimental_warning": (
             "Rota experimental: segura significa apenas que a geometria "
             "não intersecta a máscara de inundação disponível."
@@ -190,17 +192,16 @@ def api_route():
 
     graph_path, flood_path = _route_files()
     prepared_path = _prepared_route_file()
-    if prepared_path.exists():
-        missing = [path.name for path in (prepared_path, flood_path)
-                   if not path.exists()]
-    else:
-        missing = [path.name for path in (graph_path, flood_path)
-                   if not path.exists()]
+    # Never load the legacy GraphML/pickle in a web request: it can occupy the
+    # Flask worker for minutes before a coverage check can run.
+    missing = [path.name for path in (prepared_path, flood_path)
+               if not path.exists()]
     if missing:
         return jsonify({
             "status": "routing_unavailable",
             "error": "Artefatos de roteamento ausentes: " + ", ".join(missing)
-                     + ". Execute os comandos de preparação documentados.",
+                     + ". Execute a preparação offline documentada; "
+                       "o cache GraphML legado não é usado pela API.",
             "missing_artifacts": missing,
         }), 503
 

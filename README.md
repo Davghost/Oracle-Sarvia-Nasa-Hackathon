@@ -146,14 +146,14 @@ python pipeline\prepare_network.py --bbox 31.9836 -26.0034 33.508 -23.9967 `
 
 Se ambos os endpoints retornarem `502` ou timeout, nenhuma rede parcial é
 usada: aguarde e repita o comando. A aplicação continuará mostrando os dados
-de inundação normalmente e informará `routing_unavailable` até que o arquivo
-GraphML completo seja criado.
+de inundação normalmente e informará `routing_unavailable` até que o índice preparado seja criado.
 `--grid 4` divide a área em 16 blocos menores e junta os resultados, sendo
 recomendado para áreas grandes ou servidores Overpass congestionados.
-O cache precisa cobrir os pontos escolhidos. Se a rede disponível não cobrir
-alguma longitude/latitude, a API recusará a rota em vez de aproximar os dois
-pontos ao mesmo nó e produzir distância zero; nesse caso, regenere o cache
-com uma área que inclua os pontos.
+O cache precisa cobrir os pontos escolhidos. A API pode aproximar cada ponto
+ao nó mais próximo somente dentro de um limite explícito e informa as
+distâncias de snap; fora desse limite, recusa a rota. Se a rede disponível
+não cobrir alguma longitude/latitude, regenere o cache com uma área que
+inclua os pontos. O GraphML/pickle antigo não é usado por requisições web.
 
 O índice preparado contém busca espacial de nós, cobertura efetiva,
 componentes conexos e arestas bloqueadas pela máscara. Para gerá-lo

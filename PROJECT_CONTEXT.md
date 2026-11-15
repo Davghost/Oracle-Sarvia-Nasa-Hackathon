@@ -29,7 +29,8 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
   `outputs/road_network_routing_cache.pickle`, gerado por
   `prepare_network.py`; ele contém índice espacial de nós, cobertura,
   componentes conexos e arestas bloqueadas pré-calculadas. GraphML/pickle são
-  fallback de compatibilidade.
+  O GraphML/pickle antigo permanece apenas como artefato de preparação e não
+  é carregado por requisições web.
   Sem esses artefatos, a aplicação preserva a narrativa e informa
   `routing_unavailable`.
 - No passo de rotas, o primeiro clique no mapa marca a origem e o segundo

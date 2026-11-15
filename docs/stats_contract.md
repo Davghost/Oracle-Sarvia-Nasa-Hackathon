@@ -35,8 +35,10 @@ são WGS84 e devem estar dentro de `bbox`. As respostas usam
 
 Em caso de sucesso, a resposta inclui `normal` e `safe` (ou `null`), cada
 um com `coordinates` e `distance_m`, além de `detour_ratio`,
-`detour_percent`, `blocked_edges`, `blocked_segments`, `units: "m"` e
-`crs: "EPSG:4326"`.
+`detour_percent`, `blocked_edges`, `blocked_segments`, `snap_distances`,
+`snap_distance_units`, `units: "m"` e `crs: "EPSG:4326"`. O snap só ocorre
+dentro do limite configurado pelo servidor; fora dele, a API retorna
+`routing_unavailable`.
 
 O resultado seguro significa apenas que as arestas do grafo não intersectam a
 máscara disponível. É experimental e não é orientação operacional.
