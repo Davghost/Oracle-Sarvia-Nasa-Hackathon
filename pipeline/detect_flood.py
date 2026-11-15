@@ -19,8 +19,11 @@ import numpy as np
 import rasterio
 from PIL import Image
 from pyproj import Transformer
+from rasterio.features import shapes
 from rasterio.transform import array_bounds
 from rasterio.warp import Resampling, calculate_default_transform, reproject
+from shapely.geometry import shape, mapping
+from shapely.ops import transform as shapely_transform
 
 import water
 
@@ -73,6 +76,20 @@ def save_overlay(path, layers, alpha=175):
     for mask, rgb in layers:
         rgba[mask > 0] = (*rgb, alpha)
     Image.fromarray(rgba, "RGBA").save(path, optimize=True)
+
+
+def save_flood_geojson(path, mask, transform, crs):
+    """Write the new-flood mask as WGS84 polygons for the route service."""
+    to_ll = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    features = []
+    for geometry, value in shapes(mask.astype(np.uint8), mask=mask, transform=transform):
+        if value:
+            geom = shapely_transform(to_ll.transform, shape(geometry))
+            features.append({"type": "Feature", "properties": {},
+                             "geometry": mapping(geom)})
+    payload = {"type": "FeatureCollection", "features": features,
+               "crs": {"type": "name", "properties": {"name": "EPSG:4326"}}}
+    path.write_text(json.dumps(payload), encoding="utf-8")
 
 
 def main():
@@ -176,6 +193,7 @@ def main():
     mn, _ = warp(new, tr, crs, dst)
     save_overlay(out / "water_before.png", [(mb, BLUE)])
     save_overlay(out / "water_during.png", [(mp, BLUE), (mn, RED)])   # blue = already water, red = new
+    save_flood_geojson(out / "flood_mask.geojson", new, tr, crs)
     west, south, east, north = array_bounds(dst[2], dst[1], dst[0])
     to_ll = Transformer.from_crs(3857, 4326, always_xy=True)
     (lon_w, lat_s), (lon_e, lat_n) = to_ll.transform(west, south), to_ll.transform(east, north)
@@ -217,6 +235,11 @@ def main():
         "layers": {
             "before": {"type": "image", "url": "/outputs/water_before.png", "bounds": bounds},
             "during": {"type": "image", "url": "/outputs/water_during.png", "bounds": bounds},
+        },
+        "routing": {
+            "flood_mask": {"type": "geojson", "url": "/outputs/flood_mask.geojson",
+                           "crs": "EPSG:4326"},
+            "network_cache": "outputs/road_network.graphml",
         },
         "context_figures": {
             "source": "NASA Scientific Visualization Studio #5661, NISAR Reveals Major Flooding in Mozambique",

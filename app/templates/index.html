@@ -51,6 +51,25 @@
       </details>
     </section>
 
+    <section class="step" data-step="5" id="routing-step">
+      <p class="kicker">Modo experimental</p>
+      <h1>Rotas para resgate</h1>
+      <p>Selecione origem e destino clicando no mapa ou informe longitude e latitude em WGS84.</p>
+      <div class="route-fields">
+        <label>Origem (lon, lat)<input id="route-origin" placeholder="32.10, -25.10"></label>
+        <label>Destino (lon, lat)<input id="route-destination" placeholder="32.20, -25.20"></label>
+      </div>
+      <div class="route-actions">
+        <button id="route-clear" type="button" class="secondary">Limpar seleção</button>
+        <button id="route-calculate" type="button">Calcular rotas</button>
+        <button id="route-cancel" type="button" class="secondary" hidden>Cancelar</button>
+      </div>
+      <progress id="route-progress" max="100" value="0" hidden></progress>
+      <p id="route-status" class="route-status" role="status">Clique no mapa para definir a origem.</p>
+      <dl id="route-results" class="route-results"></dl>
+      <p class="route-warning">A rota segura só evita a máscara de inundação disponível; é experimental e não substitui autoridades locais.</p>
+    </section>
+
     <div id="controls">
       <button id="prev" type="button">← Back</button>
       <span id="stepcount"></span>

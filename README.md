@@ -27,9 +27,8 @@ história visual simples: água antes, água durante e água nova estimada.
 - Detecção explicável: HH e HV abaixo dos limiares; água nova é
   `water(during) AND NOT water(before)`.
 - Relatórios de QA: histograma, falso-cor, diferença HH e `flood_qa.png`.
-- Núcleo de roteamento que remove arestas que intersectam a área alagada e
-  calcula uma rota alternativa. Ele é um protótipo e não é usado pela aplicação
-  web atual.
+- Rotas experimentais no mapa: uma rota normal e uma rota que remove arestas
+  que intersectam a máscara de inundação, usando uma rede OSM preparada offline.
 - Geração opcional de cópia estática para GitHub Pages.
 
 ## Stack
@@ -80,6 +79,7 @@ páginas Flask e ajusta URLs para uma publicação estática em `docs/`.
 - `pipeline/detect_flood.py`: detecção, áreas, reprojeção e contrato JSON.
 - `pipeline/preview.py`: imagens e métricas para calibração/QA.
 - `pipeline/routing.py`: algoritmo de roteamento prototipal.
+- `pipeline/prepare_network.py`: prepara a rede viária OSM em cache GraphML.
 - `pipeline/download_gcov.py`: busca/download via `asf_search`.
 - `pipeline/inspect_h5.py`: inspeção genérica da estrutura HDF5.
 - `pipeline/build_static.py`: cópia para `docs/`.
@@ -118,6 +118,62 @@ python app\app.py
 Abra <http://localhost:5000>. O servidor usa `outputs/stats.json` quando ele
 existe; caso contrário usa o contrato falso em `outputs/mock/stats.json`.
 O modo de desenvolvimento do Flask está habilitado no bloco `__main__`.
+
+### Preparar a rede viária
+
+Depois de gerar `outputs/flood_mask.geojson` com `detect_flood.py`, baixe a rede
+uma vez para a mesma área:
+
+```powershell
+python pipeline\prepare_network.py --bbox 31.9836 -26.0034 33.508 -23.9967
+python app\app.py
+```
+
+O comando cria `outputs/road_network.graphml`, um cache binário
+`outputs/road_network.pickle`, o índice preparado
+`outputs/road_network_routing_cache.pickle` e um JSON de metadados. O Flask
+usa o índice preparado para iniciar mais rapidamente. Esses
+artefatos locais não devem ser versionados. Para
+atualizar a rede, execute o mesmo comando novamente. A API `POST /api/route`
+retorna `routing_unavailable` quando o cache ou a máscara não existem.
+O download depende de um servidor público Overpass; se ele estiver
+indisponível, tente outro endpoint:
+
+```powershell
+python pipeline\prepare_network.py --bbox 31.9836 -26.0034 33.508 -23.9967 `
+  --overpass-url https://overpass.kumi.systems/api --grid 4
+```
+
+Se ambos os endpoints retornarem `502` ou timeout, nenhuma rede parcial é
+usada: aguarde e repita o comando. A aplicação continuará mostrando os dados
+de inundação normalmente e informará `routing_unavailable` até que o arquivo
+GraphML completo seja criado.
+`--grid 4` divide a área em 16 blocos menores e junta os resultados, sendo
+recomendado para áreas grandes ou servidores Overpass congestionados.
+O cache precisa cobrir os pontos escolhidos. Se a rede disponível não cobrir
+alguma longitude/latitude, a API recusará a rota em vez de aproximar os dois
+pontos ao mesmo nó e produzir distância zero; nesse caso, regenere o cache
+com uma área que inclua os pontos.
+
+O índice preparado contém busca espacial de nós, cobertura efetiva,
+componentes conexos e arestas bloqueadas pela máscara. Para gerá-lo
+explicitamente durante a preparação offline:
+
+```powershell
+python pipeline\prepare_network.py `
+  --bbox 31.9836 -26.0034 33.508 -23.9967 `
+  --grid 4 --flood-mask outputs\flood_mask.geojson
+```
+
+O Flask não baixa OSM, reprojeta a máscara nem constrói uma `STRtree` durante
+uma requisição. Se o Overpass estiver indisponível, use um extrato real
+`.osm.pbf` de Geofabrik ou BBBike em uma etapa de preparação; não use rede
+parcial ou fictícia.
+
+No passo “Rotas para resgate”, clique uma vez no mapa para marcar a origem e
+uma segunda vez para marcar o destino. Os marcadores permanecem visíveis;
+“Limpar seleção” reinicia a escolha. Também é possível informar diretamente
+as coordenadas nos campos.
 
 ## Reprocessar os dados
 
@@ -177,8 +233,8 @@ conteúdo de `docs/` pode ser servido pelo GitHub Pages.
 
 - ASF DAAC/Earthdata: descoberta e download de granules, somente no script
   opcional `download_gcov.py`.
-- OpenStreetMap: tiles do mapa Leaflet; a aplicação não consulta uma API de
-  rota.
+- OpenStreetMap: tiles do mapa Leaflet; a rede viária é baixada apenas no
+  passo explícito de preparação e lida do cache pela aplicação.
 - NASA Scientific Visualization Studio #5661: fonte dos números de contexto
   exibidos na narrativa.
 - Leaflet é servido localmente; não há dependência de CDN para a biblioteca.
@@ -192,8 +248,9 @@ conteúdo de `docs/` pode ser servido pelo GitHub Pages.
 - A cena de 5 de janeiro pode já conter áreas alagadas; “água nova” é relativa
   a essa data.
 - O campo `collection` ainda é `null` no resultado atual.
-- `routing.py` não está conectado ao Flask, não baixa OSM e não oferece uma
-  API web.
+- A rota segura remove arestas que intersectam a máscara disponível; ela não
+  prova que uma via está livre de riscos. OSM, resolução do radar e alinhamento
+  espacial afetam o resultado, que é experimental e não substitui autoridades.
 - A série temporal tem duas datas; uma linha do tempo completa, validação independente, mais datas,
   impacto real via OSM e suporte a mais polarizações continuam pendentes.
 - O download real está documentado como não testado contra a API atual.

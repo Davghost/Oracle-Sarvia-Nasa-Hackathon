@@ -21,5 +21,24 @@ Example: `outputs/mock/stats.json` (all values there are fake).
 | `impact` | object, optional | `roads_blocked_km`, `buildings_affected` (numbers, estimates from OSM, T19). Cards in step 4 appear only for fields that exist. |
 | `context_figures` | object | `source` (string) and `items` (list of `{label, value}`). Official figures with a citation, shown in step 1. |
 | `limitations` | list of strings | Shown in the panel. |
+| `routing` | object, opcional | Metadados da funcionalidade experimental. `flood_mask` é GeoJSON em WGS84 e `network_cache` é o cache GraphML offline. |
+
+## API de rotas
+
+`POST /api/route` recebe JSON com `origin` e `destination`, cada um como
+`{"lon": number, "lat": number}` ou `[longitude, latitude]`. As coordenadas
+são WGS84 e devem estar dentro de `bbox`. As respostas usam
+`[longitude, latitude]` e distâncias em metros. `status` pode ser `ok`,
+`no_normal_route`, `no_safe_route`, `invalid_input` (HTTP 400),
+`routing_unavailable` ou `routing_timeout` (HTTP 503). Um ponto dentro da máscara produz
+`no_safe_route`.
+
+Em caso de sucesso, a resposta inclui `normal` e `safe` (ou `null`), cada
+um com `coordinates` e `distance_m`, além de `detour_ratio`,
+`detour_percent`, `blocked_edges`, `blocked_segments`, `units: "m"` e
+`crs: "EPSG:4326"`.
+
+O resultado seguro significa apenas que as arestas do grafo não intersectam a
+máscara disponível. É experimental e não é orientação operacional.
 
 Rules: never invent values; use `null` when something is not confirmed. Keep layer files small (they go in git).

@@ -34,12 +34,12 @@
       ]
     }
   },
-  "flooded_area_km2": 982.5,
+  "flooded_area_km2": 709.5,
   "flooded_area_range_km2": [
     709.5,
-    1455.6
+    1179.3
   ],
-  "permanent_water_km2": 972.0,
+  "permanent_water_km2": 968.8,
   "method": {
     "threshold_db": {
       "HH": -14.6,
@@ -77,6 +77,14 @@
         ]
       ]
     }
+  },
+  "routing": {
+    "flood_mask": {
+      "type": "geojson",
+      "url": "/outputs/flood_mask.geojson",
+      "crs": "EPSG:4326"
+    },
+    "network_cache": "outputs/road_network.graphml"
   },
   "context_figures": {
     "source": "NASA Scientific Visualization Studio #5661, NISAR Reveals Major Flooding in Mozambique",

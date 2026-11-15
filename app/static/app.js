@@ -1,4 +1,4 @@
-const TOTAL = 4;
+const TOTAL = 5;
 const map = L.map('map', {zoomSnap: 0.25});
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
@@ -12,7 +12,9 @@ const $ = (id) => document.getElementById(id);
 const fmt = (v, unit = '') => (v === null || v === undefined) ? 'to be confirmed' : v + unit;
 const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
 
-let stats = null, layers = {}, step = 1;
+let stats = null, layers = {}, step = 1, selectedScene = 'during';
+let routePoints = [], routeLayers = [], routeMarkers = {origin: null, destination: null};
+let routeController = null;
 
 async function addLayer(spec, pane, style) {
   // The stats contract allows either vector GeoJSON or raster image overlays.
@@ -63,10 +65,121 @@ function setStep(n) {
   show(layers.radar, step === 2);
   show(layers.before, (step === 2 && selectedScene === 'before') || compare);
   show(layers.during, (step === 2 && selectedScene === 'during') || compare || step === 4);
+  routeLayers.forEach(layer => show(layer, step === 5));
+  Object.values(routeMarkers).forEach(marker => show(marker, step === 5));
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
   updateClip(compare);
   map.invalidateSize();
+}
+
+function routeMessage(text, error = false) {
+  const el = $('route-status');
+  el.textContent = text;
+  el.classList.toggle('error', error);
+}
+
+function parsePoint(value) {
+  const parts = value.split(',').map(Number);
+  if (parts.length !== 2 || parts.some(Number.isNaN)) throw new Error('Use longitude, latitude.');
+  return {lon: parts[0], lat: parts[1]};
+}
+
+function drawRouteLine(route, style) {
+  return route ? L.polyline(route.coordinates.map(([lon, lat]) => [lat, lon]), style).addTo(map) : null;
+}
+
+function clearRoutes() {
+  routeLayers.forEach(layer => map.removeLayer(layer));
+  routeLayers = [];
+}
+
+function clearRouteSelection() {
+  clearRoutes();
+  Object.keys(routeMarkers).forEach(key => {
+    if (routeMarkers[key]) map.removeLayer(routeMarkers[key]);
+    routeMarkers[key] = null;
+  });
+  routePoints = [];
+  $('route-origin').value = '';
+  $('route-destination').value = '';
+  $('route-results').innerHTML = '';
+  routeMessage('Clique no mapa para definir a origem.');
+}
+
+function selectRoutePoint(event) {
+  if (step !== 5 || routePoints.length >= 2) return;
+  const point = `${event.latlng.lng.toFixed(6)}, ${event.latlng.lat.toFixed(6)}`;
+  const key = routePoints.length === 0 ? 'origin' : 'destination';
+  routePoints.push(point);
+  $(`route-${key}`).value = point;
+  routeMarkers[key] = L.marker(event.latlng, {title: key === 'origin' ? 'Origem' : 'Destino'})
+    .bindTooltip(key === 'origin' ? 'Origem' : 'Destino', {permanent: true, direction: 'top'})
+    .addTo(map);
+  routeMessage(key === 'origin' ? 'Origem definida. Clique no mapa para definir o destino.' : 'Origem e destino definidos. Clique em “Calcular rotas”.');
+}
+
+async function calculateRoute() {
+  if (routeController) return;
+  const progress = $('route-progress');
+  const calculateButton = $('route-calculate');
+  const cancelButton = $('route-cancel');
+  routeController = new AbortController();
+  const timeout = setTimeout(() => routeController.abort(), 16000);
+  progress.hidden = false;
+  progress.value = 15;
+  calculateButton.disabled = true;
+  cancelButton.hidden = false;
+  try {
+    const origin = parsePoint($('route-origin').value);
+    const destination = parsePoint($('route-destination').value);
+    routeMessage('Calculando rota offline...');
+    progress.value = 35;
+    const response = await fetch('/api/route', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({origin, destination}),
+      signal: routeController.signal
+    });
+    progress.value = 80;
+    const result = await response.json();
+    clearRoutes();
+    if (!response.ok) throw new Error(result.error || 'Não foi possível calcular a rota.');
+    if (result.normal) routeLayers.push(drawRouteLine(result.normal, {color: '#2878b5', weight: 5, dashArray: '8 6'}));
+    if (result.safe) routeLayers.push(drawRouteLine(result.safe, {color: '#1b8a4b', weight: 6}));
+    (result.blocked_segments || []).forEach(segment => {
+      routeLayers.push(drawRouteLine(segment, {color: '#d62828', weight: 5}));
+    });
+    const dl = $('route-results');
+    dl.innerHTML = '';
+    const rows = [
+      ['Situação', result.status],
+      ['Rota normal', result.normal ? `${result.normal.distance_m.toLocaleString('pt-BR')} m` : 'indisponível'],
+      ['Rota segura', result.safe ? `${result.safe.distance_m.toLocaleString('pt-BR')} m` : 'indisponível'],
+      ['Desvio', result.detour_percent == null ? 'não calculável' : `${result.detour_percent}%`],
+      ['Trechos bloqueados', result.blocked_edges],
+    ];
+    rows.forEach(([label, value]) => {
+      const dt = document.createElement('dt'); dt.textContent = label;
+      const dd = document.createElement('dd'); dd.textContent = value; dl.append(dt, dd);
+    });
+    routeMessage(result.experimental_warning);
+    setStep(5);
+  } catch (error) {
+    clearRoutes();
+    routeMessage(error.name === 'AbortError'
+      ? 'Roteamento cancelado ou excedeu o tempo limite.' : error.message, true);
+  } finally {
+    clearTimeout(timeout);
+    routeController = null;
+    progress.value = 100;
+    setTimeout(() => { progress.hidden = true; }, 250);
+    calculateButton.disabled = false;
+    cancelButton.hidden = true;
+  }
+}
+
+function cancelRoute() {
+  if (routeController) routeController.abort();
 }
 
 function card(label, value, mock) {
@@ -149,6 +262,10 @@ function card(label, value, mock) {
   });
   $('slider').addEventListener('input', () => updateClip(step === 3));
   map.on('move zoom resize', () => updateClip(step === 3));
+  $('route-calculate').addEventListener('click', calculateRoute);
+  $('route-cancel').addEventListener('click', cancelRoute);
+  $('route-clear').addEventListener('click', clearRouteSelection);
+  map.on('click', selectRoutePoint);
 
   setStep(1);
 })();

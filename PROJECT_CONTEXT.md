@@ -25,8 +25,15 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
 - A interface Flask está implementada e pode usar resultados reais ou o fallback
   mock.
 - A cópia estática em `docs/` existe e é derivada de uma execução anterior.
-- O roteamento e métricas de impacto via OSM aparecem apenas como código
-  prototipal/contrato mock; não estão conectados ao fluxo real atual.
+- O roteamento web prefere o índice offline
+  `outputs/road_network_routing_cache.pickle`, gerado por
+  `prepare_network.py`; ele contém índice espacial de nós, cobertura,
+  componentes conexos e arestas bloqueadas pré-calculadas. GraphML/pickle são
+  fallback de compatibilidade.
+  Sem esses artefatos, a aplicação preserva a narrativa e informa
+  `routing_unavailable`.
+- No passo de rotas, o primeiro clique no mapa marca a origem e o segundo
+  marca o destino; “Limpar seleção” remove os marcadores e reinicia a escolha.
 
 ## 3. Stack e componentes
 
@@ -116,7 +123,8 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 - Confirmação do nome da coleção (`collection` está `null`).
 - Linha do tempo com mais datas para transformar as duas cenas atuais em uma
   série temporal completa.
-- Uso operacional de OSM para vias, prédios e rotas.
+- Atualização periódica da rede OSM e validação independente para uso fora do
+  protótipo. A rota segura só evita a máscara de inundação disponível.
 - Mais polarizações/visualizações e calibração científica do detector.
 - Teste da integração atual com ASF/Earthdata.
 
@@ -142,6 +150,9 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 - ASF/Earthdata: somente download opcional; token via
   `EARTHDATA_TOKEN`, nunca em arquivo ou commit.
 - OpenStreetMap: somente tiles visuais no cliente.
+- OSMnx/OSM: `pipeline/prepare_network.py` baixa a rede uma vez e grava
+  GraphML e um cache de roteamento preparado; Flask não faz download por
+  requisição nem processa a máscara no caminho crítico.
 - Leaflet: cópia local em `app/static/vendor/leaflet`.
 - NASA SVS #5661: fonte declarada dos números contextuais sobre pessoas,
   casas e lavoura.
@@ -159,6 +170,8 @@ em `pipeline/make_db.py` como `BBOX`; os granules conhecidos estão em
 - O limiar é heurístico e ainda não foi comparado com uma referência
   independente.
 - Valores de impacto do mock não podem ser tratados como resultados reais.
+- Rotas dependem da qualidade do OSM, da resolução do radar e do alinhamento
+  entre CRS; são experimentais e não substituem autoridades locais.
 - O download está explicitamente marcado como não testado contra a API atual.
 - A interface e os textos são majoritariamente em inglês, embora este
   contexto seja em português.

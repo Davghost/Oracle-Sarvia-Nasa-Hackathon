@@ -48,6 +48,11 @@ def test_destination_inside_flood_is_not_safe():
     assert r["status"] == "no_safe_route"
 
 
+def test_reproject_geometry_transforms_crs():
+    projected = routing.reproject_geometry(box(0, 0, 1, 1), "EPSG:4326", "EPSG:3857")
+    assert projected.bounds[2] > 100000
+
+
 def test_blocked_edge_count():
     G = grid()
     bl = routing.blocked_edges(G, box(4.5, -0.5, 5.5, 0.5))
@@ -72,3 +77,20 @@ def test_works_with_osmnx_style_multidigraph():
     r = routing.safe_route(G, (0, 0), (2, 0), flood)
     assert r["status"] == "ok" and r["safe"]["nodes"] == [1, 4, 3]
     assert r["normal"]["nodes"] == [1, 2, 3]
+
+
+def test_prepared_route_rejects_distinct_points_snapping_to_same_node():
+    prepared = routing.build_prepared_routing(
+        grid(3), box(100, 100, 101, 101))
+    result = routing.safe_route_prepared(
+        prepared, (0.1, 0.1), (0.2, 0.2), box(100, 100, 101, 101))
+    assert result["status"] == "no_normal_route"
+    assert "same road node" in result["error"]
+
+
+def test_prepared_route_uses_precomputed_blocked_edges():
+    flood = box(4.5, -0.5, 5.5, 7.5)
+    prepared = routing.build_prepared_routing(grid(), flood)
+    result = routing.safe_route_prepared(prepared, (0, 0), (9, 0), flood)
+    assert result["status"] == "ok"
+    assert result["safe"]["length"] > result["normal"]["length"]

@@ -222,6 +222,10 @@ __marimo__/
 # --- Oracle: dados e segredos (nunca versionar) ---
 data/*
 !data/.gitkeep
+cache/
+outputs/road_network.graphml
+outputs/road_network.pickle
+outputs/flood_mask.geojson
 *.h5
 *.hdf5
 *.he5
