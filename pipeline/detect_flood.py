@@ -230,6 +230,7 @@ def main():
     save_overlay(out / "water_during.png", [(mp, BLUE), (mn, RED)])   # blue = already water, red = new
     save_flood_raster(out / "flood_new_water.tif", new, tr, crs)     # used by the route network
     save_flood_raster(out / "water_during.tif", w_during, tr, crs)    # all water on the flood date: boat routes
+    save_flood_raster(out / "radar_coverage.tif", common, tr, crs)    # pixels seen on both dates: impact map
     save_flood_geojson(out / "flood_mask.geojson", new, tr, crs)
     save_flood_extent(new, tr, crs, out / "flood_extent.geojson")
     west, south, east, north = array_bounds(dst[2], dst[1], dst[0])

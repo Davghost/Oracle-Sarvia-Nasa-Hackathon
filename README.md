@@ -68,7 +68,7 @@ Na rede real (OpenStreetMap de 14/11/2026 e a máscara publicada de
 | Tempo de cálculo, rota de carro sem água no caminho | mediana 30 ms |
 | Distância comparada ao OSRM (10 rotas reais) | diferença mediana de 1,1% |
 | Pedidos simultâneos pela API (8 threads) | 8,2 pedidos/s, todos HTTP 200 |
-| Testes automatizados | 127 passando |
+| Testes automatizados | 166 passando |
 
 A diferença para o OSRM vem quase toda de trilhas: o app aceita `track`
 (útil para viaturas 4x4) e o perfil de carro do OSRM não.
@@ -122,8 +122,36 @@ Os passos 1 a 4 explicam os dados que alimentam as rotas:
    5 de janeiro.
 3. **New water:** cortina antes/depois e a área de água nova (982,5 km²,
    intervalo de 709,5 a 1.455,6 km²).
-4. **Impact:** números de contexto, comparação com a referência Copernicus
-   EMSR857 e limitações.
+4. **Impact:** mapa de impacto acionável (abaixo), comparação com a
+   referência Copernicus EMSR857 e limitações.
+
+### Mapa de impacto (passo 4)
+
+Escolas, saúde, comunidades (lugares nomeados e aglomerados de 10+
+edificações) e pontes do OpenStreetMap, cada um com um estado exclusivo: na
+água nova; isolado por estrada (sem via seca alcançável a pé, até 500 m sem
+atravessar água, que leve à rede principal); perto da água (até 250 m, a
+mesma distância em que o planejador de rotas considera um ponto alcançável
+por barco); acessível; sem via mapeada; fora da cobertura do radar (só 67% do
+bbox tem dado nas duas datas; Maputo fica fora). Clicar num elemento abre o
+estado explicado e o botão **Rescue route to here** (e, para comunidades
+isoladas, a rota a partir da unidade de saúde acessível mais próxima). No
+site estático o mapa funciona, sem os botões de rota. "Afetado" é potencial,
+segundo a água de 17/01/2026, não dano confirmado.
+
+| Categoria | Total | Na água | Isolado | Perto | Acessível | Sem via | Fora do radar |
+|---|---|---|---|---|---|---|---|
+| Escolas | 479 | 0 | 130 | 3 | 8 | 10 | 328 |
+| Saúde | 170 | 0 | 35 | 2 | 16 | 1 | 116 |
+| Comunidades | 851 | 34 | 160 | 63 | 139 | 68 | 387 |
+| Pontes | 244 | 33 | 56 | 1 | 8 | 0 | 146 |
+
+Edificações (footprints, não população): 707.967 no bbox; 2.345 sobre água
+nova, 137.948 isoladas por estrada, 3.937 perto da água. Vias sobre água
+nova: 370,6 km (13,6 primárias/troncais, 8,2 secundárias, 8,9 terciárias,
+168,2 locais, 171,6 trilhas). O isolamento não vem de ruído do radar: tolerar
+40 m de água por trecho muda só 161 cruzamentos; a cheia parte a rede em
+ilhas secas (Chókwè, região de Magude) separadas da rede ligada a Maputo.
 
 A detecção é explicável: um pixel é água quando HH e HV ficam abaixo dos
 limiares; água nova é `water(during) AND NOT water(before)`.
@@ -252,9 +280,9 @@ Todo processamento pesado é offline. As requisições web não abrem HDF5, não
 baixam dados e não usam bibliotecas de geometria: o motor de rotas roda só
 com NumPy e SciPy sobre a rede compilada.
 
-Opcionais do pipeline: `osm_impact.py` (vias e edificações OSM dentro da
-água nova, via Overpass) e `validate_reference.py` (comparação com o vetor
-Copernicus EMSR857 AOI02).
+Opcionais do pipeline: `osm_impact.py` (mapa de impacto do passo 4, lido do
+mesmo extrato OSM local, sem internet) e `validate_reference.py` (comparação
+com o vetor Copernicus EMSR857 AOI02).
 
 ## Estrutura de pastas
 
@@ -272,8 +300,9 @@ Copernicus EMSR857 AOI02).
   máscaras GeoTIFF.
 - `pipeline/gcov_reader.py`, `make_db.py`, `water.py`: leitura do HDF5,
   recorte e operações em dB.
-- `pipeline/osm_impact.py`, `validate_reference.py`, `preview.py`: impacto
-  OSM, comparação EMSR857 e QA.
+- `pipeline/osm_impact.py`: mapa de impacto (escolas, saúde, comunidades,
+  pontes e vias sobre água nova) a partir do extrato OSM local.
+- `pipeline/validate_reference.py`, `preview.py`: comparação EMSR857 e QA.
 - `pipeline/download_gcov.py`, `inspect_h5.py`, `build_static.py`: download,
   inspeção do HDF5 e cópia estática.
 - `outputs/`: resultados lidos pelo Flask. `outputs/mock/` tem dados falsos
@@ -317,10 +346,11 @@ Copernicus EMSR857 AOI02).
 
 6. (Opcional) QA: `python pipeline\preview.py`.
 
-7. (Opcional) Impacto OSM: `python pipeline\osm_impact.py`. Consulta o
-   Overpass, que pode estar indisponível (`--overpass-url` troca a
-   instância). Os trechos exportados são centerlines dentro da máscara, não
-   fechamento oficial de tráfego.
+7. Mapa de impacto: `python pipeline\osm_impact.py`, depois da rede de
+   rotas. Lê o extrato OSM local (sem Overpass, cerca de 3 min) e grava
+   `outputs/impact_features.geojson`, `outputs/impact_roads.geojson` e o bloco
+   `impact` do `stats.json`. Na primeira vez também grava
+   `outputs/radar_coverage.tif` a partir de `data/processed/`.
 
 O estudo padrão é `[west, south, east, north] = [32.0, -26.0, 33.5, -24.0]`,
 com pixels de 10 m no GCOV e de 40 m após o multilook.
@@ -342,12 +372,11 @@ Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
 ## Integrações externas
 
 - **OpenStreetMap via Geofabrik:** extrato `.osm.pbf` baixado só por
-  `prepare_network.py --download`. O app não acessa a internet para calcular
-  rotas.
+  `prepare_network.py --download` e lido também por `osm_impact.py`. O app
+  não acessa a internet para calcular rotas nem o impacto.
 - **OpenStreetMap.de:** tiles do mapa-base; exige internet e mantém a
   atribuição.
 - **ASF DAAC/Earthdata:** download das cenas, só em `download_gcov.py`.
-- **Overpass:** consulta opcional de `osm_impact.py`.
 - **OSRM público:** comparação opcional de `route_benchmark.py --osrm`.
 - **NASA Scientific Visualization Studio #5661:** números de contexto.
 - Leaflet é servido localmente, sem CDN.
@@ -376,8 +405,10 @@ atribuição e a mesma licença. A atribuição também está em
 - **Detecção:** limiares heurísticos; água com vegetação, vento, sombras de
   relevo e solo úmido geram erros. A cena de 5 de janeiro pode já ter áreas
   alagadas. A comparação EMSR857 (IoU 0,46) não é verdade-terreno.
-- O impacto OSM (`osm_impact.py`) ainda não rodou com dados reais, por
-  indisponibilidade do Overpass. O campo `collection` continua `null`.
+- Mapa de impacto: o OSM rural é incompleto (só 53 lugares nomeados de
+  vilarejo para cima no bbox); ausência no mapa não é ausência de gente. As
+  rotas e o mapa tratam como secas as vias fora da cobertura do radar. O
+  campo `collection` continua `null`.
 - As rotas são experimentais e não substituem as autoridades locais.
 
 ## Testes
@@ -386,7 +417,7 @@ atribuição e a mesma licença. A atribuição também está em
 pytest -q
 ```
 
-127 testes. Para as rotas: `test_rescue.py` (carro + barco, arrasto, ilhas,
+166 testes. Mapa de impacto: `test_osm_impact.py` (cada estado e categoria num mundo sintético) e `test_impact_real.py` (saídas reais; pulado sem elas). Para as rotas: `test_rescue.py` (carro + barco, arrasto, ilhas,
 escolha entre barco e via seca), `test_routing.py` (rotas de carro,
 alternativas, mão única, entradas inválidas), `test_prepare_network.py`
 (leitura de vias, amostragem da água, grade de barco, download com falhas),

@@ -54,9 +54,9 @@ retrospectiva de água, comparando duas datas de radar, para planejar o acesso
   as rotas. Sem ela, a API responde `routing_unavailable` e a narrativa
   continua funcionando. Os GraphML/pickle antigos de `outputs/road_network.*`
   não são mais usados e podem ser apagados.
-- `pipeline/osm_impact.py` implementa enriquecimento OSM opcional, mas não
-  conseguiu concluir consulta real ao Overpass; o `stats.json` atual não tem
-  métricas nem camada OSM.
+- Mapa de impacto real no passo 4 (seção 23): `osm_impact.py` lê o extrato
+  OSM local e grava `impact_features.geojson`, `impact_roads.geojson` e o
+  bloco `impact` do `stats.json`.
 
 ## 3. Stack e componentes
 
@@ -69,7 +69,7 @@ retrospectiva de água, comparando duas datas de radar, para planejar o acesso
 - pyosmium: leitura do extrato OSM na preparação da rede.
 - NumPy/SciPy (`scipy.sparse.csgraph`, `cKDTree`): motor de rotas; é a única
   dependência pesada do servidor web.
-- Shapely/OSMnx: só nos scripts opcionais (`osm_impact.py`, testes).
+- Shapely: só no pipeline offline (`osm_impact.py`, validação, testes).
 - JavaScript sem framework + Leaflet 1.9.4 local.
 - pytest: suíte em `tests/`.
 
@@ -98,9 +98,11 @@ retrospectiva de água, comparando duas datas de radar, para planejar o acesso
    painel de rotas (opções, mapa e passo a passo).
 9. **Publicação**: `pipeline/build_static.py` gera páginas e recursos em
    `docs/`, sem Flask e sem o passo de rotas.
-10. **Impacto OSM (opcional)**: `pipeline/osm_impact.py` baixa feições OSM via
-   Overpass, cruza vias e footprints com água nova e exporta segmentos GeoJSON
-   e contagens estimadas.
+10. **Mapa de impacto**: `pipeline/osm_impact.py` lê do extrato OSM local
+   escolas, saúde, lugares, edificações e pontes, classifica cada elemento
+   (na água, isolado por estrada, perto da água, acessível, sem via mapeada,
+   fora da cobertura do radar) e grava `impact_features.geojson`,
+   `impact_roads.geojson` e o bloco `impact` do `stats.json` (seção 23).
 11. **Validação espacial opcional**: `pipeline/validate_reference.py` compara
    a máscara NISAR aos vetores EMSR857 AOI02, adiciona métricas ao contrato e
    recusa `stats.json` mock.
@@ -152,7 +154,7 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
   etapa 4; só aparecem quando o enriquecimento foi executado com dados OSM.
 - Comparação EMSR857 AOI02 opcional na etapa 4, exibida a partir do campo
   `validation` do `stats.json`; não é rótulo de verdade-terreno.
-- 127 testes em `tests/`, incluindo `test_rescue.py`, `test_routing.py`,
+- 166 testes em `tests/`, incluindo `test_rescue.py`, `test_routing.py`,
   `test_prepare_network.py`, `test_route_api.py` e `test_routing_real.py`.
 
 ## 6. Parcial, pendente e não conectado
@@ -163,11 +165,11 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
   publicadas, mas são experimentais. O radar não mede profundidade nem
   correnteza; os arrastos por faixas secas são inferidos; velocidades vêm da
   classe da via; "seca" significa só "sem água nova detectada na data".
-- A consulta OSM de vias/buildings é opcional, depende do Overpass e da cobertura
-  OSM. As interseções mostram vias dentro da máscara, não um fechamento oficial
-  nem rota segura.
-- A contagem de edifícios é estimativa por footprints OSM que intersectam a
-  área SAR detectada (contato somente na borda é excluído); áreas rurais podem
+- O mapa de impacto depende da cobertura do OSM, que é incompleta no meio
+  rural, e da água de uma única data. "Afetado" é potencial, não dano
+  confirmado; "acessível" não prova que a via está aberta.
+- Os estados das edificações usam o centróide de cada footprint contra a
+  grade de 40 m; footprints não são população. Áreas rurais podem
   ter mapeamento incompleto.
 - `build_static.py` exige `mock: false` e a cópia estática deve ser regenerada
   quando os arquivos da aplicação ou o JSON real mudarem.
@@ -219,7 +221,7 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 - OSM via Geofabrik: `prepare_network.py --download` baixa o extrato
   `.osm.pbf` (com retomada e MD5) e lê as vias com `pyosmium`; o Flask só lê
   a rede compilada e não usa a internet para rotas.
-- OpenStreetMap: consultas opcionais de vias/edificações via Overpass.
+- OpenStreetMap: o mesmo extrato local alimenta o mapa de impacto (`osm_impact.py`); o Overpass não é mais usado.
 - Leaflet: cópia local em `app/static/vendor/leaflet`.
 - NASA SVS #5661: fonte declarada dos números contextuais sobre pessoas,
   casas e lavoura.
@@ -342,6 +344,9 @@ explícita. Relatório desta atividade:
 [`docs/static_fallback_report_2026-11-15.md`](docs/static_fallback_report_2026-11-15.md).
 
 ## 15. Vias e edificações OSM (15/11/2026)
+
+> Histórico: esta versão via Overpass foi substituída pelo mapa de impacto
+> offline da seção 23.
 
 `pipeline/detect_flood.py` exporta `outputs/flood_extent.geojson`, polígono
 simplificado da máscara de água nova. Após a detecção, rode
@@ -476,3 +481,32 @@ máscara usada era a da detecção estrita. Ele foi substituído por:
 
 `PROMPT_REAVALIACAO_ROTAS.md` descreve o sistema antigo e é mantido só como
 histórico.
+
+## 23. Mapa de impacto (15/11/2026)
+
+`pipeline/osm_impact.py` foi reescrito: lê o PBF local (sem Overpass), usa a
+água nova (`flood_new_water.tif`), a nova máscara de cobertura do radar
+(`outputs/radar_coverage.tif`, pixels com dado nas duas datas, 67% do bbox;
+`detect_flood.py` passa a gravá-la) e o grafo `dry` de `routing.py`.
+
+- Categorias: escolas (`amenity=school|college|kindergarten`), saúde
+  (`amenity=hospital|clinic|doctors`, `healthcare=*`), comunidades
+  (`place=city|town|village|hamlet|suburb` e aglomerados de 10+ edificações
+  com o mesmo estado em células de 100 m) e pontes de carro (agrupadas da
+  rede compilada).
+- Estados exclusivos, nesta ordem: fora da cobertura, na água, isolado por
+  estrada, perto da água (250 m = `routing.WATER_SNAP_M`), acessível, sem via
+  mapeada. Os dois extras (`no_road`, `not_observed`) evitam inventar estado
+  onde o OSM ou o radar não dizem nada.
+- Acesso: via seca ligada à rede principal (maior componente fortemente
+  conexo) alcançável a pé até 500 m sem atravessar água nova (dilatação na
+  grade de 40 m). Sem isso, um vilarejo numa ilha parecia acessível.
+- Números: escolas 479 (130 isoladas, 3 perto, 8 acessíveis, 10 sem via, 328
+  fora do radar), saúde 170, comunidades 851 (34 na água, 160 isoladas),
+  pontes 244 (33 com cabeceira alagada). 370,6 km de vias sobre água nova.
+- Isolamento robusto ao ruído: tolerar 40 m de água por trecho muda 161 de
+  31.599 cruzamentos observados; só com 160 m a maior parte se reconecta.
+- Interface: filtros por categoria e estado, contagens que somam, popup com
+  estado explicado, distância à água e "Rescue route to here" (só com
+  servidor). `routing.py` só ganhou `seg_bridge`/`seg_class` como atributos.
+- Pendente: rotas e mapa tratam vias fora da cobertura do radar como secas.

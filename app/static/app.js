@@ -1,6 +1,9 @@
 // The static GitHub Pages copy has no Flask backend, so it drops the routing step.
 const STATIC = Boolean(window.STATS_URL);
-if (STATIC) document.getElementById('routing-step').remove();
+if (STATIC) {
+  document.getElementById('routing-step').remove();
+  document.querySelectorAll('.server-only').forEach(el => el.remove());
+}
 const TOTAL = STATIC ? 4 : 5;
 const COLORS = {standing: '#1f5fae', newwater: '#e0442a', roads: '#f0a500', slate: '#1b2830', safe: '#1b8a4b'};
 const map = L.map('map', {zoomSnap: 0.25});
@@ -9,7 +12,7 @@ L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Tiles: <a href="https://tile.openstreetmap.de/">OpenStreetMap.de</a>'
 }).addTo(map);
 
-['radarPane', 'beforePane', 'duringPane', 'roadsPane'].forEach((name, i) => {
+['radarPane', 'beforePane', 'duringPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
   map.createPane(name).style.zIndex = 410 + i * 10;
 });
 
@@ -75,14 +78,16 @@ function setStep(n) {
   show(layers.radar, step === 2);
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4 || routing);
-  show(layers.roads, step === 4);
+  show(impact.layer, step === 4);
+  show(impact.roads, step === 4 && impact.cats.has('roads'));
+  if (step !== 4 && map.closePopup) map.closePopup();
   routeLayers.forEach(layer => show(layer, routing));
   Object.values(routeMarkers).forEach(marker => show(marker, routing));
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
   $('before-legend').hidden = !(step === 2 || compare || routing);   // boats use rivers and lakes too
   $('during-legend').hidden = !(compare || step === 4 || routing);
-  $('roads-legend').hidden = step !== 4 || !layers.roads;
+  $('roads-legend').hidden = step !== 4 || !impact.roads;
   $('route-legend').hidden = !routing;
   updateClip(compare);
   map.invalidateSize();
@@ -430,6 +435,303 @@ function cancelRoute() {
   if (routeController) routeController.abort();
 }
 
+// ----- step 4: the impact map (schools, health, communities, bridges, roads)
+// Colour stays data-only: red = on new water, amber = cut off by flooded roads,
+// slate = dry road access, grey = unknown. Shape tells the category.
+const STATE_INFO = {
+  in_water: {label: 'On new water', fill: COLORS.newwater, stroke: '#fff'},
+  isolated: {label: 'Cut off by flooded roads', fill: COLORS.roads, stroke: COLORS.slate},
+  near_water: {label: 'Near new water', fill: '#fff', stroke: COLORS.newwater},
+  accessible: {label: 'Dry road access', fill: COLORS.slate, stroke: '#fff'},
+  no_road: {label: 'No mapped road link', fill: '#fff', stroke: '#7d8b93'},
+  not_observed: {label: 'Outside radar coverage', fill: '#c3ccd1', stroke: '#7d8b93'},
+};
+const STATE_ORDER = Object.keys(STATE_INFO);
+const CATEGORY_INFO = {
+  school: {label: 'Schools', one: 'School', shape: 'square'},
+  health: {label: 'Health', one: 'Health facility', shape: 'cross'},
+  community: {label: 'Communities', one: 'Community', shape: 'circle'},
+  bridge: {label: 'Bridges', one: 'Bridge', shape: 'diamond'},
+};
+const KIND_LABEL = {
+  school: 'School', college: 'College', kindergarten: 'Kindergarten',
+  hospital: 'Hospital', clinic: 'Clinic', doctors: 'Doctors', pharmacy: 'Pharmacy', dentist: 'Dentist',
+  centre: 'Health centre', doctor: 'Doctor', laboratory: 'Laboratory', optometrist: 'Optometrist',
+  city: 'City', town: 'Town', village: 'Village', hamlet: 'Hamlet', suburb: 'Suburb',
+  building_cluster: 'Cluster of buildings',
+};
+const kindLabel = (k) => KIND_LABEL[k] || (k ? k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' ') : '');
+const ROAD_LABEL = {primary: 'Primary and trunk', secondary: 'Secondary', tertiary: 'Tertiary', local: 'Local and service', track: 'Tracks'};
+
+// canvas markers with a shape per category (thousands of points stay fast)
+const SHAPES = {
+  circle: (ctx, x, y, r) => ctx.arc(x, y, r, 0, Math.PI * 2, false),
+  square: (ctx, x, y, r) => ctx.rect(x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7),
+  diamond: (ctx, x, y, r) => { ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.15, y); ctx.lineTo(x, y + r * 1.15); ctx.lineTo(x - r * 1.15, y); ctx.closePath(); },
+  cross: (ctx, x, y, r) => {
+    const a = r * 0.42, b = r * 1.1;
+    ctx.moveTo(x - a, y - b); ctx.lineTo(x + a, y - b); ctx.lineTo(x + a, y - a); ctx.lineTo(x + b, y - a);
+    ctx.lineTo(x + b, y + a); ctx.lineTo(x + a, y + a); ctx.lineTo(x + a, y + b); ctx.lineTo(x - a, y + b);
+    ctx.lineTo(x - a, y + a); ctx.lineTo(x - b, y + a); ctx.lineTo(x - b, y - a); ctx.lineTo(x - a, y - a); ctx.closePath();
+  },
+};
+L.Canvas.include({
+  _updateShape(layer) {
+    if (!this._drawing || layer._empty()) return;
+    const p = layer._point, ctx = this._ctx, r = Math.max(Math.round(layer._radius), 1);
+    ctx.beginPath();
+    (SHAPES[layer.options.shape] || SHAPES.circle)(ctx, p.x, p.y, r);
+    this._fillStroke(ctx, layer);
+  },
+});
+const ShapeMarker = L.CircleMarker.extend({
+  _updatePath() { this._renderer._updateShape(this); },
+});
+
+const impact = {data: null, markers: [], roads: null, cats: new Set(Object.keys(CATEGORY_INFO).concat('roads')),
+                states: new Set(['in_water', 'isolated', 'near_water']), layer: null};
+
+function shapeSvg(shape, state, size = 14) {
+  const s = STATE_INFO[state] || {fill: COLORS.slate, stroke: '#fff'};
+  const c = size / 2, r = size * 0.36;
+  const paths = {
+    circle: `<circle cx="${c}" cy="${c}" r="${r}"/>`,
+    square: `<rect x="${c - r * 0.85}" y="${c - r * 0.85}" width="${r * 1.7}" height="${r * 1.7}"/>`,
+    diamond: `<path d="M${c} ${c - r * 1.15}L${c + r * 1.15} ${c}L${c} ${c + r * 1.15}L${c - r * 1.15} ${c}Z"/>`,
+    cross: `<path d="M${c - r * .42} ${c - r * 1.1}h${r * .84}v${r * .68}h${r * .68}v${r * .84}h-${r * .68}v${r * .68}h-${r * .84}v-${r * .68}h-${r * .68}v-${r * .84}h${r * .68}z"/>`,
+  };
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true" fill="${s.fill}" stroke="${s.stroke === '#fff' ? COLORS.slate : s.stroke}" stroke-width="1.5">${paths[shape]}</svg>`;
+}
+
+function markerRadius(p) {
+  if (p.category === 'community') {
+    if (p.kind === 'building_cluster') return Math.min(14, 4 + Math.sqrt(p.buildings || 1) / 2.5);
+    return {city: 9, town: 8, village: 6.5}[p.kind] || 5.5;
+  }
+  return p.category === 'bridge' ? 5.5 : 6;
+}
+
+const metresText = (m) => m >= 1000 ? `${(m / 1000).toLocaleString('en-US', {maximumFractionDigits: 1})} km` : `${m} m`;
+const ESC = (t) => String(t).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+
+function impactTitle(p) {
+  if (p.kind === 'building_cluster') return `Cluster of ${p.buildings.toLocaleString('en-US')} buildings`;
+  if (p.category === 'bridge') return p.name ? `Bridge on ${p.name}` : `Bridge (${kindLabel(p.kind).toLowerCase()} road)`;
+  return p.name || `Unnamed ${kindLabel(p.kind).toLowerCase()}`;
+}
+
+function stateExplanation(p) {
+  const near = impact.data.parameters.near_water_m, snap = impact.data.parameters.road_snap_m;
+  const approach = impact.data.parameters.bridge_approach_m;
+  const area = p.geom === 'area' ? 'Part of its mapped area is' : (p.kind === 'building_cluster' ? 'These buildings are' : 'It is');
+  if (p.category === 'bridge') {
+    return {
+      in_water: `Every road leaving at least one end is on new water within ${approach} m of the bridge. The bridge deck itself is not tested.`,
+      isolated: 'Its approaches are dry, but every road from the main network to it crosses new water.',
+      near_water: `New water within ${near} m of the bridge or on part of its approaches; at least one dry way on and off remains.`,
+      accessible: 'A dry road links it to the main road network.',
+      no_road: 'Its roads are not linked to the main road network in OpenStreetMap.',
+      not_observed: 'The radar footprint does not cover this place.',
+    }[p.state];
+  }
+  return {
+    in_water: `${area} on new flood water seen by the radar.`,
+    isolated: 'Out of the water, but every road from the main network to it crosses new water: no dry way in by car.',
+    near_water: `Within ${near} m of new water; a dry road still links it to the main network.`,
+    accessible: 'A dry road links it to the main road network.',
+    no_road: p.road_m === null ? `No mapped drivable road within ${snap} m in OpenStreetMap.`
+      : 'Its nearby roads are not linked to the main road network in OpenStreetMap (a gap in the map).',
+    not_observed: 'The radar footprint does not cover this place, so nothing is known about the water here.',
+  }[p.state];
+}
+
+function impactPopup(p, lat, lon) {
+  const info = STATE_INFO[p.state];
+  const cat = CATEGORY_INFO[p.category];
+  const lines = [];
+  const kind = p.kind === 'building_cluster' ? 'Building footprints (OSM)' : `${kindLabel(p.kind)}`;
+  const osm = p.osm ? ` · <a href="https://www.openstreetmap.org/${ESC(p.osm)}" target="_blank" rel="noopener">OSM ${ESC(p.osm)}</a>` : '';
+  lines.push(`<p class="pp-kind">${shapeSvg(cat.shape, p.state)} ${ESC(kind)}${osm}</p>`);
+  lines.push(`<p class="pp-state" data-state="${p.state}"><b>${ESC(info.label)}</b> ${ESC(stateExplanation(p))}</p>`);
+  const facts = [];
+  if (p.state !== 'not_observed') {
+    facts.push(['New water', p.water_m === 0 ? 'on it' : p.water_m === null ? 'more than 5 km away' : `${metresText(p.water_m)} away`]);
+  }
+  if (p.category === 'bridge') {
+    if (p.length_m) facts.push(['Length', metresText(p.length_m)]);
+    if (p.approaches) facts.push(['Approach roads with new water', `${p.approaches_flooded} of ${p.approaches}`]);
+  } else if (p.road_m !== null && p.road_m !== undefined) {
+    facts.push(['Nearest mapped road', metresText(p.road_m)]);
+  }
+  if (p.kind === 'building_cluster') facts.push(['Spread', `about ${metresText(p.extent_m)}`]);
+  if (facts.length) lines.push('<dl class="pp-facts">' + facts.map(([k, v]) => `<dt>${ESC(k)}</dt><dd>${ESC(v)}</dd>`).join('') + '</dl>');
+  const nh = p.nearest_health;
+  if (nh) {
+    lines.push(`<p class="pp-health">Nearest health facility with dry road access: <b>${ESC(nh.name || 'unnamed ' + kindLabel(nh.kind).toLowerCase())}</b>, ${nh.km.toLocaleString('en-US')} km in a straight line.</p>`);
+  }
+  if (!STATIC) {
+    const actions = [`<button type="button" class="primary pp-route" data-lon="${lon}" data-lat="${lat}">Rescue route to here</button>`];
+    if (nh) actions.push(`<button type="button" class="quiet pp-from" data-lon="${lon}" data-lat="${lat}" data-from-lon="${nh.lon}" data-from-lat="${nh.lat}">Route from that facility</button>`);
+    lines.push(`<p class="pp-actions">${actions.join('')}</p>`);
+  }
+  lines.push(`<p class="pp-note">Estimate from radar water on ${ESC(fmtDate(impact.data.radar_date))}. Not confirmed damage. &copy; OpenStreetMap contributors</p>`);
+  return `<div class="impact-popup"><h3>${ESC(impactTitle(p))}</h3>${lines.join('')}</div>`;
+}
+
+function routeToPoint(lon, lat, from) {
+  map.closePopup();
+  setStep(5);
+  const dest = `${Number(lon).toFixed(6)}, ${Number(lat).toFixed(6)}`;
+  $('route-destination').value = dest;
+  placeMarker('destination', [lat, lon]);
+  if (from) {
+    $('route-origin').value = `${Number(from[0]).toFixed(6)}, ${Number(from[1]).toFixed(6)}`;
+    placeMarker('origin', [from[1], from[0]]);
+  }
+  if ($('route-origin').value) { calculateRoute(); return; }
+  setActiveField('origin');
+  clearRoutes();
+  $('route-options').innerHTML = '';
+  $('route-itinerary').hidden = true;
+  routeMessage("Destination set from the impact map. Now click the map to set the team's base.");
+  map.setView([lat, lon], Math.max(map.getZoom(), 11));
+}
+
+function buildImpactLayer() {
+  const renderer = L.canvas({pane: 'impactPane', padding: 0.4, tolerance: 4});
+  impact.markers = impact.data.features.features.map(f => {
+    const p = f.properties, [lon, lat] = f.geometry.coordinates, s = STATE_INFO[p.state];
+    const m = new ShapeMarker([lat, lon], {
+      renderer, shape: CATEGORY_INFO[p.category].shape, radius: markerRadius(p),
+      color: s.stroke, weight: p.state === 'near_water' ? 2.5 : 1.5, fillColor: s.fill, fillOpacity: 1,
+    });
+    m.feature = p;
+    m.bindPopup(() => impactPopup(p, lat, lon), {maxWidth: 300, className: 'impact-pop'});
+    return m;
+  });
+  // draw the most urgent states on top
+  const rank = (p) => STATE_ORDER.length - STATE_ORDER.indexOf(p.state);
+  impact.markers.sort((a, b) => rank(b.feature) - rank(a.feature));
+  impact.layer = L.layerGroup();
+}
+
+function filterImpact() {
+  if (!impact.layer) return;
+  impact.layer.clearLayers();
+  impact.markers.forEach(m => {
+    if (impact.cats.has(m.feature.category) && impact.states.has(m.feature.state)) impact.layer.addLayer(m);
+  });
+  show(impact.roads, step === 4 && impact.cats.has('roads'));
+  renderImpactCounts();
+}
+
+function renderImpactCounts() {
+  const cats = impact.data.categories;
+  const selected = Object.keys(CATEGORY_INFO).filter(c => impact.cats.has(c));
+  let total = 0;
+  $('impact-states').innerHTML = '';
+  STATE_ORDER.forEach(state => {
+    const n = selected.reduce((sum, c) => sum + cats[c].by_state[state], 0);
+    total += n;
+    const tr = document.createElement('tr');
+    const th = document.createElement('th');
+    th.scope = 'row';
+    const label = document.createElement('label');
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = impact.states.has(state);
+    box.addEventListener('change', () => {
+      if (box.checked) impact.states.add(state); else impact.states.delete(state);
+      filterImpact();
+    });
+    const sw = document.createElement('span');
+    sw.className = 'state-sw';
+    sw.innerHTML = shapeSvg('circle', state, 16);
+    label.append(box, sw, STATE_INFO[state].label);
+    th.append(label);
+    const td = document.createElement('td');
+    td.className = 'num';
+    td.textContent = n.toLocaleString('en-US');
+    tr.append(th, td);
+    $('impact-states').append(tr);
+  });
+  $('impact-total').textContent = total.toLocaleString('en-US');
+}
+
+function renderImpactPanel() {
+  const d = impact.data;
+  $('impact-date').textContent = new Date(d.radar_date + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'});
+  const chips = $('impact-cats');
+  chips.innerHTML = '';
+  Object.entries(CATEGORY_INFO).concat([['roads', {label: 'Roads', shape: null}]]).forEach(([key, info]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip';
+    btn.setAttribute('aria-pressed', String(impact.cats.has(key)));
+    const count = key === 'roads' ? `${d.roads.flooded_km.toLocaleString('en-US')} km` : d.categories[key].total.toLocaleString('en-US');
+    btn.innerHTML = (info.shape ? shapeSvg(info.shape, 'accessible', 13) : '<span class="sw roads"></span>') +
+      `<span>${ESC(info.label)}</span><b>${ESC(count)}</b>`;
+    btn.addEventListener('click', () => {
+      if (impact.cats.has(key)) impact.cats.delete(key); else impact.cats.add(key);
+      btn.setAttribute('aria-pressed', String(impact.cats.has(key)));
+      filterImpact();
+    });
+    chips.append(btn);
+  });
+
+  const b = d.buildings.by_state, fmtN = (n) => n.toLocaleString('en-US');
+  const comm = d.categories.community;
+  $('impact-buildings').textContent =
+    `Communities are ${fmtN(comm.places.total)} named places and ${fmtN(comm.clusters.total)} clusters of ${d.parameters.min_cluster_buildings}+ buildings. ` +
+    `Of ${fmtN(d.buildings.total)} mapped building footprints, ${fmtN(b.in_water)} are on new water, ${fmtN(b.isolated)} are cut off by flooded roads and ` +
+    `${fmtN(b.near_water)} are within ${d.parameters.near_water_m} m of new water. Footprints are not people: OpenStreetMap has no population here.`;
+
+  $('impact-roads').innerHTML = '';
+  Object.entries(d.roads.by_class).forEach(([key, r]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<th scope="row">${ESC(ROAD_LABEL[key] || key)}</th><td class="num">${r.flooded_km.toLocaleString('en-US')} km</td><td class="num">${r.observed_km.toLocaleString('en-US')} km</td>`;
+    $('impact-roads').append(tr);
+  });
+  const tr = document.createElement('tr');
+  tr.className = 'total';
+  const observed = Object.values(d.roads.by_class).reduce((s, r) => s + r.observed_km, 0);
+  tr.innerHTML = `<th scope="row">All</th><td class="num">${d.roads.flooded_km.toLocaleString('en-US')} km</td><td class="num">${Math.round(observed).toLocaleString('en-US')} km</td>`;
+  $('impact-roads').append(tr);
+
+  const c = d.categories;
+  const pct = Math.round(d.coverage.radar_observed_fraction * 100);
+  $('impact-coverage').textContent =
+    `In this area OpenStreetMap maps ${fmtN(c.school.mapped)} schools (${fmtN(c.school.named)} named), ${fmtN(c.health.mapped)} health facilities ` +
+    `(${fmtN(c.health.named)} named), ${fmtN(comm.places.total)} named places and ${fmtN(c.bridge.total)} road bridges. Rural mapping is incomplete: a place missing here is ` +
+    `not a place the flood spared. The radar covers ${pct}% of the area; the south, including Maputo, is outside it. OSM extract of ${String(d.osm_timestamp || '').slice(0, 10) || 'unknown date'}.`;
+  $('impact-panel').hidden = false;
+}
+
+async function loadImpact() {
+  const spec = stats.layers.impact_features;
+  if (!spec || !stats.impact || !stats.impact.categories) return;
+  impact.data = {...stats.impact, features: await (await fetch(spec.url)).json()};
+  if (stats.layers.impact_roads) {
+    const roads = await (await fetch(stats.layers.impact_roads.url)).json();
+    impact.roads = L.geoJSON(roads, {pane: 'roadsPane', style: {color: COLORS.roads, weight: 3.5, opacity: 1}});
+    impact.roads.bindTooltip(l => {
+      const p = l.feature.properties;
+      return `${ESC(p.name || kindLabel(p.highway) + ' road')}: ${metresText(p.flooded_m)} on new water`;
+    }, {sticky: true});
+  }
+  buildImpactLayer();
+  renderImpactPanel();
+  filterImpact();
+  // Leaflet stops clicks inside popups from bubbling and re-renders popup content,
+  // so listen in the capture phase on the map container
+  $('map').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('.pp-route, .pp-from');
+    if (!btn) return;
+    const from = btn.classList.contains('pp-from') ? [Number(btn.dataset.fromLon), Number(btn.dataset.fromLat)] : null;
+    routeToPoint(Number(btn.dataset.lon), Number(btn.dataset.lat), from);
+  }, true);
+}
+
 function card(label, value, mock) {
   const d = document.createElement('div');
   d.className = 'fact';
@@ -451,9 +753,11 @@ function card(label, value, mock) {
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
   layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1, fillColor: COLORS.standing, fillOpacity: 0.65});
   layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 1, fillColor: COLORS.newwater, fillOpacity: 0.65});
-  layers.roads = await addLayer(stats.layers.roads_blocked, 'roadsPane', {
-    color: COLORS.roads, weight: 3, opacity: 1,
-  });
+  try {
+    await loadImpact();
+  } catch (error) {
+    console.error('impact map unavailable', error);   // the rest of the story still works
+  }
 
   // text that depends on the data
   $('date-before').textContent = fmtDate(stats.scenes.before.date);
@@ -475,19 +779,7 @@ function card(label, value, mock) {
     $('context-source').textContent = 'Source: ' + ctx.source;
   }
 
-  const imp = stats.impact || {};
   const impEl = $('impact');
-  if (imp.roads_blocked_km != null) impEl.appendChild(card('km of roads inside mapped flood (OSM estimate)', imp.roads_blocked_km.toLocaleString('en-US'), stats.mock));
-  if (imp.buildings_affected != null) impEl.appendChild(card('buildings intersecting mapped flood (OSM estimate)', Math.round(imp.buildings_affected).toLocaleString('en-US'), stats.mock));
-  if (imp.source) {
-    const source = document.createElement('p');
-    source.className = 'source';
-    const attribution = document.createElement('a');
-    attribution.href = 'https://www.openstreetmap.org/copyright';
-    attribution.textContent = `${imp.source} contributors (ODbL)`;
-    source.append('Impact data: ', attribution, '. OSM coverage is incomplete; counts are estimates.');
-    impEl.appendChild(source);
-  }
   impEl.appendChild(card('new flooded area', Math.round(stats.flooded_area_km2) + ' km²', stats.mock));
   impEl.appendChild(card('permanent water', Math.round(stats.permanent_water_km2) + ' km²', stats.mock));
 

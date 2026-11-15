@@ -24,12 +24,61 @@ Example: `outputs/mock/stats.json` (all values there are fake).
 | `method` | object | `threshold_db` (a number, or an object like `{"HH": -14.5, "HV": -21}`), `speckle_filter`, `notes`. |
 | `layers.before` / `layers.during` | object | `{"type":"geojson","url":...}` or `{"type":"image","url":...,"bounds":[[south,west],[north,east]]}`. URLs start with `/outputs/`. |
 | `layers.radar_rgb` | object, optional | Same format as other layers. NASA-style false-color radar image (HH red, HV green, ratio blue). Shown in story step 2 when present. |
-| `layers.roads_blocked` | object, optional | GeoJSON line features clipped to the detected flood area: `{"type":"geojson","url":"/outputs/roads_blocked.geojson"}`. Displayed in step 4. OpenStreetMap attribution is required when the layer is present. |
-| `impact` | object, optional | `roads_blocked_km` is the summed length of OSM road centerlines inside the detected flood polygons; `buildings_affected` counts mapped building footprints with positive-area overlap (boundary-only contact is excluded). Both are OSM estimates. `source` and `estimated_at_utc` identify provenance/time. Cards only appear when values exist. |
+| `layers.impact_features` | object, optional | `{"type":"geojson","url":"/outputs/impact_features.geojson"}`: one Point per school, health facility, community and road bridge, written by `pipeline/osm_impact.py`. Properties below. OpenStreetMap attribution (ODbL) is required wherever it is shown. |
+| `layers.impact_roads` | object, optional | `{"type":"geojson","url":"/outputs/impact_roads.geojson"}`: road stretches on new water (LineString/MultiLineString), with `class` (`primary`, `secondary`, `tertiary`, `local`, `track`), `highway`, `name` (OSM `ref` or `name`, or `null`) and `flooded_m`. |
+| `impact` | object, optional | The impact map summary, written by `pipeline/osm_impact.py` (see below). The step 4 panel only appears when `impact.categories` exists. |
 | `validation` | object, optional | AOI02 comparison written by `pipeline/validate_reference.py`: NISAR and EMS areas, intersection/union, IoU, overlap fractions, reference metadata, metric CRS, number of repaired invalid input geometries, and an interpretation warning. It is a spatial comparison, not ground truth. |
 | `context_figures` | object | `source` (string) and `items` (list of `{label, value}`). Official figures with a citation, shown in step 1. |
 | `limitations` | list of strings | Shown in the panel. |
 | `routing` | object, opcional | Arquivos das rotas de resgate: `flood_raster` (água nova em GeoTIFF, mede a água nas vias), `boat_water_raster` (toda a água na data da cheia, usada pelo barco) e `network` (rede compilada por `prepare_network.py`). |
+
+### Mapa de impacto (`impact` e `layers.impact_*`)
+
+Gerado offline por `python pipeline/osm_impact.py` a partir do extrato OSM local
+(`data/osm/*.osm.pbf`), da água nova (`outputs/flood_new_water.tif`), da
+cobertura do radar (`outputs/radar_coverage.tif`) e da rede de rotas
+(`outputs/routing_network.npz`). "Afetado" quer dizer *potencialmente*
+afetado segundo a água vista pelo radar na data da cheia, nunca dano
+confirmado.
+
+Estados (exclusivos, testados nesta ordem):
+
+| `state` | Significado |
+|---|---|
+| `not_observed` | Fora da área com dado de radar nas duas datas: nada se sabe sobre a água ali. |
+| `in_water` | O ponto, ou parte da área mapeada, está sobre água nova. Para pontes: toda via que sai de uma das cabeceiras tem água nova nos primeiros `bridge_approach_m` (o tabuleiro não é testado). |
+| `isolated` | Fora da água, mas sem via seca alcançável a pé (até `road_snap_m`, sem atravessar água nova) que leve à rede viária principal; existe via ligada à rede, porém só por trechos alagados. |
+| `near_water` | A até `near_water_m` de água nova, com acesso por via seca. |
+| `accessible` | Via seca liga o elemento à rede principal. |
+| `no_road` | Nenhuma via de carro mapeada a até `road_snap_m`, ou as vias próximas não se ligam à rede principal no OSM (lacuna do mapa, não efeito da cheia). |
+
+"Rede principal" é o maior componente fortemente conexo do grafo de vias; a
+versão seca usa o grafo `dry` de `routing.py` (trechos com água nova
+removidos, pontes não testadas).
+
+Propriedades de cada ponto em `impact_features.geojson`: `id`, `category`
+(`school`, `health`, `community`, `bridge`), `kind` (valor da tag OSM:
+`school`, `clinic`, `village`…, `building_cluster` para aglomerados, a classe
+da via para pontes), `name` (só do OSM, senão `null`), `state`, `water_m`
+(metros até o centro do pixel de água nova mais próximo, múltiplos de 10;
+`0` sobre a água; `null` acima de 5 km), `road_m` (via mapeada mais próxima,
+`null` se não há via a até `road_snap_m`), `geom` (`point` ou `area`), `osm`
+(`node/123`, `way/…`, `relation/…` ou `null`). Aglomerados têm `buildings` e
+`extent_m`; pontes têm `length_m`, `ends`, `ends_cut`, `approaches` e
+`approaches_flooded`; comunidades `in_water`/`isolated` têm `nearest_health`
+(`id`, `name`, `kind`, `lon`, `lat`, `km` em linha reta até a unidade de saúde
+mais próxima com acesso seco).
+
+Campos de `impact`:
+
+| Campo | Notas |
+|---|---|
+| `categories.<cat>` | `total`, `by_state` (soma igual a `total`), `by_kind`; para escolas, saúde e comunidades também `mapped` e `named` (objetos OSM). `community` traz `places` e `clusters` (`total`, `by_state`, `buildings_in_clusters`). |
+| `buildings` | `total` de footprints `building=*` no bbox e `by_state` (estado do centróide de cada um). Não é população. |
+| `roads` | `flooded_km` e `by_class.<classe>`: `flooded_km`, `observed_km` (dentro da cobertura do radar) e `total_km`. |
+| `parameters` | `near_water_m` (250), `road_snap_m` (500), `bridge_approach_m` (250), `cluster_cell_m` (100), `min_cluster_buildings` (10), `water_pixel_m` (40). |
+| `coverage` | `radar_observed_fraction` do bbox e o tamanho, em cruzamentos, da rede principal e da sua parte seca. |
+| `states`, `source`, `osm_source`, `osm_timestamp`, `license`, `radar_date`, `estimated_at_utc`, `method` | Ordem dos estados, procedência, licença ODbL, data do radar e descrição curta do método. |
 
 ## API de rotas de resgate
 
@@ -115,4 +164,4 @@ mede a água sob elas. Trechos de barco supõem água aberta e funda o
 bastante, o que o radar não mede. É experimental e não é orientação
 operacional.
 
-Rules: never invent values; use `null` when something is not confirmed. Road and building estimates require the optional OSM enrichment step; never use mock values as real results. Keep layer files small (they go in git).
+Rules: never invent values; use `null` when something is not confirmed. Impact figures require the offline `osm_impact.py` step; never use mock values as real results. Keep layer files small (they go in git).

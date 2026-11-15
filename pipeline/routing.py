@@ -227,6 +227,9 @@ class RoutingNetwork:
         self.seg_offsets = a["seg_offsets"]
         self.seg_len, self.seg_time, self.seg_flood = a["seg_len"], a["seg_time"], a["seg_flood"]
         self.seg_oneway, self.seg_name = a["seg_oneway"], a["seg_name"]
+        # kept for the impact map (osm_impact.py); routing itself does not use them
+        self.seg_bridge = np.asarray(a.get("seg_bridge", np.zeros(len(self.seg_len), bool)), bool)
+        self.seg_class = np.asarray(a.get("seg_class", np.zeros(len(self.seg_len), np.int64)), np.int64)
         self.vert_lon, self.vert_lat = a["vert_lon"], a["vert_lat"]
         self.cum_len = a["vert_cum_len"].astype(np.float64)
         self.cum_flood = a["vert_cum_flood"].astype(np.float64)
