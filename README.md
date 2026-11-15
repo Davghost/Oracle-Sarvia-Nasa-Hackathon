@@ -370,9 +370,10 @@ python pipeline\build_static.py
 python -m http.server 8000 --directory docs
 ```
 
-A cópia estática mostra a narrativa da cheia (passos 1 a 4). **As rotas de
-resgate precisam do servidor**, então o passo 5 é retirado automaticamente
-nessa versão. Gere a cópia só com `outputs/stats.json` real (`mock: false`).
+A cópia estática mostra a narrativa da cheia e o passo 5 de rotas. Nesse passo,
+o GitHub Pages explica a limitação, mas **não calcula rotas**: o planejador
+precisa do servidor Flask e da API. Gere a cópia só com `outputs/stats.json`
+real (`mock: false`).
 Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
 
 ## Ligar satélite, híbrido e NDVI em produção
