@@ -1,22 +1,68 @@
 // The static GitHub Pages copy has no Flask backend, so it drops the routing step.
 const STATIC = Boolean(window.STATS_URL);
+const $ = (id) => document.getElementById(id);
 if (STATIC) {
   document.getElementById('routing-step').remove();
   document.querySelectorAll('.server-only').forEach(el => el.remove());
 }
 const TOTAL = STATIC ? 4 : 5;
 const COLORS = {standing: '#1f5fae', newwater: '#e0442a', roads: '#f0a500', slate: '#1b2830', safe: '#1b8a4b'};
-const map = L.map('map', {zoomSnap: 0.25});
-L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
- maxZoom: 18,
+const map = L.map('map', {
+  zoomSnap: 0.25,
+  preferCanvas: true,
+  zoomAnimation: false,
+  fadeAnimation: false,
+  markerZoomAnimation: false
+});
+const defaultMapConfig = {
+  satellite: true,
+  hybrid: true,
+  satellite_url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  hybrid_url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  hybrid_labels_url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  attribution: {satellite: '&copy; Esri', hybrid: '&copy; Esri | &copy; OpenStreetMap contributors'}
+};
+const mapConfig = Object.assign({}, defaultMapConfig, window.SARVIA_MAP_CONFIG || {});
+mapConfig.attribution = Object.assign({}, defaultMapConfig.attribution, mapConfig.attribution || {});
+const tileOptions = {maxZoom: 19, updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 2};
+const osm = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+ ...tileOptions, maxZoom: 18,
  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Tiles: <a href="https://tile.openstreetmap.de/">OpenStreetMap.de</a>'
 }).addTo(map);
+const dark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  ...tileOptions,
+  attribution: '&copy; <a href="https://www.esri.com/">Esri</a> | &copy; OpenStreetMap contributors'
+});
+const baseMaps = {'OpenStreetMap claro': osm, 'Mapa escuro': dark};
+const externalBaseMaps = {};
+if (mapConfig.satellite && mapConfig.satellite_url) {
+  externalBaseMaps['Imagem de satélite'] = L.tileLayer(mapConfig.satellite_url, {
+    ...tileOptions, attribution: mapConfig.attribution.satellite || 'Satellite imagery provider'
+  });
+}
+if (mapConfig.hybrid && mapConfig.hybrid_url) {
+  const hybridLayers = [L.tileLayer(mapConfig.hybrid_url, tileOptions)];
+  if (mapConfig.hybrid_labels_url) hybridLayers.push(L.tileLayer(mapConfig.hybrid_labels_url, tileOptions));
+  externalBaseMaps['Híbrido (imagem + estradas)'] = L.layerGroup(hybridLayers);
+}
+Object.assign(baseMaps, externalBaseMaps);
+const layerControl = L.control.layers(baseMaps, {}, {collapsed: false, position: 'topright'}).addTo(map);
+const externalTileLayers = [];
+Object.values(externalBaseMaps).forEach(layer => {
+  if (layer.eachLayer) layer.eachLayer(child => externalTileLayers.push(child));
+  else externalTileLayers.push(layer);
+});
+externalTileLayers.forEach(layer => layer.on('tileerror', () => {
+  if ($('layer-status')) {
+    $('layer-status').hidden = false;
+    $('layer-status').textContent = 'Não foi possível carregar uma camada externa; verifique a configuração do provedor.';
+  }
+}));
 
-['radarPane', 'beforePane', 'duringPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
-  map.createPane(name).style.zIndex = 410 + i * 10;
+['vegetationPane', 'radarPane', 'beforePane', 'duringPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
+  map.createPane(name).style.zIndex = 405 + i * 10;
 });
 
-const $ = (id) => document.getElementById(id);
 const fmt = (v, unit = '') => (v === null || v === undefined) ? 'to be confirmed' : v + unit;
 const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
 
@@ -28,11 +74,33 @@ async function addLayer(spec, pane, style) {
   // The stats contract allows either vector GeoJSON or raster image overlays.
   if (!spec) return null;
   if (spec.type === 'geojson') {
-    const data = await (await fetch(spec.url)).json();
+    const response = await fetch(spec.url);
+    if (!response.ok) throw new Error(`Layer request failed (${response.status})`);
+    const data = await response.json();
     return L.geoJSON(data, {pane, style});
   }
   if (spec.type === 'image') {  // bounds: [[south, west], [north, east]]
-    return L.imageOverlay(spec.url, spec.bounds, {pane});
+    const layer = L.imageOverlay(spec.url, spec.bounds, {pane, opacity: style.opacity == null ? 1 : style.opacity});
+    layer.on('error', () => {
+      if ($('layer-status')) {
+        $('layer-status').hidden = false;
+        $('layer-status').textContent = `Falha ao carregar a camada ${spec.source || 'raster'}.`;
+      }
+    });
+    return layer;
+  }
+  if (spec.type === 'tile') {
+    const layer = L.tileLayer(spec.url, {
+      ...tileOptions, pane, opacity: style.opacity == null ? 0.48 : style.opacity,
+      attribution: spec.attribution || spec.source || 'External raster layer'
+    });
+    layer.on('tileerror', () => {
+      if ($('layer-status')) {
+        $('layer-status').hidden = false;
+        $('layer-status').textContent = `Falha ao carregar a camada ${spec.source || 'externa'}.`;
+      }
+    });
+    return layer;
   }
   throw new Error('Unknown layer type: ' + spec.type);
 }
@@ -41,6 +109,23 @@ function show(layer, on) {
   if (!layer) return;
   if (on && !map.hasLayer(layer)) layer.addTo(map);
   if (!on && map.hasLayer(layer)) map.removeLayer(layer);
+}
+
+function vegetationLegend(spec) {
+  const legend = $('vegetation-legend');
+  if (!legend || !spec || !Array.isArray(spec.legend)) return;
+  legend.innerHTML = '<b>NDVI/vegetação estimada</b>';
+  spec.legend.forEach(item => {
+    if (!item || !item.label) return;
+    const row = document.createElement('span');
+    row.className = 'vegetation-key';
+    row.innerHTML = `<i style="background:${ESC(item.color || '#9aa6ad')}"></i>${ESC(item.label)}`;
+    legend.appendChild(row);
+  });
+  const note = document.createElement('small');
+  note.textContent = `${spec.source || 'Fonte não informada'} · ${spec.date || 'data não informada'}`;
+  legend.appendChild(note);
+  legend.hidden = false;
 }
 
 // ----- curtain: clip the "before" pane to the left of the line and "during" to the right
@@ -78,6 +163,7 @@ function setStep(n) {
   show(layers.radar, step === 2);
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4 || routing);
+  show(layers.vegetation, step >= 2);
   show(impact.layer, step === 4);
   show(impact.roads, step === 4 && impact.cats.has('roads'));
   if (step !== 4 && map.closePopup) map.closePopup();
@@ -87,6 +173,7 @@ function setStep(n) {
   $('legend').hidden = step < 2;
   $('before-legend').hidden = !(step === 2 || compare || routing);   // boats use rivers and lakes too
   $('during-legend').hidden = !(compare || step === 4 || routing);
+  if ($('vegetation-legend')) $('vegetation-legend').hidden = !layers.vegetation || step < 2;
   $('roads-legend').hidden = step !== 4 || !impact.roads;
   $('route-legend').hidden = !routing;
   updateClip(compare);
@@ -719,9 +806,13 @@ function renderImpactPanel() {
 async function loadImpact() {
   const spec = stats.layers.impact_features;
   if (!spec || !stats.impact || !stats.impact.categories) return;
-  impact.data = {...stats.impact, features: await (await fetch(spec.url)).json()};
+  const featureResponse = await fetch(spec.url);
+  if (!featureResponse.ok) throw new Error(`Impact features request failed (${featureResponse.status})`);
+  impact.data = {...stats.impact, features: await featureResponse.json()};
   if (stats.layers.impact_roads) {
-    const roads = await (await fetch(stats.layers.impact_roads.url)).json();
+    const response = await fetch(stats.layers.impact_roads.url);
+    if (!response.ok) throw new Error(`Impact roads request failed (${response.status})`);
+    const roads = await response.json();
     const roadWeight = () => (map.getZoom() >= DETAIL_ZOOM ? 3.5 : 1.6);
     impact.roads = L.geoJSON(roads, {pane: 'roadsPane', style: () => ({color: COLORS.roads, weight: roadWeight(), opacity: 1})});
     map.on('zoomend', () => impact.roads.setStyle({weight: roadWeight()}));
@@ -729,8 +820,10 @@ async function loadImpact() {
       const p = l.feature.properties;
       return `${ESC(p.name || kindLabel(p.highway) + ' road')}: ${metresText(p.flooded_m)} on new water`;
     }, {sticky: true});
+    layerControl.addOverlay(impact.roads, 'Estradas em água nova (OSM)');
   }
   buildImpactLayer();
+  layerControl.addOverlay(impact.layer, 'Impactos (OSM)');
   renderImpactPanel();
   filterImpact();
   // Leaflet stops clicks inside popups from bubbling and re-renders popup content,
@@ -762,12 +855,32 @@ function card(label, value, mock) {
   map.fitBounds([[so, w], [n, e]]);
 
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
-  layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1, fillColor: COLORS.standing, fillOpacity: 0.65});
-  layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 1, fillColor: COLORS.newwater, fillOpacity: 0.65});
+  layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1.5, fillColor: COLORS.standing, fillOpacity: 0.72, opacity: 0.72});
+  layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 2, fillColor: COLORS.newwater, fillOpacity: 0.78, opacity: 0.78});
+  if (layers.radar) layerControl.addOverlay(layers.radar, 'Radar NISAR (contexto)');
+  if (layers.before) layerControl.addOverlay(layers.before, 'Água permanente (NISAR)');
+  if (layers.during) layerControl.addOverlay(layers.during, 'Água nova (NISAR)');
+  if (stats.layers.vegetation) {
+    try {
+      layers.vegetation = await addLayer(stats.layers.vegetation, 'vegetationPane', {opacity: 0.46});
+      vegetationLegend(stats.layers.vegetation);
+      layerControl.addOverlay(layers.vegetation, 'NDVI/vegetação estimada');
+    } catch (error) {
+      console.error('vegetation layer unavailable', error);
+      if ($('layer-status')) {
+        $('layer-status').hidden = false;
+        $('layer-status').textContent = 'A camada de vegetação está indisponível; as camadas NISAR continuam funcionando.';
+      }
+    }
+  }
   try {
     await loadImpact();
   } catch (error) {
     console.error('impact map unavailable', error);   // the rest of the story still works
+    if ($('layer-status')) {
+      $('layer-status').hidden = false;
+      $('layer-status').textContent = 'Camadas de impacto OSM indisponíveis; a narrativa NISAR continua funcionando.';
+    }
   }
 
   // text that depends on the data
@@ -867,5 +980,10 @@ function card(label, value, mock) {
     map.on('click', selectRoutePoint);
   }
 
+  $('legend-toggle').addEventListener('click', () => {
+    const expanded = $('legend-toggle').getAttribute('aria-expanded') === 'true';
+    $('legend-toggle').setAttribute('aria-expanded', String(!expanded));
+    $('legend-content').hidden = expanded;
+  });
   setStep(1);
 })();

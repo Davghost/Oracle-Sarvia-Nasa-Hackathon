@@ -510,3 +510,19 @@ histórico.
   estado explicado, distância à água e "Rescue route to here" (só com
   servidor). `routing.py` só ganhou `seg_bridge`/`seg_class` como atributos.
 - Pendente: rotas e mapa tratam vias fora da cobertura do radar como secas.
+
+## 24. Fontes externas e leitura visual do mapa (15/11/2026)
+
+O mapa mantém o OSM claro como base padrão e oferece controle Leaflet para
+OSM, Esri escuro e, quando configurados no servidor, satélite e híbrido com
+estradas. `SARVIA_SATELLITE_TILE_URL` e `SARVIA_HYBRID_TILE_URL` são
+servidores, não valores publicados no cliente: `/map-tiles` faz o proxy e
+preserva a atribuição. Sem configuração externa, o usuário recebe uma
+mensagem e a narrativa continua usando OSM e os produtos NISAR.
+
+`layers.vegetation` é opcional no contrato. A camada só aparece quando há
+raster/tile real pré-processado, com fonte, data, índice e legenda; fica
+abaixo das máscaras de água NISAR e transparente. O `stats.json` atual não
+publica NDVI porque nenhum raster Sentinel-2 licenciado e validado foi
+gerado para janeiro de 2026. Não se deve preencher essa ausência com pixels
+ou classes inventados.

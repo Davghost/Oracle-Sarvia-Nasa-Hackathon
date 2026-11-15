@@ -369,6 +369,59 @@ resgate precisam do servidor**, então o passo 5 é retirado automaticamente
 nessa versão. Gere a cópia só com `outputs/stats.json` real (`mock: false`).
 Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
 
+## Ligar satélite, híbrido e NDVI em produção
+
+Satélite e híbrido já usam Esri sem API key por padrão. Para trocar pelo
+provedor contratado, use o servidor Flask atrás de HTTPS. A versão
+em `docs/` é estática: ela não tem a API de rotas nem o proxy de tiles, então
+não deve receber tokens de provedores.
+
+1. Crie uma conta no provedor oficial escolhido (por exemplo, Mapbox
+   Satellite Streets ou Esri), aceite os termos, confirme a cobertura e
+   configure billing/limites. Guarde o token em um secret do serviço de
+   produção; não o coloque em `.js`, HTML, `stats.json` ou Git.
+2. No ambiente do processo Flask, defina os URLs de tiles e atribuições. O
+   exemplo abaixo usa placeholders, não é uma credencial:
+
+   ```powershell
+   $env:SARVIA_SATELLITE_TILE_URL = "https://provider.example/satellite/{z}/{x}/{y}?token=<SERVER_SECRET>"
+   $env:SARVIA_HYBRID_TILE_URL = "https://provider.example/hybrid/{z}/{x}/{y}?token=<SERVER_SECRET>"
+   $env:SARVIA_SATELLITE_ATTRIBUTION = "© Provedor de imagens"
+   $env:SARVIA_HYBRID_ATTRIBUTION = "© Provedor de imagens | © OpenStreetMap contributors"
+   python app\app.py
+   ```
+
+   Em Docker, systemd ou no painel do hosting, defina as mesmas variáveis
+   como secrets do serviço, em vez de usar valores no código. O navegador verá
+   somente `/map-tiles/satellite/{z}/{x}/{y}` e
+   `/map-tiles/hybrid/{z}/{x}/{y}`.
+3. Abra o endereço HTTPS, selecione o controle de camadas no canto superior
+   direito e teste OSM claro, escuro, satélite e híbrido. Se as variáveis não
+   existirem ou o provedor falhar, OSM continuará sendo o fallback.
+4. Verifique a implantação:
+
+   ```powershell
+   curl.exe https://SEU_HOST/api/stats
+   curl.exe https://SEU_HOST/api/route/status
+   curl.exe -I https://SEU_HOST/map-tiles/satellite/10/500/500
+   ```
+
+### NDVI
+
+O NDVI não é ativado por uma variável de mapa. Primeiro obtenha Sentinel-2 por
+uma fonte licenciada (Sentinel Hub, Copernicus ou Earth Engine), gere offline
+uma composição que cubra a área em uma janela documentada de janeiro de 2026,
+aplique máscara de nuvens e valide a cobertura. Depois publique o raster/tile
+em `outputs/` e adicione `layers.vegetation` a `outputs/stats.json` com
+`type`, `url`, `bounds`, `source`, `date`, `index` e `legend`, conforme
+[`docs/stats_contract.md`](docs/stats_contract.md). A legenda deve registrar
+água, vegetação baixa/moderada/densa, solo exposto, urbano e sem
+dados/nuvem somente quando essas classes existirem nos pixels processados.
+
+O `outputs/stats.json` atual não possui essa camada porque nenhum raster
+Sentinel-2 licenciado e validado foi publicado. Não preencha o campo com
+valores fictícios; sem ele, o mapa funciona normalmente.
+
 ## Integrações externas
 
 - **OpenStreetMap via Geofabrik:** extrato `.osm.pbf` baixado só por
