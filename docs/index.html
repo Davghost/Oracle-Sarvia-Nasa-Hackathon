@@ -49,29 +49,27 @@
         <p class="caveat"><b>Potentially affected</b>, judged only from the water the radar saw on <span id="impact-date">the flood date</span>. Not confirmed damage. <span class="badge">Estimate</span></p>
 
         <div id="impact-panel" hidden>
-          <div class="chips" role="group" aria-label="Show on the map" id="impact-cats"></div>
-          <table class="impact-states" aria-describedby="impact-sum">
-            <thead><tr><th scope="col">State</th><th scope="col" class="num">Mapped</th></tr></thead>
-            <tbody id="impact-states"></tbody>
-            <tfoot><tr><th scope="row">Total</th><td class="num" id="impact-total"></td></tr></tfoot>
-          </table>
-          <p class="source" id="impact-sum">Each mapped element has one state. Tick a state to show it on the map; click a marker for details<span class="server-only"> and a rescue route to it</span>.</p>
-          <p class="impact-buildings" id="impact-buildings"></p>
+          <ul class="impact-cats" id="impact-cats" aria-label="Categories: click to show or hide on the map"></ul>
+          <div class="state-key" id="impact-states" role="group" aria-label="States shown on the map"></div>
+          <p class="source" id="impact-sum">Each mapped element has one state; the numbers add up to <b id="impact-total"></b>. Tap a state or a category to filter the map, then a marker for details<span class="server-only"> and a rescue route</span>.</p>
+          <button type="button" class="roads-toggle" id="impact-roads-toggle" aria-pressed="true"><span class="sw roads"></span><span><b id="impact-roads-km"></b> of road under new water</span></button>
 
-          <h2>Roads on new water</h2>
-          <table class="impact-roads">
-            <thead><tr><th scope="col">Road class</th><th scope="col" class="num">On new water</th><th scope="col" class="num">Seen by radar</th></tr></thead>
-            <tbody id="impact-roads"></tbody>
-          </table>
-          <p class="source">Bridges are not tested: the radar sees the water under them. A bridge counts as flooded when every road leaving one of its ends has new water near the bridge.</p>
-
-          <h2>What OpenStreetMap has here</h2>
-          <p class="source" id="impact-coverage"></p>
-          <p class="source">Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, ODbL.</p>
+          <details class="impact-more">
+            <summary>Roads by class</summary>
+            <table class="impact-roads">
+              <thead><tr><th scope="col">Class</th><th scope="col" class="num">Under water</th><th scope="col" class="num">Seen by radar</th></tr></thead>
+              <tbody id="impact-roads"></tbody>
+            </table>
+            <p class="source">Bridges are not tested: the radar sees the water under them. A bridge counts as flooded when every road leaving one end has new water near it.</p>
+          </details>
+          <details class="impact-more">
+            <summary>What the map can and cannot see</summary>
+            <p class="source" id="impact-buildings"></p>
+            <p class="source" id="impact-coverage"></p>
+          </details>
+          <p class="source attribution">Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, ODbL.</p>
         </div>
 
-        <h2>Flood area</h2>
-        <div id="impact" class="facts"></div>
         <section id="validation-section" hidden>
           <h2>Independent map comparison</h2>
           <div id="validation-metrics" class="facts"></div>
@@ -82,6 +80,7 @@
         <details>
           <summary>Data details</summary>
           <dl id="numbers"></dl>
+          <div id="impact" hidden></div>
         </details>
       </section>
 

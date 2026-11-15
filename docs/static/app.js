@@ -439,20 +439,31 @@ function cancelRoute() {
 // Colour stays data-only: red = on new water, amber = cut off by flooded roads,
 // slate = dry road access, grey = unknown. Shape tells the category.
 const STATE_INFO = {
-  in_water: {label: 'On new water', fill: COLORS.newwater, stroke: '#fff'},
-  isolated: {label: 'Cut off by flooded roads', fill: COLORS.roads, stroke: COLORS.slate},
-  near_water: {label: 'Near new water', fill: '#fff', stroke: COLORS.newwater},
-  accessible: {label: 'Dry road access', fill: COLORS.slate, stroke: '#fff'},
-  no_road: {label: 'No mapped road link', fill: '#fff', stroke: '#7d8b93'},
-  not_observed: {label: 'Outside radar coverage', fill: '#c3ccd1', stroke: '#7d8b93'},
+  in_water: {key: 'On new water', label: 'On new water', short: 'on water', fill: COLORS.newwater, ink: '#fff'},
+  isolated: {key: 'Cut off', label: 'Cut off by flooded roads', short: 'cut off', fill: COLORS.roads, ink: COLORS.slate},
+  near_water: {key: 'Near new water', label: 'Near new water', short: 'near water', fill: '#fff', ink: COLORS.newwater},
+  accessible: {key: 'Dry road access', label: 'Dry road access', short: 'dry access', fill: COLORS.slate, ink: '#fff'},
+  no_road: {key: 'No road link', label: 'No mapped road link', short: 'no road', fill: '#8e9ba3', ink: '#fff'},
+  not_observed: {key: 'Not seen by radar', label: 'Outside radar coverage', short: 'not seen', fill: '#c3ccd1', ink: '#fff'},
 };
 const STATE_ORDER = Object.keys(STATE_INFO);
 const CATEGORY_INFO = {
-  school: {label: 'Schools', one: 'School', shape: 'square'},
-  health: {label: 'Health', one: 'Health facility', shape: 'cross'},
-  community: {label: 'Communities', one: 'Community', shape: 'circle'},
-  bridge: {label: 'Bridges', one: 'Bridge', shape: 'diamond'},
+  school: {label: 'Schools', icon: 'school'},
+  health: {label: 'Health', icon: 'health'},
+  community: {label: 'Communities', icon: 'home'},
+  bridge: {label: 'Bridges', icon: 'bridge'},
 };
+// 24 x 24 pictograms, filled: a mortarboard, a medical cross, a house, two houses, a bridge
+const PICTO = {
+  school: 'M12 3.5 1.5 9 12 14.5 20 10.3V16h2V9zM5.5 12.6v3.6c0 1.9 2.9 3.3 6.5 3.3s6.5-1.4 6.5-3.3v-3.6L12 16z',
+  health: 'M9.5 3h5v6.5H21v5h-6.5V21h-5v-6.5H3v-5h6.5z',
+  home: 'M12 3 2 11.2h3V20h5.2v-5.5h3.6V20H19v-8.8h3z',
+  homes: 'M1.5 12.2 8 6.5l6.5 5.7h-2V20h-3v-4h-3v4h-3v-7.8zM15 9.3l3.8-3.3 4.2 3.7h-1.6V20h-5.5v-8.3z',
+  bridge: 'M1 8h22v2.4h-1.6V19h-3.6v-2.5a5.8 5.8 0 0 0-11.6 0V19H2.6v-8.6H1z',
+};
+const PATHS = {};
+const picto = (name) => PATHS[name] || (PATHS[name] = new Path2D(PICTO[name]));
+const iconOf = (p) => p.kind === 'building_cluster' ? 'homes' : CATEGORY_INFO[p.category].icon;
 const KIND_LABEL = {
   school: 'School', college: 'College', kindergarten: 'Kindergarten',
   hospital: 'Hospital', clinic: 'Clinic', doctors: 'Doctors', pharmacy: 'Pharmacy', dentist: 'Dentist',
@@ -460,28 +471,32 @@ const KIND_LABEL = {
   city: 'City', town: 'Town', village: 'Village', hamlet: 'Hamlet', suburb: 'Suburb',
   building_cluster: 'Cluster of buildings',
 };
-const kindLabel = (k) => KIND_LABEL[k] || (k ? k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' ') : '');
+const kindLabel =(k) => KIND_LABEL[k] || (k ? k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' ') : '');
 const ROAD_LABEL = {primary: 'Primary and trunk', secondary: 'Secondary', tertiary: 'Tertiary', local: 'Local and service', track: 'Tracks'};
 
-// canvas markers with a shape per category (thousands of points stay fast)
-const SHAPES = {
-  circle: (ctx, x, y, r) => ctx.arc(x, y, r, 0, Math.PI * 2, false),
-  square: (ctx, x, y, r) => ctx.rect(x - r * 0.85, y - r * 0.85, r * 1.7, r * 1.7),
-  diamond: (ctx, x, y, r) => { ctx.moveTo(x, y - r * 1.15); ctx.lineTo(x + r * 1.15, y); ctx.lineTo(x, y + r * 1.15); ctx.lineTo(x - r * 1.15, y); ctx.closePath(); },
-  cross: (ctx, x, y, r) => {
-    const a = r * 0.42, b = r * 1.1;
-    ctx.moveTo(x - a, y - b); ctx.lineTo(x + a, y - b); ctx.lineTo(x + a, y - a); ctx.lineTo(x + b, y - a);
-    ctx.lineTo(x + b, y + a); ctx.lineTo(x + a, y + a); ctx.lineTo(x + a, y + b); ctx.lineTo(x - a, y + b);
-    ctx.lineTo(x - a, y + a); ctx.lineTo(x - b, y + a); ctx.lineTo(x - b, y - a); ctx.lineTo(x - a, y - a); ctx.closePath();
-  },
-};
+// Canvas markers. Zoomed out they are small dots in the colour of their state,
+// so the map reads as a pattern; from DETAIL_ZOOM they become round badges
+// carrying a pictogram of what the place is.
+const DETAIL_ZOOM = 11;
 L.Canvas.include({
   _updateShape(layer) {
     if (!this._drawing || layer._empty()) return;
-    const p = layer._point, ctx = this._ctx, r = Math.max(Math.round(layer._radius), 1);
+    const p = layer._point, ctx = this._ctx, r = layer._radius, o = layer.options, s = STATE_INFO[o.state];
     ctx.beginPath();
-    (SHAPES[layer.options.shape] || SHAPES.circle)(ctx, p.x, p.y, r);
-    this._fillStroke(ctx, layer);
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = s.fill;
+    ctx.fill();
+    ctx.lineWidth = o.detail ? 2 : 1;
+    ctx.strokeStyle = o.state === 'near_water' ? COLORS.newwater : 'rgba(255,255,255,.95)';
+    ctx.stroke();
+    if (!o.detail) return;
+    const k = (r * 1.25) / 24;
+    ctx.save();
+    ctx.translate(p.x - 12 * k, p.y - 12 * k);
+    ctx.scale(k, k);
+    ctx.fillStyle = s.ink;
+    ctx.fill(picto(o.icon));
+    ctx.restore();
   },
 });
 const ShapeMarker = L.CircleMarker.extend({
@@ -491,24 +506,17 @@ const ShapeMarker = L.CircleMarker.extend({
 const impact = {data: null, markers: [], roads: null, cats: new Set(Object.keys(CATEGORY_INFO).concat('roads')),
                 states: new Set(['in_water', 'isolated', 'near_water']), layer: null};
 
-function shapeSvg(shape, state, size = 14) {
-  const s = STATE_INFO[state] || {fill: COLORS.slate, stroke: '#fff'};
-  const c = size / 2, r = size * 0.36;
-  const paths = {
-    circle: `<circle cx="${c}" cy="${c}" r="${r}"/>`,
-    square: `<rect x="${c - r * 0.85}" y="${c - r * 0.85}" width="${r * 1.7}" height="${r * 1.7}"/>`,
-    diamond: `<path d="M${c} ${c - r * 1.15}L${c + r * 1.15} ${c}L${c} ${c + r * 1.15}L${c - r * 1.15} ${c}Z"/>`,
-    cross: `<path d="M${c - r * .42} ${c - r * 1.1}h${r * .84}v${r * .68}h${r * .68}v${r * .84}h-${r * .68}v${r * .68}h-${r * .84}v-${r * .68}h-${r * .68}v-${r * .84}h${r * .68}z"/>`,
-  };
-  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" aria-hidden="true" fill="${s.fill}" stroke="${s.stroke === '#fff' ? COLORS.slate : s.stroke}" stroke-width="1.5">${paths[shape]}</svg>`;
+function iconSvg(icon, state, size = 18) {
+  const s = STATE_INFO[state] || STATE_INFO.accessible;
+  const ring = state === 'near_water' ? COLORS.newwater : 'none';
+  return `<svg viewBox="0 0 28 28" width="${size}" height="${size}" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="${s.fill}" stroke="${ring}" stroke-width="2"/>` +
+    `<path transform="translate(5.6 5.6) scale(.7)" fill="${s.ink}" d="${PICTO[icon]}"/></svg>`;
 }
 
-function markerRadius(p) {
-  if (p.category === 'community') {
-    if (p.kind === 'building_cluster') return Math.min(14, 4 + Math.sqrt(p.buildings || 1) / 2.5);
-    return {city: 9, town: 8, village: 6.5}[p.kind] || 5.5;
-  }
-  return p.category === 'bridge' ? 5.5 : 6;
+function markerRadius(p, detail) {
+  if (!detail) return p.kind === 'building_cluster' ? 2.5 : 3.5;
+  if (p.kind === 'building_cluster') return Math.min(14, 9 + Math.sqrt(p.buildings) / 8);
+  return {city: 13, town: 12}[p.kind] || 10.5;
 }
 
 const metresText = (m) => m >= 1000 ? `${(m / 1000).toLocaleString('en-US', {maximumFractionDigits: 1})} km` : `${m} m`;
@@ -547,11 +555,10 @@ function stateExplanation(p) {
 
 function impactPopup(p, lat, lon) {
   const info = STATE_INFO[p.state];
-  const cat = CATEGORY_INFO[p.category];
   const lines = [];
   const kind = p.kind === 'building_cluster' ? 'Building footprints (OSM)' : `${kindLabel(p.kind)}`;
   const osm = p.osm ? ` · <a href="https://www.openstreetmap.org/${ESC(p.osm)}" target="_blank" rel="noopener">OSM ${ESC(p.osm)}</a>` : '';
-  lines.push(`<p class="pp-kind">${shapeSvg(cat.shape, p.state)} ${ESC(kind)}${osm}</p>`);
+  lines.push(`<p class="pp-kind">${iconSvg(iconOf(p), p.state, 22)} ${ESC(kind)}${osm}</p>`);
   lines.push(`<p class="pp-state" data-state="${p.state}"><b>${ESC(info.label)}</b> ${ESC(stateExplanation(p))}</p>`);
   const facts = [];
   if (p.state !== 'not_observed') {
@@ -598,21 +605,26 @@ function routeToPoint(lon, lat, from) {
 }
 
 function buildImpactLayer() {
-  const renderer = L.canvas({pane: 'impactPane', padding: 0.4, tolerance: 4});
+  const renderer = L.canvas({pane: 'impactPane', padding: 0.4, tolerance: 6});
+  const detail = map.getZoom() >= DETAIL_ZOOM;
   impact.markers = impact.data.features.features.map(f => {
-    const p = f.properties, [lon, lat] = f.geometry.coordinates, s = STATE_INFO[p.state];
-    const m = new ShapeMarker([lat, lon], {
-      renderer, shape: CATEGORY_INFO[p.category].shape, radius: markerRadius(p),
-      color: s.stroke, weight: p.state === 'near_water' ? 2.5 : 1.5, fillColor: s.fill, fillOpacity: 1,
-    });
+    const p = f.properties, [lon, lat] = f.geometry.coordinates;
+    const m = new ShapeMarker([lat, lon], {renderer, state: p.state, icon: iconOf(p), detail, radius: markerRadius(p, detail)});
     m.feature = p;
     m.bindPopup(() => impactPopup(p, lat, lon), {maxWidth: 300, className: 'impact-pop'});
     return m;
   });
-  // draw the most urgent states on top
+  // the most urgent states are drawn last, on top
   const rank = (p) => STATE_ORDER.length - STATE_ORDER.indexOf(p.state);
-  impact.markers.sort((a, b) => rank(b.feature) - rank(a.feature));
+  impact.markers.sort((a, b) => rank(a.feature) - rank(b.feature));
   impact.layer = L.layerGroup();
+  impact.detail = detail;
+  map.on('zoomend', () => {
+    const d = map.getZoom() >= DETAIL_ZOOM;
+    if (d === impact.detail) return;
+    impact.detail = d;
+    impact.markers.forEach(m => { m.options.detail = d; m.setRadius(markerRadius(m.feature, d)); });
+  });
 }
 
 function filterImpact() {
@@ -629,81 +641,78 @@ function renderImpactCounts() {
   const cats = impact.data.categories;
   const selected = Object.keys(CATEGORY_INFO).filter(c => impact.cats.has(c));
   let total = 0;
-  $('impact-states').innerHTML = '';
+  const key = $('impact-states');
+  key.innerHTML = '';
   STATE_ORDER.forEach(state => {
     const n = selected.reduce((sum, c) => sum + cats[c].by_state[state], 0);
     total += n;
-    const tr = document.createElement('tr');
-    const th = document.createElement('th');
-    th.scope = 'row';
-    const label = document.createElement('label');
-    const box = document.createElement('input');
-    box.type = 'checkbox';
-    box.checked = impact.states.has(state);
-    box.addEventListener('change', () => {
-      if (box.checked) impact.states.add(state); else impact.states.delete(state);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'state-chip';
+    btn.dataset.state = state;
+    btn.setAttribute('aria-pressed', String(impact.states.has(state)));
+    btn.innerHTML = `<span class="dot"></span><span class="lbl" title="${ESC(STATE_INFO[state].label)}">${ESC(STATE_INFO[state].key)}</span><b>${n.toLocaleString('en-US')}</b>`;
+    btn.addEventListener('click', () => {
+      if (impact.states.has(state)) impact.states.delete(state); else impact.states.add(state);
       filterImpact();
     });
-    const sw = document.createElement('span');
-    sw.className = 'state-sw';
-    sw.innerHTML = shapeSvg('circle', state, 16);
-    label.append(box, sw, STATE_INFO[state].label);
-    th.append(label);
-    const td = document.createElement('td');
-    td.className = 'num';
-    td.textContent = n.toLocaleString('en-US');
-    tr.append(th, td);
-    $('impact-states').append(tr);
+    key.append(btn);
   });
   $('impact-total').textContent = total.toLocaleString('en-US');
+  document.querySelectorAll('#impact-cats .cat-row').forEach(row => row.setAttribute('aria-pressed', String(impact.cats.has(row.dataset.cat))));
+  $('impact-roads-toggle').setAttribute('aria-pressed', String(impact.cats.has('roads')));
+}
+
+function toggleCategory(key) {
+  if (impact.cats.has(key)) impact.cats.delete(key); else impact.cats.add(key);
+  filterImpact();
 }
 
 function renderImpactPanel() {
-  const d = impact.data;
+  const d = impact.data, fmtN = (n) => n.toLocaleString('en-US');
   $('impact-date').textContent = new Date(d.radar_date + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'});
-  const chips = $('impact-cats');
-  chips.innerHTML = '';
-  Object.entries(CATEGORY_INFO).concat([['roads', {label: 'Roads', shape: null}]]).forEach(([key, info]) => {
+
+  // one row per category: pictogram, name, the urgent numbers and a bar split by state
+  const list = $('impact-cats');
+  list.innerHTML = '';
+  Object.entries(CATEGORY_INFO).forEach(([key, info]) => {
+    const c = d.categories[key];
+    const li = document.createElement('li');
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'chip';
-    btn.setAttribute('aria-pressed', String(impact.cats.has(key)));
-    const count = key === 'roads' ? `${d.roads.flooded_km.toLocaleString('en-US')} km` : d.categories[key].total.toLocaleString('en-US');
-    btn.innerHTML = (info.shape ? shapeSvg(info.shape, 'accessible', 13) : '<span class="sw roads"></span>') +
-      `<span>${ESC(info.label)}</span><b>${ESC(count)}</b>`;
-    btn.addEventListener('click', () => {
-      if (impact.cats.has(key)) impact.cats.delete(key); else impact.cats.add(key);
-      btn.setAttribute('aria-pressed', String(impact.cats.has(key)));
-      filterImpact();
-    });
-    chips.append(btn);
+    btn.className = 'cat-row';
+    btn.dataset.cat = key;
+    const urgent = ['in_water', 'isolated'].filter(s => c.by_state[s] > 0)
+      .map(s => `<span class="hl ${s}">${fmtN(c.by_state[s])} ${STATE_INFO[s].short}</span>`).join('') || '<span class="hl none">none on water or cut off</span>';
+    const bar = STATE_ORDER.filter(s => c.by_state[s] > 0)
+      .map(s => `<i class="seg ${s}" style="flex-grow:${c.by_state[s]}" title="${ESC(STATE_INFO[s].label)}: ${fmtN(c.by_state[s])}"></i>`).join('');
+    btn.innerHTML = `<span class="cat-icon">${iconSvg(info.icon, 'accessible', 34)}</span>` +
+      `<span class="cat-name">${ESC(info.label)}<small>${fmtN(c.total)} mapped</small></span>` +
+      `<span class="cat-hl">${urgent}</span><span class="bar" aria-hidden="true">${bar}</span>`;
+    btn.addEventListener('click', () => toggleCategory(key));
+    li.append(btn);
+    list.append(li);
   });
-
-  const b = d.buildings.by_state, fmtN = (n) => n.toLocaleString('en-US');
-  const comm = d.categories.community;
-  $('impact-buildings').textContent =
-    `Communities are ${fmtN(comm.places.total)} named places and ${fmtN(comm.clusters.total)} clusters of ${d.parameters.min_cluster_buildings}+ buildings. ` +
-    `Of ${fmtN(d.buildings.total)} mapped building footprints, ${fmtN(b.in_water)} are on new water, ${fmtN(b.isolated)} are cut off by flooded roads and ` +
-    `${fmtN(b.near_water)} are within ${d.parameters.near_water_m} m of new water. Footprints are not people: OpenStreetMap has no population here.`;
+  $('impact-roads-km').textContent = `${d.roads.flooded_km.toLocaleString('en-US')} km`;
+  $('impact-roads-toggle').onclick = () => toggleCategory('roads');
 
   $('impact-roads').innerHTML = '';
-  Object.entries(d.roads.by_class).forEach(([key, r]) => {
+  Object.entries(d.roads.by_class).forEach(([k, r]) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<th scope="row">${ESC(ROAD_LABEL[key] || key)}</th><td class="num">${r.flooded_km.toLocaleString('en-US')} km</td><td class="num">${r.observed_km.toLocaleString('en-US')} km</td>`;
+    tr.innerHTML = `<th scope="row">${ESC(ROAD_LABEL[k] || k)}</th><td class="num">${r.flooded_km.toLocaleString('en-US')} km</td><td class="num">${Math.round(r.observed_km).toLocaleString('en-US')} km</td>`;
     $('impact-roads').append(tr);
   });
-  const tr = document.createElement('tr');
-  tr.className = 'total';
-  const observed = Object.values(d.roads.by_class).reduce((s, r) => s + r.observed_km, 0);
-  tr.innerHTML = `<th scope="row">All</th><td class="num">${d.roads.flooded_km.toLocaleString('en-US')} km</td><td class="num">${Math.round(observed).toLocaleString('en-US')} km</td>`;
-  $('impact-roads').append(tr);
 
-  const c = d.categories;
-  const pct = Math.round(d.coverage.radar_observed_fraction * 100);
+  const b = d.buildings.by_state, comm = d.categories.community, c = d.categories;
+  $('impact-buildings').textContent =
+    `Communities are ${fmtN(comm.places.total)} named places and ${fmtN(comm.clusters.total)} clusters of ${d.parameters.min_cluster_buildings}+ buildings. ` +
+    `Of ${fmtN(d.buildings.total)} mapped building footprints, ${fmtN(b.in_water)} are on new water, ${fmtN(b.isolated)} are cut off and ` +
+    `${fmtN(b.near_water)} are within ${d.parameters.near_water_m} m of new water. Footprints are not people: OpenStreetMap has no population here.`;
   $('impact-coverage').textContent =
-    `In this area OpenStreetMap maps ${fmtN(c.school.mapped)} schools (${fmtN(c.school.named)} named), ${fmtN(c.health.mapped)} health facilities ` +
-    `(${fmtN(c.health.named)} named), ${fmtN(comm.places.total)} named places and ${fmtN(c.bridge.total)} road bridges. Rural mapping is incomplete: a place missing here is ` +
-    `not a place the flood spared. The radar covers ${pct}% of the area; the south, including Maputo, is outside it. OSM extract of ${String(d.osm_timestamp || '').slice(0, 10) || 'unknown date'}.`;
+    `OpenStreetMap maps ${fmtN(c.school.mapped)} schools, ${fmtN(c.health.mapped)} health facilities and ${fmtN(comm.places.total)} named places here; ` +
+    `rural mapping is incomplete, so a place missing here is not a place the flood spared. The radar covers ` +
+    `${Math.round(d.coverage.radar_observed_fraction * 100)}% of the area; the south, including Maputo, is outside it. ` +
+    `OSM extract of ${String(d.osm_timestamp || '').slice(0, 10) || 'unknown date'}.`;
   $('impact-panel').hidden = false;
 }
 
@@ -713,7 +722,9 @@ async function loadImpact() {
   impact.data = {...stats.impact, features: await (await fetch(spec.url)).json()};
   if (stats.layers.impact_roads) {
     const roads = await (await fetch(stats.layers.impact_roads.url)).json();
-    impact.roads = L.geoJSON(roads, {pane: 'roadsPane', style: {color: COLORS.roads, weight: 3.5, opacity: 1}});
+    const roadWeight = () => (map.getZoom() >= DETAIL_ZOOM ? 3.5 : 1.6);
+    impact.roads = L.geoJSON(roads, {pane: 'roadsPane', style: () => ({color: COLORS.roads, weight: roadWeight(), opacity: 1})});
+    map.on('zoomend', () => impact.roads.setStyle({weight: roadWeight()}));
     impact.roads.bindTooltip(l => {
       const p = l.feature.properties;
       return `${ESC(p.name || kindLabel(p.highway) + ' road')}: ${metresText(p.flooded_m)} on new water`;
@@ -779,9 +790,6 @@ function card(label, value, mock) {
     $('context-source').textContent = 'Source: ' + ctx.source;
   }
 
-  const impEl = $('impact');
-  impEl.appendChild(card('new flooded area', Math.round(stats.flooded_area_km2) + ' km²', stats.mock));
-  impEl.appendChild(card('permanent water', Math.round(stats.permanent_water_km2) + ' km²', stats.mock));
 
   const validation = stats.validation;
   if (validation) {
@@ -807,6 +815,8 @@ function card(label, value, mock) {
     ['Direction', stats.scenes.during.direction],
     ['Polarizations', fmt(stats.scenes.during.polarizations && stats.scenes.during.polarizations.join(', '))],
     ['Data level', stats.maturity], ['Product', stats.product],
+    ['New water', Math.round(stats.flooded_area_km2) + ' km²' + (stats.mock ? ' (mock)' : '')],
+    ['Permanent water', Math.round(stats.permanent_water_km2) + ' km²' + (stats.mock ? ' (mock)' : '')],
   ];
   const dl = $('numbers');
   rows.forEach(([k, v]) => {
