@@ -43,6 +43,11 @@ def _download_bbox(ox, bbox, network_type, retries):
                     simplify=True,
                 )
         except Exception as exc:
+            # OSMnx raises this for a valid tile without road elements
+            # (common when a large bbox includes ocean or protected areas).
+            if exc.__class__.__name__ == "InsufficientResponseError":
+                print(f"bloco sem vias OSM: {bbox}", flush=True)
+                return None
             last_error = exc
             if attempt < retries - 1:
                 time.sleep(2 ** attempt)
@@ -72,7 +77,11 @@ def prepare(bbox, output, network_type="drive", overpass_url=None, retries=3,
                 south + (north - south) * (row + 1) / grid,
             )
             print(f"baixando bloco {row * grid + column + 1}/{grid * grid}: {tile}", flush=True)
-            graphs.append(_download_bbox(ox, tile, network_type, retries))
+            tile_graph = _download_bbox(ox, tile, network_type, retries)
+            if tile_graph is not None:
+                graphs.append(tile_graph)
+    if not graphs:
+        raise RuntimeError("OpenStreetMap não retornou vias em nenhum bloco.")
     graph = graphs[0]
     for tile_graph in graphs[1:]:
         graph = nx.compose(graph, tile_graph)
