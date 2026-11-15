@@ -45,7 +45,109 @@ if (mapConfig.hybrid && mapConfig.hybrid_url) {
   externalBaseMaps['Híbrido (imagem + estradas)'] = L.layerGroup(hybridLayers);
 }
 Object.assign(baseMaps, externalBaseMaps);
-const layerControl = L.control.layers(baseMaps, {}, {collapsed: false, position: 'topright'}).addTo(map);
+// ----- layer panel: a compact "Layers" button that opens a card with basemap
+// thumbnails (a real tile of the study area) and switches for the data layers.
+const THUMB = {z: 8, x: 151, y: 146};    // tile over Chókwè, the heart of the flood
+const thumbUrl = (layer) => {
+  const tile = layer.getLayers ? layer.getLayers()[0] : layer;
+  return tile && tile._url ? L.Util.template(tile._url, {s: 'a', ...THUMB}) : '';
+};
+const LAYER_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12.5 9 5 9-5M3 17l9 5 9-5"/></svg>';
+
+const LayerPanel = L.Control.extend({
+  options: {position: 'topright'},
+  initialize(bases, options) {
+    L.setOptions(this, options);
+    this._bases = bases;
+    this._overlays = [];
+    this._base = Object.values(bases)[0];
+  },
+  onAdd(m) {
+    const box = L.DomUtil.create('div', 'layer-panel');
+    box.innerHTML =
+      `<button type="button" class="lp-toggle" aria-expanded="false" aria-controls="lp-card">${LAYER_ICON}<span>Camadas</span><b class="lp-count"></b></button>` +
+      '<div class="lp-card" id="lp-card" hidden>' +
+      '<p class="lp-title">Mapa base</p><div class="lp-bases" role="radiogroup" aria-label="Mapa base"></div>' +
+      '<p class="lp-title">Dados no mapa</p><ul class="lp-overlays"></ul>' +
+      '<p class="lp-hint">Cada passo da história liga as camadas que ele usa.</p></div>';
+    L.DomEvent.disableClickPropagation(box);
+    L.DomEvent.disableScrollPropagation(box);
+    this._box = box;
+    this._toggle = box.querySelector('.lp-toggle');
+    this._card = box.querySelector('.lp-card');
+    this._toggle.addEventListener('click', () => this.open(this._card.hidden));
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !this._card.hidden) { this.open(false); this._toggle.focus(); } });
+    m.on('click', () => this.open(false));
+    m.on('layeradd layerremove', () => this._sync());
+    this._renderBases();
+    return box;
+  },
+  open(on) {
+    this._card.hidden = !on;
+    this._toggle.setAttribute('aria-expanded', String(on));
+    this._box.classList.toggle('open', on);
+  },
+  _renderBases() {
+    const wrap = this._box.querySelector('.lp-bases');
+    wrap.innerHTML = '';
+    Object.entries(this._bases).forEach(([name, layer]) => {
+      const btn = L.DomUtil.create('button', 'lp-base', wrap);
+      btn.type = 'button';
+      btn.setAttribute('role', 'radio');
+      const short = {'OpenStreetMap claro': 'Claro', 'Mapa escuro': 'Escuro', 'Imagem de satélite': 'Satélite', 'Híbrido (imagem + estradas)': 'Híbrido'}[name] || name;
+      btn.title = name;
+      btn.innerHTML = `<span class="lp-thumb" style="background-image:url('${thumbUrl(layer)}')"></span><span>${short}</span>`;
+      btn.addEventListener('click', () => this.setBase(layer));
+      btn._layer = layer;
+    });
+    this._sync();
+  },
+  setBase(layer) {
+    if (layer === this._base) return;
+    this._map.removeLayer(this._base);
+    layer.addTo(this._map);
+    this._base = layer;
+    this._map.fire('baselayerchange', {layer});
+    this._sync();
+  },
+  // same call as Leaflet's layers control; opts: {color, kind: 'area'|'line'|'points', opacity: true}
+  addOverlay(layer, name, opts = {}) {
+    const li = L.DomUtil.create('li', 'lp-row', this._box.querySelector('.lp-overlays'));
+    const sw = opts.kind === 'line' ? `<i class="lp-sw line" style="background:${opts.color}"></i>`
+      : opts.kind === 'points' ? `<i class="lp-sw points" style="color:${opts.color}"></i>`
+      : `<i class="lp-sw" style="background:${opts.color || '#8e9ba3'}"></i>`;
+    li.innerHTML = `<label class="lp-switch">${sw}<span class="lp-name">${name}</span>` +
+      '<input type="checkbox" role="switch"><span class="lp-knob" aria-hidden="true"></span></label>' +
+      (opts.opacity ? '<input class="lp-opacity" type="range" min="15" max="100" value="100" aria-label="Opacidade">' : '');
+    const box = li.querySelector('input[type=checkbox]');
+    box.addEventListener('change', () => (box.checked ? layer.addTo(this._map) : this._map.removeLayer(layer)));
+    const slider = li.querySelector('.lp-opacity');
+    if (slider) {
+      slider.setAttribute('aria-label', `Opacidade: ${name}`);
+      slider.addEventListener('input', () => {
+        const v = slider.value / 100;
+        if (layer.setOpacity) layer.setOpacity(v);
+        else if (layer.setStyle) layer.setStyle({opacity: v, fillOpacity: v * 0.72});
+      });
+    }
+    this._overlays.push({layer, li, box});
+    this._sync();
+    return this;
+  },
+  _sync() {
+    if (!this._box) return;
+    this._box.querySelectorAll('.lp-base').forEach(btn => btn.setAttribute('aria-checked', String(btn._layer === this._base)));
+    let on = 0;
+    this._overlays.forEach(o => {
+      const active = this._map.hasLayer(o.layer);
+      o.box.checked = active;
+      o.li.classList.toggle('on', active);
+      on += active;
+    });
+    this._box.querySelector('.lp-count').textContent = on ? String(on) : '';
+  },
+});
+const layerControl = new LayerPanel(baseMaps).addTo(map);
 const externalTileLayers = [];
 Object.values(externalBaseMaps).forEach(layer => {
   if (layer.eachLayer) layer.eachLayer(child => externalTileLayers.push(child));
@@ -821,10 +923,10 @@ async function loadImpact() {
       const p = l.feature.properties;
       return `${ESC(p.name || kindLabel(p.highway) + ' road')}: ${metresText(p.flooded_m)} on new water`;
     }, {sticky: true});
-    layerControl.addOverlay(impact.roads, 'Estradas em água nova (OSM)');
+    layerControl.addOverlay(impact.roads, 'Estradas em água nova (OSM)', {color: COLORS.roads, kind: 'line'});
   }
   buildImpactLayer();
-  layerControl.addOverlay(impact.layer, 'Impactos (OSM)');
+  layerControl.addOverlay(impact.layer, 'Escolas, saúde, comunidades e pontes', {color: COLORS.roads, kind: 'points'});
   renderImpactPanel();
   filterImpact();
   // Leaflet stops clicks inside popups from bubbling and re-renders popup content,
@@ -858,14 +960,14 @@ function card(label, value, mock) {
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
   layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1.5, fillColor: COLORS.standing, fillOpacity: 0.72, opacity: 0.72});
   layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 2, fillColor: COLORS.newwater, fillOpacity: 0.78, opacity: 0.78});
-  if (layers.radar) layerControl.addOverlay(layers.radar, 'Radar NISAR (contexto)');
-  if (layers.before) layerControl.addOverlay(layers.before, 'Água permanente (NISAR)');
-  if (layers.during) layerControl.addOverlay(layers.during, 'Água nova (NISAR)');
+  if (layers.radar) layerControl.addOverlay(layers.radar, 'Radar NISAR (contexto)', {color: '#6b7f3a', opacity: true});
+  if (layers.before) layerControl.addOverlay(layers.before, 'Água que já existia', {color: COLORS.standing, opacity: true});
+  if (layers.during) layerControl.addOverlay(layers.during, 'Água nova da cheia', {color: COLORS.newwater, opacity: true});
   if (stats.layers.vegetation) {
     try {
       layers.vegetation = await addLayer(stats.layers.vegetation, 'vegetationPane', {opacity: 0.46});
       vegetationLegend(stats.layers.vegetation);
-      layerControl.addOverlay(layers.vegetation, 'NDVI/vegetação estimada');
+      layerControl.addOverlay(layers.vegetation, 'Vegetação estimada (NDVI)', {color: '#4f8a3c', opacity: true});
     } catch (error) {
       console.error('vegetation layer unavailable', error);
       if ($('layer-status')) {
@@ -882,7 +984,7 @@ function card(label, value, mock) {
       return {color, weight: 1, fillColor: color, fillOpacity: 0.72};
     },
   );
-  if (layers.validation) layerControl.addOverlay(layers.validation, 'Diferença NISAR x Copernicus');
+  if (layers.validation) layerControl.addOverlay(layers.validation, 'Diferença NISAR x Copernicus', {color: '#7b2cbf', opacity: true});
   try {
     await loadImpact();
   } catch (error) {
