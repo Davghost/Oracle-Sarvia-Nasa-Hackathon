@@ -42,6 +42,9 @@ def test_detect_flood_end_to_end(tmp_path):
     assert abs(s["permanent_water_km2"] - 50 * 50 * px) < 0.1 * 50 * 50 * px
     assert s["layers"]["during"]["type"] == "image" and len(s["layers"]["during"]["bounds"]) == 2
     assert (out / "water_during.png").exists() and (qa / "flood_qa.png").exists()
+    extent = json.loads((out / "flood_extent.geojson").read_text())
+    assert extent["features"][0]["properties"]["classification"] == "new_water"
+    assert extent["features"][0]["geometry"]["type"] in ("Polygon", "MultiPolygon")
 
 
 def test_loosen_adds_darker_pixels(tmp_path):

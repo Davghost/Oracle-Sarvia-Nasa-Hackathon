@@ -227,3 +227,5 @@ data/*
 *.he5
 .netrc
 *earthdata*token*
+/data/osmnx_cache/
+/outputs/flood_extent.geojson

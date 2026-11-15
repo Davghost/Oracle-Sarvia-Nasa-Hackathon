@@ -59,6 +59,9 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
    a narrativa, o slider e os números.
 7. **Publicação**: `pipeline/build_static.py` gera páginas e recursos em
    `docs/`, sem Flask.
+8. **Impacto OSM (opcional)**: `pipeline/osm_impact.py` baixa feições OSM via
+   Overpass, cruza vias e footprints com água nova e exporta segmentos GeoJSON
+   e contagens estimadas.
 
 ## 4. Fluxo principal
 
@@ -105,10 +108,11 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 - `routing.py` aceita um grafo NetworkX com nós `x/y` e geometrias Shapely,
   bloqueia arestas alagadas e calcula desvio. Não obtém dados OSM, não é uma
   rota operacional e não é chamado por `app/app.py`.
-- `affected_buildings` existe, mas não há integração de footprints OSM no
-  fluxo real.
-- `impact` existe no mock, mas o `stats.json` real atual não possui esse campo;
-  a interface só exibe os cartões se os valores existirem.
+- A consulta OSM de vias/buildings é opcional, depende do Overpass e da cobertura
+  OSM. As interseções mostram vias dentro da máscara, não um fechamento oficial
+  nem rota segura.
+- A contagem de edifícios é estimativa por footprints OSM que intersectam a
+  área SAR detectada; áreas rurais podem ter mapeamento incompleto.
 - `build_static.py` exige `mock: false` e a cópia estática deve ser regenerada
   quando os arquivos da aplicação ou o JSON real mudarem.
 
@@ -118,7 +122,8 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 - Confirmação do nome da coleção (`collection` está `null`).
 - Linha do tempo com mais datas para transformar as duas cenas atuais em uma
   série temporal completa.
-- Uso operacional de OSM para vias, prédios e rotas.
+- Uso operacional de OSM para rotas seguras e validação independente dos
+  cruzamentos.
 - Mais polarizações/visualizações e calibração científica do detector.
 - Teste da integração atual com ASF/Earthdata.
 
@@ -249,3 +254,21 @@ não foi possível confirmar uma URL pública em janela anônima. Alguém com
 permissão administrativa deve ativar Pages em Settings > Pages e selecionar
 `main` / `docs`. Relatório desta atividade:
 [`docs/static_fallback_report_2026-11-15.md`](docs/static_fallback_report_2026-11-15.md).
+
+## 15. Vias e edificações OSM (15/11/2026)
+
+`pipeline/detect_flood.py` exporta `outputs/flood_extent.geojson`, polígono
+simplificado da máscara de água nova. Após a detecção, rode
+`python pipeline/osm_impact.py` para consultar vias/edificações OSM do entorno
+alagado no Overpass. O pipeline grava `roads_blocked.geojson` (somente os
+trechos de centerline dentro do polígono), `impact.roads_blocked_km` e
+`impact.buildings_affected` no contrato. A aplicação mostra a camada na etapa
+4 e rotula as medidas como estimativas OSM.
+
+Esta métrica é retrospectiva e cartográfica; não representa bloqueio de tráfego
+confirmado. O serviço Overpass precisa estar acessível quando a consulta é
+executada. O layer e as métricas só entram na publicação estática depois de
+executar a etapa OSM e reconstruir `docs/`. Em 15/11/2026, a tentativa real
+retornou HTTP 502 por fila cheia e a repetição excedeu 5 minutos sem resposta;
+nenhuma métrica/layer OSM real foi incluída no `stats.json` atual. Relatório:
+[`docs/osm_impact_report_2026-11-15.md`](docs/osm_impact_report_2026-11-15.md).

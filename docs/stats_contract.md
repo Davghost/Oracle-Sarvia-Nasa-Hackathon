@@ -18,8 +18,9 @@ Example: `outputs/mock/stats.json` (all values there are fake).
 | `method` | object | `threshold_db` (a number, or an object like `{"HH": -14.5, "HV": -21}`), `speckle_filter`, `notes`. |
 | `layers.before` / `layers.during` | object | `{"type":"geojson","url":...}` or `{"type":"image","url":...,"bounds":[[south,west],[north,east]]}`. URLs start with `/outputs/`. |
 | `layers.radar_rgb` | object, optional | Same format as other layers. NASA-style false-color radar image (HH red, HV green, ratio blue). Shown in story step 2 when present. |
-| `impact` | object, optional | `roads_blocked_km`, `buildings_affected` (numbers, estimates from OSM, T19). Cards in step 4 appear only for fields that exist. |
+| `layers.roads_blocked` | object, optional | GeoJSON line features clipped to the detected flood area: `{"type":"geojson","url":"/outputs/roads_blocked.geojson"}`. Displayed in step 4. OpenStreetMap attribution is required when the layer is present. |
+| `impact` | object, optional | `roads_blocked_km` is the summed length of OSM road centerlines inside the detected flood polygons; `buildings_affected` counts mapped building footprints that intersect them. Both are OSM estimates. `source` and `estimated_at_utc` identify provenance/time. Cards only appear when values exist. |
 | `context_figures` | object | `source` (string) and `items` (list of `{label, value}`). Official figures with a citation, shown in step 1. |
 | `limitations` | list of strings | Shown in the panel. |
 
-Rules: never invent values; use `null` when something is not confirmed. Keep layer files small (they go in git).
+Rules: never invent values; use `null` when something is not confirmed. Road and building estimates require the optional OSM enrichment step; never use mock values as real results. Keep layer files small (they go in git).

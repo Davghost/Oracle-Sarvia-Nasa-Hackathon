@@ -27,6 +27,8 @@ história visual simples: água antes, água durante e água nova estimada.
 - Detecção explicável: HH e HV abaixo dos limiares; água nova é
   `water(during) AND NOT water(before)`.
 - Relatórios de QA: histograma, falso-cor, diferença HH e `flood_qa.png`.
+- Camada opcional de vias OSM intersectadas pela água nova e estimativa de
+  edificações afetadas, geradas no processamento offline.
 - Núcleo de roteamento que remove arestas que intersectam a área alagada e
   calcula uma rota alternativa. Ele é um protótipo e não é usado pela aplicação
   web atual.
@@ -35,7 +37,7 @@ história visual simples: água antes, água durante e água nova estimada.
 ## Stack
 
 - Python 3, Flask, NumPy, SciPy, h5py, rasterio, pyproj, Pillow,
-  matplotlib, NetworkX e Shapely.
+  matplotlib, NetworkX, OSMnx e Shapely.
 - JavaScript sem framework, Leaflet 1.9.4 local e OpenStreetMap para tiles.
 - HDF5/GCOV como entrada; GeoTIFF, PNG e JSON como saídas.
 - `pytest` para os testes automatizados.
@@ -58,6 +60,9 @@ pipeline/make_db.py + gcov_reader.py
 pipeline/detect_flood.py
       |  outputs/stats.json + overlays PNG
       v
+pipeline/osm_impact.py             (opcional: Overpass/OSM)
+      |  roads_blocked.geojson + impact estimates
+      v
 app/app.py
       |  Flask/API/arquivos estáticos
       v
@@ -78,6 +83,8 @@ páginas Flask e ajusta URLs para uma publicação estática em `docs/`.
 - `pipeline/make_db.py`: recorte da área de estudo e exportação de GeoTIFF dB.
 - `pipeline/water.py`: operações numéricas de dB, filtros e máscaras.
 - `pipeline/detect_flood.py`: detecção, áreas, reprojeção e contrato JSON.
+- `pipeline/osm_impact.py`: consulta OSM/Overpass, cruza vias e edifícios
+  com o polígono de água nova, exporta trechos bloqueados e métricas estimadas.
 - `pipeline/preview.py`: imagens e métricas para calibração/QA.
 - `pipeline/routing.py`: algoritmo de roteamento prototipal.
 - `pipeline/download_gcov.py`: busca/download via `asf_search`.
@@ -151,6 +158,24 @@ O modo de desenvolvimento do Flask está habilitado no bloco `__main__`.
    python pipeline\preview.py
    ```
 
+5. (Opcional) Consulte OSM/Overpass para gerar o layer de trechos de vias
+   alagadas e a contagem estimada de footprints de edifícios:
+
+   ```powershell
+   python pipeline\osm_impact.py
+   ```
+
+   Requer conexão com a internet; consulta os dados OSM públicos e pode ser
+   limitado pela disponibilidade/capacidade do Overpass. Se necessário,
+   escolha outra instância com `--overpass-url URL`. As vias exportadas
+   são buscadas em tiles de 0,5 grau apenas onde a máscara de cheia aparece;
+   use `--tile-size-deg` para ajustar o tamanho e
+   `--max-query-area-km2` para limitar cada consulta. Os trechos exportados
+   são centerlines dentro da máscara, não fechamento oficial de tráfego. A
+   contagem de edifícios é uma estimativa limitada pela cobertura OSM e pela
+   detecção SAR. Rode `python pipeline\build_static.py` depois para incluir a
+   camada GeoJSON e as métricas na cópia estática.
+
 O estudo padrão é `[west, south, east, north] = [32.0, -26.0, 33.5, -24.0]`,
 com pixels de 10 m no GCOV e pixels de 40 m após o multilook padrão.
 
@@ -190,13 +215,14 @@ servindo os resultados pré-gerados mesmo quando o servidor Flask/API estiver
 indisponível.
 
 Relatório da preparação e validação: [`docs/static_fallback_report_2026-11-15.md`](docs/static_fallback_report_2026-11-15.md).
+Relatório da integração OSM: [`docs/osm_impact_report_2026-11-15.md`](docs/osm_impact_report_2026-11-15.md).
 
 ## Integrações externas
 
 - ASF DAAC/Earthdata: descoberta e download de granules, somente no script
   opcional `download_gcov.py`.
-- OpenStreetMap: tiles do mapa Leaflet; a aplicação não consulta uma API de
-  rota.
+- OpenStreetMap: tiles do mapa Leaflet; `osm_impact.py` consulta vias e
+  edificações via Overpass para estimar interseções com o alagamento.
 - NASA Scientific Visualization Studio #5661: fonte dos números de contexto
   exibidos na narrativa.
 - Leaflet é servido localmente; não há dependência de CDN para a biblioteca.
@@ -212,8 +238,12 @@ Relatório da preparação e validação: [`docs/static_fallback_report_2026-11-
 - O campo `collection` ainda é `null` no resultado atual.
 - `routing.py` não está conectado ao Flask, não baixa OSM e não oferece uma
   API web.
+- O enriquecimento `osm_impact.py` é uma análise cartográfica retrospectiva,
+  não informação operacional de fechamento de ruas; depende da cobertura OSM
+  e de um serviço Overpass disponível. A execução real para o resultado atual
+  ainda está pendente por indisponibilidade do Overpass.
 - A série temporal tem duas datas; uma linha do tempo completa, validação independente, mais datas,
-  impacto real via OSM e suporte a mais polarizações continuam pendentes.
+  validação de impacto via OSM e suporte a mais polarizações continuam pendentes.
 - O download real está documentado como não testado contra a API atual.
 
 ## Testes

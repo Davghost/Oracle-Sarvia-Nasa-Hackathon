@@ -4,7 +4,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-['radarPane', 'beforePane', 'duringPane'].forEach((name, i) => {
+['radarPane', 'beforePane', 'duringPane', 'roadsPane'].forEach((name, i) => {
   map.createPane(name).style.zIndex = 410 + i * 10;
 });
 
@@ -63,8 +63,10 @@ function setStep(n) {
   show(layers.radar, step === 2);
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4);
+  show(layers.roads, step === 4);
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
+  $('roads-legend').hidden = step !== 4 || !layers.roads;
   updateClip(compare);
   map.invalidateSize();
 }
@@ -90,6 +92,9 @@ function card(label, value, mock) {
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
   layers.before = await addLayer(stats.layers.before, 'beforePane', {color: '#1f78c8', weight: 1, fillColor: '#1f78c8', fillOpacity: 0.65});
   layers.during = await addLayer(stats.layers.during, 'duringPane', {color: '#e4572e', weight: 1, fillColor: '#e4572e', fillOpacity: 0.65});
+  layers.roads = await addLayer(stats.layers.roads_blocked, 'roadsPane', {
+    color: '#ffb000', weight: 3, opacity: 1,
+  });
 
   // text that depends on the data
   $('date-before').textContent = fmtDate(stats.scenes.before.date);
@@ -111,8 +116,17 @@ function card(label, value, mock) {
 
   const imp = stats.impact || {};
   const impEl = $('impact');
-  if (imp.roads_blocked_km != null) impEl.appendChild(card('km of roads in flooded areas (estimate)', Math.round(imp.roads_blocked_km).toLocaleString('en-US'), stats.mock));
-  if (imp.buildings_affected != null) impEl.appendChild(card('buildings in flooded areas (estimate)', Math.round(imp.buildings_affected).toLocaleString('en-US'), stats.mock));
+  if (imp.roads_blocked_km != null) impEl.appendChild(card('km of roads inside mapped flood (OSM estimate)', imp.roads_blocked_km.toLocaleString('en-US'), stats.mock));
+  if (imp.buildings_affected != null) impEl.appendChild(card('buildings intersecting mapped flood (OSM estimate)', Math.round(imp.buildings_affected).toLocaleString('en-US'), stats.mock));
+  if (imp.source) {
+    const source = document.createElement('p');
+    source.className = 'source';
+    const attribution = document.createElement('a');
+    attribution.href = 'https://www.openstreetmap.org/copyright';
+    attribution.textContent = `${imp.source} contributors (ODbL)`;
+    source.append('Impact data: ', attribution, '. OSM coverage is incomplete; counts are estimates.');
+    impEl.appendChild(source);
+  }
   impEl.appendChild(card('new flooded area', Math.round(stats.flooded_area_km2) + ' km²', stats.mock));
   impEl.appendChild(card('permanent water', Math.round(stats.permanent_water_km2) + ' km²', stats.mock));
 

@@ -19,8 +19,11 @@ import numpy as np
 import rasterio
 from PIL import Image
 from pyproj import Transformer
+from rasterio.features import shapes
 from rasterio.transform import array_bounds
 from rasterio.warp import Resampling, calculate_default_transform, reproject
+from shapely.geometry import mapping, shape
+from shapely.ops import transform as transform_geometry, unary_union
 
 import water
 
@@ -73,6 +76,28 @@ def save_overlay(path, layers, alpha=175):
     for mask, rgb in layers:
         rgba[mask > 0] = (*rgb, alpha)
     Image.fromarray(rgba, "RGBA").save(path, optimize=True)
+
+
+def save_flood_extent(mask, tr, crs, path):
+    """Write the new-water mask as a simplified WGS84 GeoJSON polygon."""
+    polygons = (
+        shape(geom)
+        for geom, value in shapes(mask.astype(np.uint8), mask=mask, transform=tr)
+        if value == 1
+    )
+    extent = unary_union(list(polygons))
+    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    extent = extent.simplify(40, preserve_topology=True)
+    extent = transform_geometry(transformer.transform, extent)
+    feature = {
+        "type": "Feature",
+        "properties": {"classification": "new_water", "source": "NISAR GCOV"},
+        "geometry": mapping(extent),
+    }
+    path.write_text(
+        json.dumps({"type": "FeatureCollection", "features": [feature]}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main():
@@ -176,6 +201,7 @@ def main():
     mn, _ = warp(new, tr, crs, dst)
     save_overlay(out / "water_before.png", [(mb, BLUE)])
     save_overlay(out / "water_during.png", [(mp, BLUE), (mn, RED)])   # blue = already water, red = new
+    save_flood_extent(new, tr, crs, out / "flood_extent.geojson")
     west, south, east, north = array_bounds(dst[2], dst[1], dst[0])
     to_ll = Transformer.from_crs(3857, 4326, always_xy=True)
     (lon_w, lat_s), (lon_e, lat_n) = to_ll.transform(west, south), to_ll.transform(east, north)
