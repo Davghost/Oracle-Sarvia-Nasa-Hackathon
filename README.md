@@ -19,8 +19,6 @@ história visual simples: água antes, água durante e água nova estimada.
 
 - Interface Flask com mapa Leaflet e narrativa em quatro etapas.
 - Comparação antes/durante por slider.
-- Linha do tempo interativa para alternar entre as cenas “before” e “during”,
-  com data, track, frame e direção selecionados.
 - Leitura de `outputs/stats.json`, com fallback explícito para
   `outputs/mock/stats.json`.
 - Camadas de água como GeoJSON ou imagens PNG georreferenciadas.
@@ -196,7 +194,7 @@ conteúdo de `docs/` pode ser servido pelo GitHub Pages.
 - O campo `collection` ainda é `null` no resultado atual.
 - `routing.py` não está conectado ao Flask, não baixa OSM e não oferece uma
   API web.
-- A série temporal tem duas datas; validação independente, mais datas,
+- A série temporal tem duas datas; uma linha do tempo completa, validação independente, mais datas,
   impacto real via OSM e suporte a mais polarizações continuam pendentes.
 - O download real está documentado como não testado contra a API atual.
 
