@@ -3,6 +3,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import json
+import pandas as pd
 import pytest
 from shapely.geometry import LineString, box
 
@@ -34,6 +35,34 @@ def test_analyze_features_clips_roads_and_counts_intersecting_buildings():
     clipped = result["roads"][0]["geometry"]
     assert clipped["type"] == "LineString"
     assert all(31.99499 <= lon <= 32.00501 for lon, _ in clipped["coordinates"])
+
+
+def test_building_touching_flood_boundary_is_not_counted():
+    features = gpd.GeoDataFrame(
+        [{"building": "yes", "geometry": box(32.005, -25.001, 32.01, -24.999)}],
+        index=[("way", 404)],
+        crs="EPSG:4326",
+    )
+    flood = box(31.995, -25.005, 32.005, -24.995)
+
+    result = osm_impact.analyze_features(flood, features)
+
+    assert result["buildings_affected"] == 0
+
+
+def test_missing_pandas_tags_are_not_treated_as_osm_features():
+    features = gpd.GeoDataFrame(
+        [{"highway": pd.NA, "building": pd.NA,
+          "geometry": box(31.999, -25.001, 32.001, -24.999)}],
+        index=[("way", 505)],
+        crs="EPSG:4326",
+    )
+    flood = box(31.995, -25.005, 32.005, -24.995)
+
+    result = osm_impact.analyze_features(flood, features)
+
+    assert result["buildings_affected"] == 0
+    assert result["roads"] == []
 
 
 def test_query_tiles_only_includes_tiles_touched_by_flood():
@@ -144,3 +173,27 @@ def test_main_writes_osm_layer_and_estimates_without_network(tmp_path, monkeypat
     assert stats["impact"]["roads_blocked_km"] > 1
     assert stats["impact"]["buildings_affected"] == 0
     assert len(roads["features"]) == 1
+
+
+@pytest.mark.parametrize("stats_data", [
+    {"mock": True, "layers": {}},
+    {"layers": {}},
+])
+def test_main_refuses_nonreal_stats_before_creating_outputs(
+    tmp_path, monkeypatch, capsys, stats_data
+):
+    out = tmp_path / "outputs"
+    stats_path = tmp_path / "stats.json"
+    stats_path.write_text(json.dumps(stats_data))
+    monkeypatch.setattr(osm_impact, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["osm_impact.py", "--stats", str(stats_path), "--out", str(out)],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        osm_impact.main()
+
+    assert exc.value.code == 2
+    assert "requires a real stats.json" in capsys.readouterr().err
+    assert not out.exists()

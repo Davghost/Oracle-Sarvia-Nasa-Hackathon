@@ -44,8 +44,9 @@ site já abre em janela anônima numa URL pública. Alguém com permissão
 administrativa deve habilitar Pages em **Settings > Pages** e escolher
 `main` / `docs`; depois disso, a URL pública deve ser verificada novamente.
 
-O mapa-base usa tiles do OpenStreetMap e precisa de internet; os overlays da
-análise e a biblioteca Leaflet estão nos arquivos estáticos.
+O mapa-base usa tiles do servidor OpenStreetMap.de (dados OpenStreetMap) e
+precisa de internet; os overlays da análise e a biblioteca Leaflet estão nos
+arquivos estáticos.
 
 ## Arquivos alterados nesta atividade
 

@@ -54,3 +54,12 @@ Ambas as issues foram verificadas como abertas.
 - `docs/mvp_acceptance_report_2026-11-15.md`: este relatório detalhado.
 
 Nenhum código de aplicação ou pipeline foi alterado durante a aceitação.
+
+### Atualização posterior no mesmo dia
+
+Depois da aceitação inicial, os dois HDF5 foram baixados e reprocessados em
+`data/validation/` sem sobrescrever `outputs/`. A execução com `--loosen 3`
+reproduziu exatamente as áreas atuais do contrato. A comparação espacial com a
+camada vetorial EMSR857 AOI02 está documentada em
+[`validation_reference_report_2026-11-15.md`](./validation_reference_report_2026-11-15.md);
+ela é uma avaliação quantitativa, não verdade-terreno.

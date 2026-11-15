@@ -21,8 +21,19 @@ Metadados e download do pacote estão publicados no [registro da ativação
 EMSR857](https://mapping.emergency.copernicus.eu/backend/dashboard-api/public-activations/?code=EMSR857);
 o pacote de produtos está indicado como
 [`EMSR857_products.zip`](https://rapidmapping.emergency.copernicus.eu/backend/EMSR857/EMSR857_products.zip).
-Uma requisição parcial ao pacote respondeu HTTP 206, mas o pacote não foi
-baixado nem extraído.
+O pacote foi baixado para `data/reference/EMSR857_products.zip` (473.423.693
+bytes; ignorado pelo Git) e passou na verificação CRC. Dentro dele, o ZIP do
+produto AOI02 FEP também passou na verificação CRC. O pacote AOI02 contém o
+limite da AOI e a camada vetorial `observedEventA`, mas **não contém o
+GeoTIFF Sentinel-1** `EMSR857_AOI02_FEP_PRODUCT_SENTINEL1_20260117_0319_ORTHO.tif`
+citado como imagem de origem no catálogo. A validação abaixo usa a camada
+vetorial oficial de inundação, não o GeoTIFF de origem.
+
+Após configurar o token Earthdata no terminal, os dois HDF5 NISAR foram
+baixados para `data/` (ignorados pelo Git), abriram corretamente com `h5py` e
+foram lidos no recorte da área. `pipeline/make_db.py` gerou os rasters 40 m em
+`data/validation/processed/`. A detecção foi repetida, sem sobrescrever
+`outputs/`, em `data/validation/outputs-loosen3/`.
 
 ## Pesquisa nas outras fontes
 
@@ -44,16 +55,37 @@ baixado nem extraído.
 
 ## Limites e próximos passos
 
-A referência está **identificada e anotada**, mas os resultados do MVP ainda
-**não foram validados** contra ela. Para concluir a validação, baixar/extrair o
-GeoTIFF do pacote EMSR857, recortá-lo para a interseção temporal e espacial
-comparável, alinhar CRS/resolução e classes, e calcular métricas de concordância
-(por exemplo, interseção sobre união e omissão/comissão). Não interpretar a
-comparação como ground truth: ambos são produtos de sensoriamento remoto por
-radar, com algoritmos e definições próprios; o produto EMS é uma delimitação de
-resposta de emergência, não observação de campo. Os HDF5 NISAR originais também
-não estavam presentes neste checkout, então o overlay existente foi usado
-somente para verificar a interseção espacial aproximada.
+Foi feita uma comparação espacial entre a máscara de água nova do NISAR,
+reprocessada dos HDF5 originais, e a camada vetorial `observedEventA` da AOI02:
+
+| Medida na AOI02 | Resultado |
+|---|---:|
+| Área NISAR de água nova | 66,798 km² |
+| Área EMS de inundação observada | 93,048 km² |
+| Interseção | 50,483 km² |
+| União | 109,364 km² |
+| Intersection over Union (IoU) | 0,4616 |
+| Interseção / área NISAR | 0,7557 |
+| Interseção / área EMS | 0,5425 |
+
+Método: foram selecionadas as 811 feições da camada com
+`event_type = 5-Flood` (todas também classificadas como `Riverine flood` e
+`Flooded area`); as duas camadas foram recortadas pelo polígono oficial da
+AOI02 e projetadas para UTM 36S (EPSG:32736) para calcular áreas e interseção.
+O limite AOI02 é identificado no pacote como “First Estimate Product”. A
+execução `detect_flood.py --loosen 3` reproduziu exatamente o contrato
+atualmente publicado: 982,5 km² de água nova no estudo, intervalo
+709,5–1.455,6 km² e 972,0 km² de água permanente. A execução estrita sem
+`--loosen` produz 709,5 km² e não foi usada nesta comparação.
+
+**Interpretação:** os números medem concordância geométrica entre esses dois
+vetores, não acurácia científica. O produto EMS é uma extração semiautomática
+de inundação, não verdade-terreno. A máscara NISAR representa “água nova” em
+relação a 5 de janeiro, enquanto a camada EMS mapeia área inundada; diferenças
+de classe, cobertura e método impedem tratar comissão/omissão como erros
+absolutos. O resultado é uma comparação quantitativa reproduzível com o vetor
+oficial do produto. O GeoTIFF de origem não veio no pacote, portanto não foi
+possível fazer uma inspeção visual independente da imagem Sentinel-1.
 
 ## Fontes primárias consultadas
 
@@ -65,11 +97,44 @@ somente para verificar a interseção espacial aproximada.
 - [UNOSAT — metadados do produto 4229 (Sofala, 05/01/2026)](https://unosat.org/our_products/4229)
 - [UNOSAT — metadados do produto 4231 (Gaza/Maputo, 23–24/01/2026)](https://unosat.org/our_products/4231)
 
-## Arquivos alterados nesta atividade
+## Reprodução automatizada e exibição na aplicação
+
+A comparação agora é reproduzível no repositório:
+
+```bash
+python pipeline/validate_reference.py
+```
+
+O comando exige `outputs/stats.json` com `mock: false`, a máscara
+`outputs/flood_extent.geojson` e o pacote local
+`data/reference/EMSR857_products.zip`. Ele seleciona `event_type = 5-Flood`,
+recorta as duas camadas à AOI02, calcula as áreas em EPSG:32736 e grava o
+objeto opcional `validation` em `outputs/stats.json`. Uma geometria inválida
+na máscara NISAR foi reparada com `make_valid`; o número de reparos fica
+registrado no contrato (`geometry_repairs: 1`).
+
+A interface mostra essas medidas na etapa 4, junto da advertência de que são
+concordância espacial entre produtos diferentes e não verdade-terreno. Depois
+de alterar os resultados, rode o validador antes de `pipeline/build_static.py`
+para atualizar a cópia em `docs/`.
+
+## Arquivos alterados na análise original
 
 - `PROJECT_CONTEXT.md`: referência escolhida, estado ainda pendente da
   comparação e resumo das fontes alternativas.
+- `data/reference/EMSR857_products.zip` e
+  `data/reference/EMSR857_AOI02_FEP_PRODUCT_v1.zip`: cópias locais ignoradas
+  pelo Git, usadas na análise.
+- HDF5 das cenas NISAR em `data/` e rasters/saídas reprocessados em
+  `data/validation/`: locais e ignorados pelo Git.
+- `outputs/` foi regenerado com o processamento reproduzido e `docs/` foi
+  reconstruído para publicar os overlays atuais; o Flask serviu as rotas e
+  camadas atualizadas com HTTP 200.
 - `AI_USAGE_LOG.md`: registro da pesquisa e documentação assistidas por IA.
 - `docs/validation_reference_report_2026-11-15.md`: este relatório.
 
-Nenhum código de aplicação ou pipeline foi alterado. Não houve commit nem push.
+Na análise original, nenhum código de aplicação ou pipeline foi alterado. A
+implementação posterior do validador, painel, testes e atualização das
+instruções está registrada em
+[`docs/readme_review_report_2026-11-15.md`](./readme_review_report_2026-11-15.md).
+Não houve commit nem push.

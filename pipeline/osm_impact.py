@@ -161,7 +161,7 @@ def feature_id(index, row):
 
 
 def has_tag(value):
-    return value is not None and not (isinstance(value, float) and np.isnan(value))
+    return value is not None and not pd.isna(value)
 
 
 def analyze_features(flood_wgs84, features):
@@ -200,8 +200,7 @@ def analyze_features(flood_wgs84, features):
         if has_tag(building):
             if osm_id not in seen_buildings and geometry.geom_type in ("Polygon", "MultiPolygon"):
                 seen_buildings.add(osm_id)
-                metric_geometry = project_geometry(geometry, to_metric)
-                if metric_geometry.intersects(flood_metric):
+                if geometry.intersection(flood_wgs84).area > 0:
                     buildings.add(osm_id)
 
     return {
@@ -225,8 +224,11 @@ def main():
     if args.tile_size_deg <= 0 or args.max_query_area_km2 <= 0:
         parser.error("--tile-size-deg and --max-query-area-km2 must be positive")
 
-    args.out.mkdir(parents=True, exist_ok=True)
     stats = json.loads(args.stats.read_text(encoding="utf-8"))
+    if stats.get("mock") is not False:
+        parser.error("OSM enrichment requires a real stats.json with mock: false")
+
+    args.out.mkdir(parents=True, exist_ok=True)
     cache_folder = ROOT / "data" / "osmnx_cache"
     cache_folder.mkdir(parents=True, exist_ok=True)
     ox.settings.cache_folder = str(cache_folder)

@@ -99,6 +99,22 @@
     "NISAR data are provisional and may be reprocessed.",
     "The first scene (5 Jan) was taken when flooding may already have started in places, so 'new water' means new compared with that date.",
     "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
-    "Rough water (wind) and relief shadows can cause errors. Thresholds were set on one scene and not validated against an independent map yet."
-  ]
+    "Rough water (wind) and relief shadows can cause errors. Thresholds are heuristic; the optional EMSR857 AOI02 comparison is spatial agreement, not scientific validation or ground truth."
+  ],
+  "validation": {
+    "reference": "Copernicus EMSR857 AOI02 Massiguita",
+    "product": "FEP observedEventA, event_type 5-Flood",
+    "acquisition_utc": "2026-01-17T03:19:00Z",
+    "metric_crs": "EPSG:32736",
+    "reference_feature_count": 811,
+    "geometry_repairs": 1,
+    "nisar_new_water_aoi_km2": 66.798,
+    "ems_flood_area_aoi_km2": 93.048,
+    "intersection_area_km2": 50.483,
+    "union_area_km2": 109.364,
+    "iou": 0.4616,
+    "overlap_fraction_nisar": 0.7557,
+    "overlap_fraction_ems": 0.5425,
+    "interpretation": "Spatial agreement only, not ground truth: NISAR new water is relative to 2026-01-05; EMS maps semi-automatically extracted flooded area."
+  }
 }

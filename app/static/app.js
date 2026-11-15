@@ -1,7 +1,8 @@
 const TOTAL = 4;
 const map = L.map('map', {zoomSnap: 0.25});
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 18, attribution: '&copy; OpenStreetMap contributors'
+L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+ maxZoom: 18,
+ attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Tiles: <a href="https://tile.openstreetmap.de/">OpenStreetMap.de</a>'
 }).addTo(map);
 
 ['radarPane', 'beforePane', 'duringPane', 'roadsPane'].forEach((name, i) => {
@@ -129,6 +130,24 @@ function card(label, value, mock) {
   }
   impEl.appendChild(card('new flooded area', Math.round(stats.flooded_area_km2) + ' km²', stats.mock));
   impEl.appendChild(card('permanent water', Math.round(stats.permanent_water_km2) + ' km²', stats.mock));
+
+  const validation = stats.validation;
+  if (validation) {
+    const metrics = $('validation-metrics');
+    const km2 = (value) => `${Number(value).toLocaleString('en-US', {maximumFractionDigits: 1})} km²`;
+    [
+      ['NISAR new water in AOI02', km2(validation.nisar_new_water_aoi_km2)],
+      ['EMS mapped flood in AOI02', km2(validation.ems_flood_area_aoi_km2)],
+      ['Intersecting area', km2(validation.intersection_area_km2)],
+      ['Spatial IoU', Number(validation.iou).toFixed(2)],
+    ].forEach(([label, value]) => metrics.appendChild(card(label, value, false)));
+    $('validation-note').textContent =
+      `${validation.reference}, acquired ${validation.acquisition_utc}. ` +
+      `${validation.interpretation} Overlap: ` +
+      `${Math.round(validation.overlap_fraction_nisar * 100)}% of NISAR area; ` +
+      `${Math.round(validation.overlap_fraction_ems * 100)}% of EMS area.`;
+    $('validation-section').hidden = false;
+  }
 
   const rows = [
     ['Before', stats.scenes.before.date], ['During', stats.scenes.during.date],

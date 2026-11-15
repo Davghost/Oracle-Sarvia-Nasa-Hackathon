@@ -254,7 +254,7 @@ def main():
             "NISAR data are provisional and may be reprocessed.",
             "The first scene (5 Jan) was taken when flooding may already have started in places, so 'new water' means new compared with that date.",
             "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
-            "Rough water (wind) and relief shadows can cause errors. Thresholds were set on one scene and not validated against an independent map yet.",
+            "Rough water (wind) and relief shadows can cause errors. Thresholds are heuristic; the optional EMSR857 AOI02 comparison is spatial agreement, not scientific validation or ground truth.",
         ],
     }
     (out / "stats.json").write_text(json.dumps(stats, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

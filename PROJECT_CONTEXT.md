@@ -20,15 +20,22 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
 ## 2. Estado real
 
 - `outputs/stats.json` contém um resultado não-mock gerado pelo pipeline.
-- Os HDF5 das duas cenas e os GeoTIFF intermediários não são versionados
-  (`data/` é ignorado). Eles não estavam presentes neste checkout de aceitação,
-  portanto a origem dos resultados não pôde ser reprocessada ou verificada
-  diretamente aqui.
+- Os HDF5 das duas cenas e GeoTIFF intermediários não são versionados
+  (`data/` é ignorado). Os HDF5 foram baixados e reprocessados em
+  `data/validation/`; a configuração `--loosen 3` reproduziu exatamente as
+  áreas de `outputs/stats.json`. Os overlays e a máscara `outputs/` foram então
+  regenerados a partir desses rasters; `docs/` foi reconstruído para o fallback.
+- A comparação vetorial EMSR857 AOI02 resulta em IoU 0,4616; o script
+  `pipeline/validate_reference.py` atualiza essa métrica no contrato, e a etapa
+  4 da interface agora apresenta a comparação e suas ressalvas.
 - A interface Flask está implementada e pode usar resultados reais ou o fallback
   mock.
-- A cópia estática em `docs/` existe e é derivada de uma execução anterior.
-- O roteamento e métricas de impacto via OSM aparecem apenas como código
-  prototipal/contrato mock; não estão conectados ao fluxo real atual.
+- A cópia estática em `docs/` foi reconstruída após o reprocessamento HDF5 e
+  validada localmente; a versão pública não recebeu essas alterações.
+- `pipeline/osm_impact.py` implementa enriquecimento OSM opcional, mas não
+  conseguiu concluir consulta real ao Overpass; o `stats.json` atual não tem
+  métricas nem camada OSM. `routing.py` continua prototipal e não é chamado
+  pela aplicação.
 
 ## 3. Stack e componentes
 
@@ -62,6 +69,9 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
 8. **Impacto OSM (opcional)**: `pipeline/osm_impact.py` baixa feições OSM via
    Overpass, cruza vias e footprints com água nova e exporta segmentos GeoJSON
    e contagens estimadas.
+9. **Validação espacial opcional**: `pipeline/validate_reference.py` compara
+   a máscara NISAR aos vetores EMSR857 AOI02, adiciona métricas ao contrato e
+   recusa `stats.json` mock.
 
 ## 4. Fluxo principal
 
@@ -91,7 +101,8 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 ## 5. Funcionalidades implementadas
 
 - Storytelling em inglês com quatro passos.
-- Mapa Leaflet com tiles OpenStreetMap.
+- Mapa Leaflet com tiles do servidor OpenStreetMap.de e atribuição a
+  OpenStreetMap e ao servidor de tiles.
 - Camada antes (azul), camada durante (água permanente azul e água nova
   vermelha) e comparação por cortina/slider.
 - Exibição de datas, granules, track/frame, direção, polarizações, método e
@@ -99,6 +110,10 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 - Página “How to read the radar”.
 - Fallback mock e indicador visual `MOCK`.
 - Leitura de `stats.json` real e exportação estática.
+- Suporte opcional a trechos de vias OSM em GeoJSON e cards de estimativas na
+  etapa 4; só aparecem quando o enriquecimento foi executado com dados OSM.
+- Comparação EMSR857 AOI02 opcional na etapa 4, exibida a partir do campo
+  `validation` do `stats.json`; não é rótulo de verdade-terreno.
 - Testes para `water.py`, `gcov_reader.py`, `detect_flood.py` e `routing.py`.
 
 ## 6. Parcial, pendente e não conectado
@@ -112,20 +127,23 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
   OSM. As interseções mostram vias dentro da máscara, não um fechamento oficial
   nem rota segura.
 - A contagem de edifícios é estimativa por footprints OSM que intersectam a
-  área SAR detectada; áreas rurais podem ter mapeamento incompleto.
+  área SAR detectada (contato somente na borda é excluído); áreas rurais podem
+  ter mapeamento incompleto.
 - `build_static.py` exige `mock: false` e a cópia estática deve ser regenerada
   quando os arquivos da aplicação ou o JSON real mudarem.
 
 ### Pendente
 
-- Validação com mapa independente.
 - Confirmação do nome da coleção (`collection` está `null`).
 - Linha do tempo com mais datas para transformar as duas cenas atuais em uma
   série temporal completa.
+- Validação científica independente: a comparação EMSR857 disponível mede
+  somente concordância geométrica entre produtos diferentes.
 - Uso operacional de OSM para rotas seguras e validação independente dos
   cruzamentos.
 - Mais polarizações/visualizações e calibração científica do detector.
-- Teste da integração atual com ASF/Earthdata.
+- Exercitar o downloader com outros granules/versões do ASF; o teste atual
+  cobre apenas os dois granules do projeto com `asf_search` 14.1.0.
 
 ## 7. Decisões técnicas e contratos
 
@@ -148,7 +166,9 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 
 - ASF/Earthdata: somente download opcional; token via
   `EARTHDATA_TOKEN`, nunca em arquivo ou commit.
-- OpenStreetMap: somente tiles visuais no cliente.
+- Mapa-base visual: tiles OpenStreetMap.de, de servidor independente; não usa
+  o endpoint `tile.openstreetmap.org`.
+- OpenStreetMap: consultas opcionais de vias/edificações via Overpass.
 - Leaflet: cópia local em `app/static/vendor/leaflet`.
 - NASA SVS #5661: fonte declarada dos números contextuais sobre pessoas,
   casas e lavoura.
@@ -163,17 +183,20 @@ em `pipeline/make_db.py` como `BBOX`; os granules conhecidos estão em
 - A data de 5 de janeiro pode já conter enchentes.
 - O método perde ou confunde água em vegetação, culturas, vento, sombras de
   relevo e solo molhado.
-- O limiar é heurístico. A referência independente foi selecionada, mas a
-  comparação quantitativa ainda está pendente; veja a seção 16.
+- O limiar é heurístico. Foi feita comparação espacial com a camada vetorial
+  EMSR857 AOI02 usando uma máscara reprocessada dos HDF5; a referência é um
+  produto semiautomático, não verdade-terreno. Veja a seção 16.
 - Valores de impacto do mock não podem ser tratados como resultados reais.
-- O download está explicitamente marcado como não testado contra a API atual.
+- O download foi testado com `asf_search` 14.1.0 para os dois granules atuais;
+  outras versões/produtos da API não foram cobertos.
 - A interface e os textos são majoritariamente em inglês, embora este
   contexto seja em português.
 
 ## 10. Como continuar
 
 1. Leia este arquivo, `README.md` e `docs/stats_contract.md`.
-2. Crie/ative um ambiente virtual e instale `requirements.txt`.
+2. Crie/ative um ambiente virtual e instale `requirements.txt` e
+   `requirements-pipeline.txt` para executar o pipeline/testes completos.
 3. Rode `pytest -q` antes de mudar o pipeline.
 4. Para alterar a detecção, leia `water.py`, `detect_flood.py`, os testes e
    compare também `docs/preview/hist.png`/`flood_qa.png`.
@@ -238,21 +261,24 @@ Issues abertas no upstream porque Issues estão desativadas no remoto
 `docs/` é a cópia pré-gerada do site e pode ser servida sem Flask/API. Para
 atualizar, rode `python pipeline/build_static.py`; para testar localmente,
 rode `python -m http.server 8000 --directory docs` e abra
-`http://localhost:8000/`. As camadas PNG e Leaflet são servidos localmente;
-tiles do mapa-base ainda dependem de internet.
+`http://localhost:8000/`. Overlays PNG, eventual GeoJSON OSM e Leaflet são
+servidos localmente; tiles do mapa-base OpenStreetMap.de continuam dependendo
+de internet.
 
 A navegação da etapa 2 foi ajustada para mostrar a cena “before” sem depender
 de `selectedScene`, que não existia. O bug continua registrado em
 [GabrielFlau132/Oracle-Sarvia#1](https://github.com/GabrielFlau132/Oracle-Sarvia/issues/1)
 até a correção ser publicada.
 
-**Publicação anônima ainda pendente:** as alterações foram publicadas em
-`main` (commit `925e0ec`), mas GitHub Pages não está habilitado. A tentativa
-pela API foi recusada com HTTP 403 por falta de permissão; a URL esperada
-retorna 404. Portanto, a cópia foi servida e testada localmente por HTTP, mas
-não foi possível confirmar uma URL pública em janela anônima. Alguém com
-permissão administrativa deve ativar Pages em Settings > Pages e selecionar
-`main` / `docs`. Relatório desta atividade:
+**Publicação anônima ainda pendente:** o relatório anterior registra alterações
+publicadas em `main` (commit `925e0ec`), mas GitHub Pages não está habilitado.
+A tentativa pela API foi recusada com HTTP 403 por falta de permissão; a URL
+esperada retorna 404. As atualizações locais mais recentes de overlays e
+relatórios não foram commitadas nem enviadas; portanto, não estão no site
+público. A cópia estática foi reconstruída e testada localmente por HTTP.
+Alguém com permissão administrativa deve ativar Pages em Settings > Pages e
+selecionar `main` / `docs`; publicar as alterações locais exige autorização
+explícita. Relatório desta atividade:
 [`docs/static_fallback_report_2026-11-15.md`](docs/static_fallback_report_2026-11-15.md).
 
 ## 15. Vias e edificações OSM (15/11/2026)
@@ -283,12 +309,17 @@ o polígono de água nova local. A imagem é do mesmo dia da cena NISAR de
 17/01/2026 (03:42 UTC), cerca de 23 minutos antes, sendo a referência com
 melhor correspondência temporal e geográfica entre as fontes consultadas.
 
-Esta escolha registra uma referência disponível, **não uma validação já
-realizada**. A comparação espacial/quantitativa ainda precisa ser executada.
-O produto também é uma análise remota por radar (Sentinel-1), não observação de
-campo nem verdade-terreno; diferenças de sensor, resolução, método e definição
-de inundação devem ser consideradas. O arquivo está no pacote público da
-ativação; ele não foi baixado ou comparado neste trabalho.
+O pacote público `EMSR857_products.zip` foi baixado. Ele contém a camada
+vetorial `observedEventA` com 811 feições de inundação e o limite da AOI02, mas
+não o GeoTIFF Sentinel-1 citado no catálogo. Uma comparação espacial preliminar
+recortada à AOI02 foi feita após baixar e reprocessar os HDF5 originais. A
+comparação encontrou 66,798 km² de água nova NISAR, 93,048 km² de polígonos
+EMS e 50,483 km² de interseção (IoU 0,4616). A configuração `--loosen 3`
+reproduziu exatamente o `stats.json` atual: 982,5 km² de água nova,
+709,5–1.455,6 km² de intervalo e 972,0 km² de água permanente. É uma
+comparação quantitativa, mas não validação contra verdade-terreno: “água nova”
+não é exatamente a mesma classe que “área inundada” EMS, que também é uma
+extração semiautomática de radar. O GeoTIFF Sentinel-1 não está no pacote.
 
 OPERA DSWx-S1 também tem granules catalogados para tiles da região em
 04/01 e 16–17/01/2026; DSWx-HLS tem granules no período. Não foram escolhidos
@@ -301,3 +332,58 @@ Sul, iniciada em 17/01/2026.
 
 Relatório, fontes e limites da busca:
 [`docs/validation_reference_report_2026-11-15.md`](docs/validation_reference_report_2026-11-15.md).
+
+## 17. Provedor de mapa-base (15/11/2026)
+
+Após a interface reportar HTTP 403 no serviço oficial de tiles OpenStreetMap,
+o cliente foi alterado para usar o servidor independente OpenStreetMap.de,
+mantendo os créditos aos dados OpenStreetMap e ao servidor de tiles. Uma
+tentativa anterior com CARTO retornou a mensagem “API key required” no cliente;
+o primeiro teste verificou apenas HTTP 200 e não identificou que a resposta era
+um tile-placeholder. Um tile da área do projeto no OpenStreetMap.de respondeu
+com uma imagem válida sem chave. O mapa-base continua exigindo internet.
+Relatório:
+[`docs/basemap_tile_report_2026-11-15.md`](docs/basemap_tile_report_2026-11-15.md).
+
+## 18. Revisão das funcionalidades adicionais (15/11/2026)
+
+Na revisão foram corrigidos: bloqueio do pipeline OSM quando `stats.json` é
+mock; contagem de edificações que apenas tocavam a borda da cheia, inclusive
+um artefato de reprojeção; tratamento de tags ausentes representadas por
+`pandas.NA`; e os testes/construção do fallback para camadas GeoJSON. A
+comparação quantitativa EMSR857 foi depois realizada com os HDF5 originais.
+Os artefatos da aplicação e do site estático foram atualizados com o
+reprocessamento, e as rotas locais responderam HTTP 200. Continua pendente uma
+execução OSM real. Veja
+[`docs/feature_review_report_2026-11-15.md`](docs/feature_review_report_2026-11-15.md).
+
+## 19. Relatório consolidado do dia (15/11/2026)
+
+O histórico das atividades, verificações, issues, limites de publicação e
+pendências de OSM/validação independente está consolidado em
+[`docs/daily_activity_report_2026-11-15.md`](docs/daily_activity_report_2026-11-15.md).
+
+## 20. Relatório detalhado da madrugada (15/11/2026)
+
+Sequência das atividades, bloqueios do token/Overpass/publicação, razão da
+mudança pouco visível no site e próximos passos estão em
+[`docs/overnight_work_report_2026-11-15.md`](docs/overnight_work_report_2026-11-15.md).
+
+## 21. Revisão do README e painel EMSR857 (15/11/2026)
+
+Após conferir o README local contra o estado real, foram corrigidas as
+instruções que ainda diziam que os HDF5 não haviam sido reprocessados e que o
+download não havia sido testado. O README agora documenta a comparação
+EMSR857, o passo para atualizá-la e o uso separado de dependências web e
+pipeline. `requirements-pipeline.txt` inclui dependências diretas que faltavam
+para os imports de QA, processamento e OSM.
+
+Foi adicionado `pipeline/validate_reference.py`, que compara a máscara atual
+com o vetor EMSR857 AOI02, só aceita estatísticas `mock: false` e grava a
+métrica opcional `validation` em `outputs/stats.json`. A etapa 4 da interface
+exibe áreas, interseção, IoU e frações de sobreposição com a ressalva de que
+não é ground truth. Para regenerar o fallback, execute o script de validação
+após `detect_flood.py` e então `build_static.py`.
+
+Relatório da alteração e verificações:
+[`docs/readme_review_report_2026-11-15.md`](docs/readme_review_report_2026-11-15.md).
