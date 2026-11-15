@@ -19,6 +19,8 @@ história visual simples: água antes, água durante e água nova estimada.
 
 - Interface Flask com mapa Leaflet e narrativa em quatro etapas.
 - Comparação antes/durante por slider.
+- Linha do tempo interativa para alternar entre as cenas “before” e “during”,
+  com data, track, frame e direção selecionados.
 - Leitura de `outputs/stats.json`, com fallback explícito para
   `outputs/mock/stats.json`.
 - Camadas de água como GeoJSON ou imagens PNG georreferenciadas.

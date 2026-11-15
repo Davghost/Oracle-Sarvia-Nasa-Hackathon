@@ -89,6 +89,8 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 - Mapa Leaflet com tiles OpenStreetMap.
 - Camada antes (azul), camada durante (água permanente azul e água nova
   vermelha) e comparação por cortina/slider.
+- Linha do tempo interativa no passo 2, alternando as duas cenas disponíveis e
+  mostrando data, track, frame e direção.
 - Exibição de datas, granules, track/frame, direção, polarizações, método e
   limitações.
 - Página “How to read the radar”.
@@ -114,7 +116,8 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 
 - Validação com mapa independente.
 - Confirmação do nome da coleção (`collection` está `null`).
-- Mais datas para série temporal.
+- Mais datas para transformar a linha do tempo atual (duas cenas) em uma série
+  temporal completa.
 - Uso operacional de OSM para vias, prédios e rotas.
 - Mais polarizações/visualizações e calibração científica do detector.
 - Teste da integração atual com ASF/Earthdata.

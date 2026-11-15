@@ -12,7 +12,7 @@ Example: `outputs/mock/stats.json` (all values there are fake).
 | `maturity` | string | `BETA` or `PROVISIONAL` (from the collection used). Always shown to the user. |
 | `collection` | string or null | CMR collection short name. Fill after T03/T09. |
 | `product` | string | e.g. `NISAR GCOV`. |
-| `scenes.before` / `scenes.during` | object | `date` (YYYY-MM-DD), `granule`, `track`, `frame`, `direction`, `polarizations` (list, or `null` until confirmed in T37). |
+| `scenes.before` / `scenes.during` | object | `date` (YYYY-MM-DD), `granule`, `track`, `frame`, `direction`, `polarizations` (list, or `null` until confirmed in T37). The UI uses these two entries as the current two-point timeline. |
 | `flooded_area_km2` | number | New water: water(during) minus water(before). |
 | `permanent_water_km2` | number | Water already present before the flood. |
 | `method` | object | `threshold_db` (a number, or an object like `{"HH": -14.5, "HV": -21}`), `speckle_filter`, `notes`. |

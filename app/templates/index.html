@@ -26,7 +26,12 @@
       <p class="kicker">Step 2</p>
       <h1>Radar sees through clouds</h1>
       <p>NISAR sends its own signal and listens for the echo. Clouds do not stop it, day or night. Calm water acts like a mirror and sends the signal away, so water looks <b>dark</b>.</p>
-      <p>The map shows the water the radar found on the <b>first date</b>: rivers, lakes and the sea.</p>
+      <p id="timeline-caption">The map shows the water the radar found on the selected date.</p>
+      <div id="timeline" class="timeline" aria-label="Radar scene timeline">
+        <div class="timeline-track" aria-hidden="true"><span id="timeline-progress"></span></div>
+        <div id="timeline-buttons" class="timeline-buttons"></div>
+        <p id="timeline-meta" class="source"></p>
+      </div>
       <p><a href="{{ url_for('how_to_read_radar') }}">How to read the radar →</a></p>
     </section>
 

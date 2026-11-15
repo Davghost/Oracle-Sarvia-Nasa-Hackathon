@@ -12,9 +12,10 @@ const $ = (id) => document.getElementById(id);
 const fmt = (v, unit = '') => (v === null || v === undefined) ? 'to be confirmed' : v + unit;
 const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
 
-let stats = null, layers = {}, step = 1;
+let stats = null, layers = {}, step = 1, selectedScene = 'before';
 
 async function addLayer(spec, pane, style) {
+  // The stats contract allows either vector GeoJSON or raster image overlays.
   if (!spec) return null;
   if (spec.type === 'geojson') {
     const data = await (await fetch(spec.url)).json();
@@ -32,6 +33,27 @@ function show(layer, on) {
   if (!on && map.hasLayer(layer)) map.removeLayer(layer);
 }
 
+function sceneLabel(key) {
+  return key === 'before' ? 'Before' : 'During';
+}
+
+function selectScene(key) {
+  if (!stats || !stats.scenes[key] || !layers[key]) return;
+  selectedScene = key;
+  const scene = stats.scenes[key];
+  document.querySelectorAll('#timeline-buttons button').forEach(button => {
+    button.classList.toggle('selected', button.dataset.scene === key);
+    button.setAttribute('aria-pressed', button.dataset.scene === key ? 'true' : 'false');
+  });
+  $('timeline-progress').style.width = key === 'during' ? '100%' : '0%';
+  $('timeline-caption').innerHTML = `The map shows the water the radar found on <b>${fmtDate(scene.date)}</b>.`;
+  $('timeline-meta').textContent = `${sceneLabel(key)} scene · Track ${scene.track}, frame ${scene.frame} · ${scene.direction}`;
+  if (step === 2) {
+    show(layers.before, key === 'before');
+    show(layers.during, key === 'during');
+  }
+}
+
 // ----- curtain: clip the "before" pane to the left of the line and "during" to the right
 function updateClip(active) {
   const bp = map.getPane('beforePane'), dp = map.getPane('duringPane');
@@ -47,6 +69,7 @@ function updateClip(active) {
 }
 
 function setStep(n) {
+  // Each story step controls both explanatory content and visible map layers.
   step = Math.max(1, Math.min(TOTAL, n));
   document.querySelectorAll('.step').forEach(el => el.classList.toggle('on', +el.dataset.step === step));
   document.querySelectorAll('#progress button').forEach((b, i) => {
@@ -59,8 +82,8 @@ function setStep(n) {
 
   const compare = step === 3;
   show(layers.radar, step === 2);
-  show(layers.before, step === 2 || compare);
-  show(layers.during, compare || step === 4);
+  show(layers.before, (step === 2 && selectedScene === 'before') || compare);
+  show(layers.during, (step === 2 && selectedScene === 'during') || compare || step === 4);
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
   updateClip(compare);
@@ -78,6 +101,7 @@ function card(label, value, mock) {
 }
 
 (async () => {
+  // Load the same contract from Flask or, in the static build, from docs/.
   stats = await (await fetch(window.STATS_URL || '/api/stats')).json();
   if (stats.mock) $('mock-flag').hidden = false;
 
@@ -87,6 +111,19 @@ function card(label, value, mock) {
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
   layers.before = await addLayer(stats.layers.before, 'beforePane', {color: '#1f78c8', weight: 1, fillColor: '#1f78c8', fillOpacity: 0.65});
   layers.during = await addLayer(stats.layers.during, 'duringPane', {color: '#e4572e', weight: 1, fillColor: '#e4572e', fillOpacity: 0.65});
+
+  const timelineButtons = $('timeline-buttons');
+  ['before', 'during'].forEach((key, index) => {
+    const scene = stats.scenes[key];
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.scene = key;
+    button.setAttribute('aria-pressed', 'false');
+    button.innerHTML = `<b>${sceneLabel(key)}</b><span>${fmtDate(scene.date)}</span>`;
+    button.addEventListener('click', () => selectScene(key));
+    timelineButtons.appendChild(button);
+  });
+  selectScene(selectedScene);
 
   // text that depends on the data
   $('date-before').textContent = fmtDate(stats.scenes.before.date);
