@@ -20,8 +20,10 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
 ## 2. Estado real
 
 - `outputs/stats.json` contém um resultado não-mock gerado pelo pipeline.
-- Os HDF5 das duas cenas e os GeoTIFF intermediários estão presentes localmente,
-  mas `data/` é ignorado pelo Git e não deve ser versionado.
+- Os HDF5 das duas cenas e os GeoTIFF intermediários não são versionados
+  (`data/` é ignorado). Eles não estavam presentes neste checkout de aceitação,
+  portanto a origem dos resultados não pôde ser reprocessada ou verificada
+  diretamente aqui.
 - A interface Flask está implementada e pode usar resultados reais ou o fallback
   mock.
 - A cópia estática em `docs/` existe e é derivada de uma execução anterior.
@@ -196,3 +198,53 @@ em `pipeline/make_db.py` como `BBOX`; os granules conhecidos estão em
 - [`TASKS.xlsx`](TASKS.xlsx): planejamento original da equipe; pode conter
   ideias ainda não implementadas.
 - [`AI_USAGE_LOG.md`](AI_USAGE_LOG.md): registro de uso de IA.
+
+## 13. Aceitação do MVP (15/11/2026)
+
+Relatório detalhado: [`docs/mvp_acceptance_report_2026-11-15.md`](docs/mvp_acceptance_report_2026-11-15.md).
+
+Checklist executado no checkout atual:
+
+| Critério | Resultado | Evidência / limite |
+|---|---|---|
+| Dados reais | **Passa com ressalva de proveniência** | `outputs/stats.json` declara `mock: false`, identifica dois granules NISAR GCOV e as duas imagens de camada existem. Os HDF5 originais não estavam no checkout; assim, esta aceitação confirma os artefatos e metadados não-mock, mas não autentica independentemente os dados de origem. |
+| Rótulo de provisório | **Passa na interface** | A página principal mostra o aviso “provisional”. O campo `maturity` do JSON ainda diz “Beta or Provisional” sem identificar qual coleção se aplica; `collection` continua `null`. |
+| Números coerentes | **Passa em coerência interna** | A estimativa de 982,5 km² está dentro do intervalo 709,5–1.455,6 km²; área permanente é 972,0 km². Ambos são compatíveis com o bbox e pixels de 40 m. São estimativas heurísticas, sem validação externa; a coerência não demonstra precisão científica. |
+| Sem credenciais no repositório | **Passa na varredura do checkout** | A busca por padrões comuns de credenciais nos arquivos versionados não encontrou segredos. Há apenas referência ao nome `EARTHDATA_TOKEN` e um valor ilustrativo de placeholder na documentação; nenhum token real foi encontrado. A varredura não é prova sobre versões históricas do Git. |
+
+Validação funcional: `pytest -q` — **24 testes passaram** após instalar
+`requirements.txt` e `requirements-pipeline.txt`; rotas `/`,
+`/how-to-read-radar`, `/api/stats` e os dois overlays responderam HTTP 200.
+Na cópia estática, JavaScript e imagens coincidem com os artefatos da aplicação;
+`docs/stats.json` difere apenas por usar URLs relativas, como esperado no Pages.
+O JavaScript passou na verificação sintática do Node, mas a navegação em
+navegador não foi automatizada. Foi encontrado o identificador não definido
+`selectedScene` na transição para a etapa 2 e a configuração de dependências
+documentada não instala, por si só, os pacotes necessários à suíte.
+
+Issues abertas no upstream porque Issues estão desativadas no remoto
+`Davghost/Oracle-Sarvia-Nasa-Hackathon`:
+
+- [Fix undefined selectedScene in story step 2](https://github.com/GabrielFlau132/Oracle-Sarvia/issues/1)
+- [Declare test and pipeline dependencies consistently](https://github.com/GabrielFlau132/Oracle-Sarvia/issues/2)
+
+## 14. Fallback estático (15/11/2026)
+
+`docs/` é a cópia pré-gerada do site e pode ser servida sem Flask/API. Para
+atualizar, rode `python pipeline/build_static.py`; para testar localmente,
+rode `python -m http.server 8000 --directory docs` e abra
+`http://localhost:8000/`. As camadas PNG e Leaflet são servidos localmente;
+tiles do mapa-base ainda dependem de internet.
+
+A navegação da etapa 2 foi ajustada para mostrar a cena “before” sem depender
+de `selectedScene`, que não existia. O bug continua registrado em
+[GabrielFlau132/Oracle-Sarvia#1](https://github.com/GabrielFlau132/Oracle-Sarvia/issues/1)
+até a correção ser publicada.
+
+**Publicação anônima ainda pendente:** GitHub Pages não está habilitado no
+repositório `Davghost/Oracle-Sarvia-Nasa-Hackathon`; a URL esperada retorna
+404. Portanto, a cópia foi servida e testada localmente por HTTP, mas não foi
+possível confirmar uma URL pública em janela anônima. Ative Pages em
+Settings > Pages, use `main` / `docs` e publique as alterações para validar a
+URL. Relatório desta atividade:
+[`docs/static_fallback_report_2026-11-15.md`](docs/static_fallback_report_2026-11-15.md).

@@ -163,15 +163,33 @@ e `limitations`. A interface também aceita camadas `geojson` e `image`.
 
 ## Publicação estática
 
-A publicação só prossegue com `outputs/stats.json` real (`mock: false`):
+A pasta `docs/` é o fallback estático da aplicação: contém HTML, JavaScript,
+Leaflet e as camadas PNG pré-geradas. Ela não precisa do Flask nem de acesso a
+`/api/stats`; somente o mapa-base do OpenStreetMap precisa de internet. Gere a
+cópia somente com `outputs/stats.json` real (`mock: false`):
 
 ```powershell
 python pipeline\build_static.py
 ```
 
 O script atualiza `docs/index.html`, `docs/how-to-read-radar.html`,
-`docs/static/`, `docs/outputs/`, `docs/stats.json` e `.nojekyll`. Depois, o
-conteúdo de `docs/` pode ser servido pelo GitHub Pages.
+`docs/static/`, `docs/outputs/`, `docs/stats.json` e `.nojekyll`. Para testar
+localmente, sirva a pasta por HTTP (não abra `index.html` com `file://`, pois o
+navegador bloqueia o carregamento de `stats.json`):
+
+```powershell
+python -m http.server 8000 --directory docs
+```
+
+Abra `http://localhost:8000/` em uma janela anônima e confira a narrativa, o
+slider, a página “How to read the radar” e as camadas antes/durante. O mesmo
+conteúdo pode ser publicado separadamente no GitHub Pages em
+**Settings > Pages > Deploy from a branch > main > /docs**; use a URL pública
+do Pages para confirmar acesso sem login. Assim, a aplicação estática continua
+servindo os resultados pré-gerados mesmo quando o servidor Flask/API estiver
+indisponível.
+
+Relatório da preparação e validação: [`docs/static_fallback_report_2026-11-15.md`](docs/static_fallback_report_2026-11-15.md).
 
 ## Integrações externas
 

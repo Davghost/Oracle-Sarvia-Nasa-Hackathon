@@ -61,8 +61,8 @@ function setStep(n) {
 
   const compare = step === 3;
   show(layers.radar, step === 2);
-  show(layers.before, (step === 2 && selectedScene === 'before') || compare);
-  show(layers.during, (step === 2 && selectedScene === 'during') || compare || step === 4);
+  show(layers.before, step === 2 || compare);
+  show(layers.during, compare || step === 4);
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
   updateClip(compare);
