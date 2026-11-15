@@ -1,21 +1,169 @@
 // The static GitHub Pages copy has no Flask backend for route calculations.
 const STATIC = Boolean(window.STATS_URL);
+const $ = (id) => document.getElementById(id);
 if (STATIC) {
   document.querySelectorAll('.server-only').forEach(el => el.remove());
 }
 const TOTAL = 5;
 const COLORS = {standing: '#1f5fae', newwater: '#e0442a', roads: '#f0a500', slate: '#1b2830', safe: '#1b8a4b'};
-const map = L.map('map', {zoomSnap: 0.25});
-L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
- maxZoom: 18,
+const map = L.map('map', {
+  zoomSnap: 0.25,
+  preferCanvas: true,
+  zoomAnimation: false,
+  fadeAnimation: false,
+  markerZoomAnimation: false
+});
+const defaultMapConfig = {
+  satellite: true,
+  hybrid: true,
+  satellite_url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  hybrid_url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  hybrid_labels_url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  attribution: {satellite: '&copy; Esri', hybrid: '&copy; Esri | &copy; OpenStreetMap contributors'}
+};
+const mapConfig = Object.assign({}, defaultMapConfig, window.SARVIA_MAP_CONFIG || {});
+mapConfig.attribution = Object.assign({}, defaultMapConfig.attribution, mapConfig.attribution || {});
+const tileOptions = {maxZoom: 19, updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 2};
+const osm = L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
+ ...tileOptions, maxZoom: 18,
  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Tiles: <a href="https://tile.openstreetmap.de/">OpenStreetMap.de</a>'
 }).addTo(map);
+const dark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  ...tileOptions,
+  attribution: '&copy; <a href="https://www.esri.com/">Esri</a> | &copy; OpenStreetMap contributors'
+});
+const baseMaps = {'OpenStreetMap claro': osm, 'Mapa escuro': dark};
+const externalBaseMaps = {};
+if (mapConfig.satellite && mapConfig.satellite_url) {
+  externalBaseMaps['Imagem de satélite'] = L.tileLayer(mapConfig.satellite_url, {
+    ...tileOptions, attribution: mapConfig.attribution.satellite || 'Satellite imagery provider'
+  });
+}
+if (mapConfig.hybrid && mapConfig.hybrid_url) {
+  const hybridLayers = [L.tileLayer(mapConfig.hybrid_url, tileOptions)];
+  if (mapConfig.hybrid_labels_url) hybridLayers.push(L.tileLayer(mapConfig.hybrid_labels_url, tileOptions));
+  externalBaseMaps['Híbrido (imagem + estradas)'] = L.layerGroup(hybridLayers);
+}
+Object.assign(baseMaps, externalBaseMaps);
+// ----- layer panel: a compact "Layers" button that opens a card with basemap
+// thumbnails (a real tile of the study area) and switches for the data layers.
+const THUMB = {z: 8, x: 151, y: 146};    // tile over Chókwè, the heart of the flood
+const thumbUrl = (layer) => {
+  const tile = layer.getLayers ? layer.getLayers()[0] : layer;
+  return tile && tile._url ? L.Util.template(tile._url, {s: 'a', ...THUMB}) : '';
+};
+const LAYER_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12.5 9 5 9-5M3 17l9 5 9-5"/></svg>';
 
-['radarPane', 'beforePane', 'duringPane', 'validationPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
-  map.createPane(name).style.zIndex = 410 + i * 10;
+const LayerPanel = L.Control.extend({
+  options: {position: 'topright'},
+  initialize(bases, options) {
+    L.setOptions(this, options);
+    this._bases = bases;
+    this._overlays = [];
+    this._base = Object.values(bases)[0];
+  },
+  onAdd(m) {
+    const box = L.DomUtil.create('div', 'layer-panel');
+    box.innerHTML =
+      `<button type="button" class="lp-toggle" aria-expanded="false" aria-controls="lp-card">${LAYER_ICON}<span>Camadas</span><b class="lp-count"></b></button>` +
+      '<div class="lp-card" id="lp-card" hidden>' +
+      '<p class="lp-title">Mapa base</p><div class="lp-bases" role="radiogroup" aria-label="Mapa base"></div>' +
+      '<p class="lp-title">Dados no mapa</p><ul class="lp-overlays"></ul>' +
+      '<p class="lp-hint">Cada passo da história liga as camadas que ele usa.</p></div>';
+    L.DomEvent.disableClickPropagation(box);
+    L.DomEvent.disableScrollPropagation(box);
+    this._box = box;
+    this._toggle = box.querySelector('.lp-toggle');
+    this._card = box.querySelector('.lp-card');
+    this._toggle.addEventListener('click', () => this.open(this._card.hidden));
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !this._card.hidden) { this.open(false); this._toggle.focus(); } });
+    m.on('click', () => this.open(false));
+    m.on('layeradd layerremove', () => this._sync());
+    this._renderBases();
+    return box;
+  },
+  open(on) {
+    this._card.hidden = !on;
+    this._toggle.setAttribute('aria-expanded', String(on));
+    this._box.classList.toggle('open', on);
+  },
+  _renderBases() {
+    const wrap = this._box.querySelector('.lp-bases');
+    wrap.innerHTML = '';
+    Object.entries(this._bases).forEach(([name, layer]) => {
+      const btn = L.DomUtil.create('button', 'lp-base', wrap);
+      btn.type = 'button';
+      btn.setAttribute('role', 'radio');
+      const short = {'OpenStreetMap claro': 'Claro', 'Mapa escuro': 'Escuro', 'Imagem de satélite': 'Satélite', 'Híbrido (imagem + estradas)': 'Híbrido'}[name] || name;
+      btn.title = name;
+      btn.innerHTML = `<span class="lp-thumb" style="background-image:url('${thumbUrl(layer)}')"></span><span>${short}</span>`;
+      btn.addEventListener('click', () => this.setBase(layer));
+      btn._layer = layer;
+    });
+    this._sync();
+  },
+  setBase(layer) {
+    if (layer === this._base) return;
+    this._map.removeLayer(this._base);
+    layer.addTo(this._map);
+    this._base = layer;
+    this._map.fire('baselayerchange', {layer});
+    this._sync();
+  },
+  // same call as Leaflet's layers control; opts: {color, kind: 'area'|'line'|'points', opacity: true}
+  addOverlay(layer, name, opts = {}) {
+    const li = L.DomUtil.create('li', 'lp-row', this._box.querySelector('.lp-overlays'));
+    const sw = opts.kind === 'line' ? `<i class="lp-sw line" style="background:${opts.color}"></i>`
+      : opts.kind === 'points' ? `<i class="lp-sw points" style="color:${opts.color}"></i>`
+      : `<i class="lp-sw" style="background:${opts.color || '#8e9ba3'}"></i>`;
+    li.innerHTML = `<label class="lp-switch">${sw}<span class="lp-name">${name}</span>` +
+      '<input type="checkbox" role="switch"><span class="lp-knob" aria-hidden="true"></span></label>' +
+      (opts.opacity ? '<input class="lp-opacity" type="range" min="15" max="100" value="100" aria-label="Opacidade">' : '');
+    const box = li.querySelector('input[type=checkbox]');
+    box.addEventListener('change', () => (box.checked ? layer.addTo(this._map) : this._map.removeLayer(layer)));
+    const slider = li.querySelector('.lp-opacity');
+    if (slider) {
+      slider.setAttribute('aria-label', `Opacidade: ${name}`);
+      slider.addEventListener('input', () => {
+        const v = slider.value / 100;
+        if (layer.setOpacity) layer.setOpacity(v);
+        else if (layer.setStyle) layer.setStyle({opacity: v, fillOpacity: v * 0.72});
+      });
+    }
+    this._overlays.push({layer, li, box});
+    this._sync();
+    return this;
+  },
+  _sync() {
+    if (!this._box) return;
+    this._box.querySelectorAll('.lp-base').forEach(btn => btn.setAttribute('aria-checked', String(btn._layer === this._base)));
+    let on = 0;
+    this._overlays.forEach(o => {
+      const active = this._map.hasLayer(o.layer);
+      o.box.checked = active;
+      o.li.classList.toggle('on', active);
+      on += active;
+    });
+    this._box.querySelector('.lp-count').textContent = on ? String(on) : '';
+  },
+});
+const layerControl = new LayerPanel(baseMaps).addTo(map);
+const externalTileLayers = [];
+Object.values(externalBaseMaps).forEach(layer => {
+  if (layer.eachLayer) layer.eachLayer(child => externalTileLayers.push(child));
+  else externalTileLayers.push(layer);
+});
+externalTileLayers.forEach(layer => layer.on('tileerror', () => {
+  if ($('layer-status')) {
+    $('layer-status').hidden = false;
+    $('layer-status').textContent = 'Não foi possível carregar uma camada externa; verifique a configuração do provedor.';
+  }
+}));
+
+['vegetationPane', 'radarPane', 'beforePane', 'duringPane', 'validationPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
+  map.createPane(name).style.zIndex = 405 + i * 10;
 });
 
-const $ = (id) => document.getElementById(id);
 const fmt = (v, unit = '') => (v === null || v === undefined) ? 'to be confirmed' : v + unit;
 const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
 
@@ -27,11 +175,33 @@ async function addLayer(spec, pane, style) {
   // The stats contract allows either vector GeoJSON or raster image overlays.
   if (!spec) return null;
   if (spec.type === 'geojson') {
-    const data = await (await fetch(spec.url)).json();
+    const response = await fetch(spec.url);
+    if (!response.ok) throw new Error(`Layer request failed (${response.status})`);
+    const data = await response.json();
     return L.geoJSON(data, {pane, style});
   }
   if (spec.type === 'image') {  // bounds: [[south, west], [north, east]]
-    return L.imageOverlay(spec.url, spec.bounds, {pane});
+    const layer = L.imageOverlay(spec.url, spec.bounds, {pane, opacity: style.opacity == null ? 1 : style.opacity});
+    layer.on('error', () => {
+      if ($('layer-status')) {
+        $('layer-status').hidden = false;
+        $('layer-status').textContent = `Falha ao carregar a camada ${spec.source || 'raster'}.`;
+      }
+    });
+    return layer;
+  }
+  if (spec.type === 'tile') {
+    const layer = L.tileLayer(spec.url, {
+      ...tileOptions, pane, opacity: style.opacity == null ? 0.48 : style.opacity,
+      attribution: spec.attribution || spec.source || 'External raster layer'
+    });
+    layer.on('tileerror', () => {
+      if ($('layer-status')) {
+        $('layer-status').hidden = false;
+        $('layer-status').textContent = `Falha ao carregar a camada ${spec.source || 'externa'}.`;
+      }
+    });
+    return layer;
   }
   throw new Error('Unknown layer type: ' + spec.type);
 }
@@ -40,6 +210,23 @@ function show(layer, on) {
   if (!layer) return;
   if (on && !map.hasLayer(layer)) layer.addTo(map);
   if (!on && map.hasLayer(layer)) map.removeLayer(layer);
+}
+
+function vegetationLegend(spec) {
+  const legend = $('vegetation-legend');
+  if (!legend || !spec || !Array.isArray(spec.legend)) return;
+  legend.innerHTML = '<b>NDVI/vegetação estimada</b>';
+  spec.legend.forEach(item => {
+    if (!item || !item.label) return;
+    const row = document.createElement('span');
+    row.className = 'vegetation-key';
+    row.innerHTML = `<i style="background:${ESC(item.color || '#9aa6ad')}"></i>${ESC(item.label)}`;
+    legend.appendChild(row);
+  });
+  const note = document.createElement('small');
+  note.textContent = `${spec.source || 'Fonte não informada'} · ${spec.date || 'data não informada'}`;
+  legend.appendChild(note);
+  legend.hidden = false;
 }
 
 // ----- curtain: clip the "before" pane to the left of the line and "during" to the right
@@ -77,6 +264,7 @@ function setStep(n) {
   show(layers.radar, step === 2);
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4 || routing);
+  show(layers.vegetation, step >= 2);
   show(layers.validation, step === 4);
   show(impact.layer, step === 4);
   show(impact.roads, step === 4 && impact.cats.has('roads'));
@@ -87,6 +275,7 @@ function setStep(n) {
   $('legend').hidden = step < 2;
   $('before-legend').hidden = !(step === 2 || compare || routing);   // boats use rivers and lakes too
   $('during-legend').hidden = !(compare || step === 4 || routing);
+  if ($('vegetation-legend')) $('vegetation-legend').hidden = !layers.vegetation || step < 2;
   $('roads-legend').hidden = step !== 4 || !impact.roads;
   $('validation-legend').hidden = step !== 4 || !layers.validation;
   $('route-legend').hidden = !routing;
@@ -720,9 +909,13 @@ function renderImpactPanel() {
 async function loadImpact() {
   const spec = stats.layers.impact_features;
   if (!spec || !stats.impact || !stats.impact.categories) return;
-  impact.data = {...stats.impact, features: await (await fetch(spec.url)).json()};
+  const featureResponse = await fetch(spec.url);
+  if (!featureResponse.ok) throw new Error(`Impact features request failed (${featureResponse.status})`);
+  impact.data = {...stats.impact, features: await featureResponse.json()};
   if (stats.layers.impact_roads) {
-    const roads = await (await fetch(stats.layers.impact_roads.url)).json();
+    const response = await fetch(stats.layers.impact_roads.url);
+    if (!response.ok) throw new Error(`Impact roads request failed (${response.status})`);
+    const roads = await response.json();
     const roadWeight = () => (map.getZoom() >= DETAIL_ZOOM ? 3.5 : 1.6);
     impact.roads = L.geoJSON(roads, {pane: 'roadsPane', style: () => ({color: COLORS.roads, weight: roadWeight(), opacity: 1})});
     map.on('zoomend', () => impact.roads.setStyle({weight: roadWeight()}));
@@ -730,8 +923,10 @@ async function loadImpact() {
       const p = l.feature.properties;
       return `${ESC(p.name || kindLabel(p.highway) + ' road')}: ${metresText(p.flooded_m)} on new water`;
     }, {sticky: true});
+    layerControl.addOverlay(impact.roads, 'Estradas em água nova (OSM)', {color: COLORS.roads, kind: 'line'});
   }
   buildImpactLayer();
+  layerControl.addOverlay(impact.layer, 'Escolas, saúde, comunidades e pontes', {color: COLORS.roads, kind: 'points'});
   renderImpactPanel();
   filterImpact();
   // Leaflet stops clicks inside popups from bubbling and re-renders popup content,
@@ -763,8 +958,24 @@ function card(label, value, mock) {
   map.fitBounds([[so, w], [n, e]]);
 
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
-  layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1, fillColor: COLORS.standing, fillOpacity: 0.65});
-  layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 1, fillColor: COLORS.newwater, fillOpacity: 0.65});
+  layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1.5, fillColor: COLORS.standing, fillOpacity: 0.72, opacity: 0.72});
+  layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 2, fillColor: COLORS.newwater, fillOpacity: 0.78, opacity: 0.78});
+  if (layers.radar) layerControl.addOverlay(layers.radar, 'Radar NISAR (contexto)', {color: '#6b7f3a', opacity: true});
+  if (layers.before) layerControl.addOverlay(layers.before, 'Água que já existia', {color: COLORS.standing, opacity: true});
+  if (layers.during) layerControl.addOverlay(layers.during, 'Água nova da cheia', {color: COLORS.newwater, opacity: true});
+  if (stats.layers.vegetation) {
+    try {
+      layers.vegetation = await addLayer(stats.layers.vegetation, 'vegetationPane', {opacity: 0.46});
+      vegetationLegend(stats.layers.vegetation);
+      layerControl.addOverlay(layers.vegetation, 'Vegetação estimada (NDVI)', {color: '#4f8a3c', opacity: true});
+    } catch (error) {
+      console.error('vegetation layer unavailable', error);
+      if ($('layer-status')) {
+        $('layer-status').hidden = false;
+        $('layer-status').textContent = 'A camada de vegetação está indisponível; as camadas NISAR continuam funcionando.';
+      }
+    }
+  }
   layers.validation = await addLayer(
     stats.layers.validation_difference,
     'validationPane',
@@ -773,10 +984,15 @@ function card(label, value, mock) {
       return {color, weight: 1, fillColor: color, fillOpacity: 0.72};
     },
   );
+  if (layers.validation) layerControl.addOverlay(layers.validation, 'Diferença NISAR x Copernicus', {color: '#7b2cbf', opacity: true});
   try {
     await loadImpact();
   } catch (error) {
     console.error('impact map unavailable', error);   // the rest of the story still works
+    if ($('layer-status')) {
+      $('layer-status').hidden = false;
+      $('layer-status').textContent = 'Camadas de impacto OSM indisponíveis; a narrativa NISAR continua funcionando.';
+    }
   }
 
   // text that depends on the data
@@ -897,5 +1113,10 @@ function card(label, value, mock) {
     $('static-route-note').hidden = false;
   }
 
+  $('legend-toggle').addEventListener('click', () => {
+    const expanded = $('legend-toggle').getAttribute('aria-expanded') === 'true';
+    $('legend-toggle').setAttribute('aria-expanded', String(!expanded));
+    $('legend-content').hidden = expanded;
+  });
   setStep(1);
 })();
