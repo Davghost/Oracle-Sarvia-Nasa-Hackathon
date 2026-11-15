@@ -60,7 +60,7 @@ retrospectiva de água, comparando duas datas de radar, para planejar o acesso
 
 ## 3. Stack e componentes
 
-- Python 3.
+- Python 3
 - Flask: servidor e templates.
 - NumPy/SciPy: processamento numérico, filtro e histogramas.
 - h5py: leitura HDF5 NISAR.
