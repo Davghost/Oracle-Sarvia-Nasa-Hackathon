@@ -75,11 +75,23 @@ def test_static_build_copies_optional_geojson_layer(tmp_path, monkeypatch):
                 "type": "geojson",
                 "url": "/outputs/roads_blocked.geojson",
             },
+            "validation_difference": {
+                "type": "geojson",
+                "url": "/outputs/validation_difference.geojson",
+            },
         },
     }))
     (outputs / "roads_blocked.geojson").write_text(json.dumps({
         "type": "FeatureCollection",
         "features": [],
+    }))
+    (outputs / "validation_difference.geojson").write_text(json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "properties": {"classification": "system_only"},
+            "geometry": {"type": "Polygon", "coordinates": []},
+        }],
     }))
     monkeypatch.setattr(build_static, "ROOT", root)
     monkeypatch.setattr(build_static, "DOCS", docs)
@@ -88,4 +100,10 @@ def test_static_build_copies_optional_geojson_layer(tmp_path, monkeypatch):
 
     built_stats = json.loads((docs / "stats.json").read_text())
     assert built_stats["layers"]["roads_blocked"]["url"] == "outputs/roads_blocked.geojson"
+    assert built_stats["layers"]["validation_difference"]["url"] == (
+        "outputs/validation_difference.geojson"
+    )
     assert json.loads((docs / "outputs" / "roads_blocked.geojson").read_text())["type"] == "FeatureCollection"
+    assert json.loads(
+        (docs / "outputs" / "validation_difference.geojson").read_text()
+    )["features"][0]["properties"]["classification"] == "system_only"

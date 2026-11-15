@@ -76,6 +76,10 @@
           33.508
         ]
       ]
+    },
+    "validation_difference": {
+      "type": "geojson",
+      "url": "/outputs/validation_difference.geojson"
     }
   },
   "context_figures": {
@@ -103,6 +107,7 @@
   ],
   "validation": {
     "reference": "Copernicus EMSR857 AOI02 Massiguita",
+    "reference_url": "https://mapping.emergency.copernicus.eu/activations/EMSR857/",
     "product": "FEP observedEventA, event_type 5-Flood",
     "acquisition_utc": "2026-01-17T03:19:00Z",
     "metric_crs": "EPSG:32736",
@@ -112,6 +117,8 @@
     "ems_flood_area_aoi_km2": 93.048,
     "intersection_area_km2": 50.483,
     "union_area_km2": 109.364,
+    "system_only_area_km2": 16.316,
+    "reference_only_area_km2": 42.565,
     "iou": 0.4616,
     "overlap_fraction_nisar": 0.7557,
     "overlap_fraction_ems": 0.5425,

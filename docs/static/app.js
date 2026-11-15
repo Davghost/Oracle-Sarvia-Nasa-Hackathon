@@ -5,7 +5,7 @@ L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Tiles: <a href="https://tile.openstreetmap.de/">OpenStreetMap.de</a>'
 }).addTo(map);
 
-['radarPane', 'beforePane', 'duringPane', 'roadsPane'].forEach((name, i) => {
+['radarPane', 'beforePane', 'duringPane', 'roadsPane', 'validationPane'].forEach((name, i) => {
   map.createPane(name).style.zIndex = 410 + i * 10;
 });
 
@@ -65,9 +65,11 @@ function setStep(n) {
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4);
   show(layers.roads, step === 4);
+  show(layers.validation, step === 4);
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
   $('roads-legend').hidden = step !== 4 || !layers.roads;
+  $('validation-legend').hidden = step !== 4 || !layers.validation;
   updateClip(compare);
   map.invalidateSize();
 }
@@ -96,6 +98,15 @@ function card(label, value, mock) {
   layers.roads = await addLayer(stats.layers.roads_blocked, 'roadsPane', {
     color: '#ffb000', weight: 3, opacity: 1,
   });
+  layers.validation = await addLayer(
+    stats.layers.validation_difference,
+    'validationPane',
+    (feature) => {
+      const systemOnly = feature.properties.classification === 'system_only';
+      const color = systemOnly ? '#e4572e' : '#7b2cbf';
+      return {color, weight: 1, fillColor: color, fillOpacity: 0.65};
+    },
+  );
 
   // text that depends on the data
   $('date-before').textContent = fmtDate(stats.scenes.before.date);
@@ -135,10 +146,16 @@ function card(label, value, mock) {
   if (validation) {
     const metrics = $('validation-metrics');
     const km2 = (value) => `${Number(value).toLocaleString('en-US', {maximumFractionDigits: 1})} km²`;
+    const systemOnlyArea = validation.system_only_area_km2 ??
+      validation.nisar_new_water_aoi_km2 - validation.intersection_area_km2;
+    const referenceOnlyArea = validation.reference_only_area_km2 ??
+      validation.ems_flood_area_aoi_km2 - validation.intersection_area_km2;
     [
       ['NISAR new water in AOI02', km2(validation.nisar_new_water_aoi_km2)],
       ['EMS mapped flood in AOI02', km2(validation.ems_flood_area_aoi_km2)],
       ['Intersecting area', km2(validation.intersection_area_km2)],
+      ['Detected only by NISAR', km2(systemOnlyArea)],
+      ['Mapped only by Copernicus', km2(referenceOnlyArea)],
       ['Spatial IoU', Number(validation.iou).toFixed(2)],
     ].forEach(([label, value]) => metrics.appendChild(card(label, value, false)));
     $('validation-note').textContent =
@@ -146,6 +163,18 @@ function card(label, value, mock) {
       `${validation.interpretation} Overlap: ` +
       `${Math.round(validation.overlap_fraction_nisar * 100)}% of NISAR area; ` +
       `${Math.round(validation.overlap_fraction_ems * 100)}% of EMS area.`;
+    const referenceLink = document.createElement('a');
+    referenceLink.href = validation.reference_url ||
+      'https://mapping.emergency.copernicus.eu/activations/EMSR857/';
+    referenceLink.target = '_blank';
+    referenceLink.rel = 'noopener noreferrer';
+    referenceLink.textContent = 'Copernicus EMSR857 source';
+    $('validation-note').append(' Source: ', referenceLink);
+    if (!layers.validation) {
+      $('validation-map-note').textContent =
+        'Difference polygons are not available in this build. Run the reference validation pipeline to generate the comparison layer.';
+      $('validation-map-note').hidden = false;
+    }
     $('validation-section').hidden = false;
   }
 

@@ -52,7 +52,33 @@ def test_compare_geometries_clips_both_layers_to_aoi():
     assert result["overlap_fraction_nisar"] == 1
     assert result["overlap_fraction_ems"] == 1
     assert result["nisar_new_water_aoi_km2"] == pytest.approx(clipped_area, abs=0.001)
+    assert result["system_only_area_km2"] == 0
+    assert result["reference_only_area_km2"] == 0
+    assert result["difference_features"] == []
     assert result["reference_feature_count"] == 1
+
+
+def test_compare_geometries_exports_each_side_of_spatial_difference():
+    aoi = box(32.0, -25.1, 32.1, -25.0)
+    mask = box(32.02, -25.08, 32.06, -25.04)
+    reference = box(32.04, -25.06, 32.08, -25.02)
+
+    result = validate_reference.compare_geometries(mask, reference, aoi, 1)
+
+    assert result["system_only_area_km2"] > 0
+    assert result["reference_only_area_km2"] > 0
+    assert result["system_only_area_km2"] + result["intersection_area_km2"] == pytest.approx(
+        result["nisar_new_water_aoi_km2"], abs=0.002
+    )
+    assert result["reference_only_area_km2"] + result["intersection_area_km2"] == pytest.approx(
+        result["ems_flood_area_aoi_km2"], abs=0.002
+    )
+    assert result["reference_url"].startswith("https://")
+    features = result["difference_features"]
+    assert {item["properties"]["classification"] for item in features} == {
+        "system_only", "reference_only",
+    }
+    assert all(item["geometry"]["type"] in ("Polygon", "MultiPolygon") for item in features)
 
 
 def test_invalid_input_geometry_is_repaired_and_reported():
@@ -92,6 +118,14 @@ def test_main_adds_reference_metrics_to_real_stats_only(tmp_path, monkeypatch):
     stats = json.loads(stats_path.read_text())
     assert stats["validation"]["iou"] == 1
     assert stats["validation"]["reference_feature_count"] == 1
+    assert stats["validation"]["system_only_area_km2"] == 0
+    assert stats["layers"]["validation_difference"]["url"] == (
+        "/outputs/validation_difference.geojson"
+    )
+    difference_layer = json.loads(
+        (tmp_path / "validation_difference.geojson").read_text()
+    )
+    assert difference_layer == {"type": "FeatureCollection", "features": []}
 
 
 def test_main_refuses_mock_stats_without_modifying_them(tmp_path, monkeypatch):

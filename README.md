@@ -30,7 +30,9 @@ história visual simples: água antes, água durante e água nova estimada.
 - Camada opcional de vias OSM intersectadas pela água nova e estimativa de
   edificações afetadas, geradas no processamento offline.
 - Comparação espacial opcional com a camada vetorial Copernicus EMSR857 AOI02,
-  incluindo IoU e uma ressalva explícita de que não é verdade-terreno.
+  incluindo IoU, áreas divergentes e uma camada de mapa que destaca onde só o
+  NISAR ou só a referência Copernicus detectou inundação. O resultado é
+  concordância espacial, não verdade-terreno.
 - Núcleo de roteamento que remove arestas que intersectam a área alagada e
   calcula uma rota alternativa. Ele é um protótipo e não é usado pela aplicação
   web atual.
@@ -173,10 +175,12 @@ O modo de desenvolvimento do Flask está habilitado no bloco `__main__`.
 
    Requer `data/reference/EMSR857_products.zip`, os resultados reais recém
    gerados e `outputs/flood_extent.geojson`. O script recorta as geometrias à
-   AOI02, calcula áreas e IoU em CRS métrico e registra os resultados em
-   `outputs/stats.json`. Rode-o novamente após cada nova detecção. Essa
-   comparação é concordância espacial entre classes/produtos diferentes, não
-   ground truth.
+   AOI02, calcula IoU e áreas divergentes em CRS métrico, gera
+   `outputs/validation_difference.geojson` e registra os resultados/camada em
+   `outputs/stats.json`. O mapa mostra áreas exclusivas do NISAR em laranja e
+   exclusivas do Copernicus em roxo no passo 4. Rode-o novamente após cada
+   nova detecção. Essa comparação é concordância espacial entre
+   classes/produtos diferentes, não ground truth.
 
 5. Gere artefatos de QA:
 

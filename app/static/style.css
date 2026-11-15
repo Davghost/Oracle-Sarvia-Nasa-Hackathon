@@ -25,6 +25,7 @@ a{color:var(--before)}
 .dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:4px;vertical-align:baseline}
 .dot.before,.sw.before{background:var(--before)}.dot.during,.sw.during{background:var(--during)}
 .sw.roads{height:3px;background:#ffb000}
+.sw.system-only{background:#e4572e}.sw.reference-only{background:#7b2cbf}
 
 .big{margin:6px 0 10px;display:flex;flex-direction:column}
 .big span{font-size:52px;font-weight:800;line-height:1;color:var(--during)}
