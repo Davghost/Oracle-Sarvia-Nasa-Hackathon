@@ -1,10 +1,9 @@
-// The static GitHub Pages copy has no Flask backend, so it drops the routing step.
+// The static GitHub Pages copy has no Flask backend for route calculations.
 const STATIC = Boolean(window.STATS_URL);
 if (STATIC) {
-  document.getElementById('routing-step').remove();
   document.querySelectorAll('.server-only').forEach(el => el.remove());
 }
-const TOTAL = STATIC ? 4 : 5;
+const TOTAL = 5;
 const COLORS = {standing: '#1f5fae', newwater: '#e0442a', roads: '#f0a500', slate: '#1b2830', safe: '#1b8a4b'};
 const map = L.map('map', {zoomSnap: 0.25});
 L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
@@ -893,6 +892,9 @@ function card(label, value, mock) {
     });
     setActiveField('origin');
     map.on('click', selectRoutePoint);
+  } else {
+    $('route-planner-controls').hidden = true;
+    $('static-route-note').hidden = false;
   }
 
   setStep(1);
