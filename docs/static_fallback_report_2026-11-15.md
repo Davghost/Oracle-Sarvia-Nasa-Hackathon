@@ -36,9 +36,13 @@ autenticação.
 O GitHub Pages não está habilitado para
 `Davghost/Oracle-Sarvia-Nasa-Hackathon`; a URL
 `https://davghost.github.io/Oracle-Sarvia-Nasa-Hackathon/` retornou HTTP 404.
-Assim, não posso afirmar que o site já abre em janela anônima numa URL pública.
-É necessário habilitar Pages em **Settings > Pages**, escolher `main` / `docs`
-e publicar estas alterações. Não fiz commit nem push.
+As alterações do fallback foram enviadas para `main` no commit `925e0ec`. A
+tentativa de habilitar Pages pela API foi recusada com HTTP 403
+(`Resource not accessible by integration`), pois a credencial disponível não
+tem permissão para alterar essa configuração. Assim, não posso afirmar que o
+site já abre em janela anônima numa URL pública. Alguém com permissão
+administrativa deve habilitar Pages em **Settings > Pages** e escolher
+`main` / `docs`; depois disso, a URL pública deve ser verificada novamente.
 
 O mapa-base usa tiles do OpenStreetMap e precisa de internet; os overlays da
 análise e a biblioteca Leaflet estão nos arquivos estáticos.

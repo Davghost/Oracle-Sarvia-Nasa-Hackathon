@@ -241,10 +241,11 @@ de `selectedScene`, que não existia. O bug continua registrado em
 [GabrielFlau132/Oracle-Sarvia#1](https://github.com/GabrielFlau132/Oracle-Sarvia/issues/1)
 até a correção ser publicada.
 
-**Publicação anônima ainda pendente:** GitHub Pages não está habilitado no
-repositório `Davghost/Oracle-Sarvia-Nasa-Hackathon`; a URL esperada retorna
-404. Portanto, a cópia foi servida e testada localmente por HTTP, mas não foi
-possível confirmar uma URL pública em janela anônima. Ative Pages em
-Settings > Pages, use `main` / `docs` e publique as alterações para validar a
-URL. Relatório desta atividade:
+**Publicação anônima ainda pendente:** as alterações foram publicadas em
+`main` (commit `925e0ec`), mas GitHub Pages não está habilitado. A tentativa
+pela API foi recusada com HTTP 403 por falta de permissão; a URL esperada
+retorna 404. Portanto, a cópia foi servida e testada localmente por HTTP, mas
+não foi possível confirmar uma URL pública em janela anônima. Alguém com
+permissão administrativa deve ativar Pages em Settings > Pages e selecionar
+`main` / `docs`. Relatório desta atividade:
 [`docs/static_fallback_report_2026-11-15.md`](docs/static_fallback_report_2026-11-15.md).
