@@ -50,6 +50,10 @@ respondeu à consulta mínima, mas a execução completa retornou
 `InsufficientResponseError` (nenhuma feição correspondente) no primeiro tile.
 O downloader foi ajustado para pular tiles sem feições e prosseguir; se todos
 os tiles não tiverem feições, interrompe sem publicar métricas zeradas. A
+consulta foi retomada no endpoint global; os primeiros oito tiles foram
+baixados, mas o nono voltou a falhar com **502 Gateway Timeout**. Para
+permitir a conclusão sem perder os tiles já armazenados no cache, o downloader
+agora subdivide uma vez o tile que recebe erro de status do servidor. A
 consulta completa será repetida com esse tratamento. Até concluir, nenhum
 resultado OSM real foi salvo; `outputs/stats.json` permanece sem `impact` e
 sem `layers.roads_blocked`.

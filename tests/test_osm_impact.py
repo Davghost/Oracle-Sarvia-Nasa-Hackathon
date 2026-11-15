@@ -70,6 +70,33 @@ def test_download_features_skips_empty_tiles_and_keeps_matches(monkeypatch):
     assert result.iloc[0]["highway"] == "primary"
 
 
+def test_download_features_splits_tile_after_overpass_error(monkeypatch):
+    flood = box(0.1, 0.1, 0.9, 0.9)
+    tile = box(0, 0, 1, 1)
+    features = gpd.GeoDataFrame(
+        [{"highway": "primary", "geometry": LineString([(0.1, 0.2), (0.2, 0.2)])}],
+        index=[("way", 101)],
+        crs="EPSG:4326",
+    )
+    calls = []
+
+    def fetch(requested_tile, tags):
+        calls.append(requested_tile)
+        if requested_tile.equals(tile):
+            raise osm_impact.ResponseStatusCodeError("502")
+        if requested_tile.bounds == (0, 0, 0.5, 0.5):
+            return features
+        raise osm_impact.InsufficientResponseError("empty")
+
+    monkeypatch.setattr(osm_impact, "query_tiles", lambda *args: iter([tile]))
+    monkeypatch.setattr(osm_impact.ox, "features_from_polygon", fetch)
+
+    result = osm_impact.download_features(flood, 1)
+
+    assert len(result) == 1
+    assert len(calls) == 5
+
+
 def test_download_features_fails_if_every_tile_is_empty(monkeypatch):
     flood = box(31.9, -25.1, 32.1, -24.9)
     monkeypatch.setattr(osm_impact, "query_tiles", lambda *args: iter([flood]))

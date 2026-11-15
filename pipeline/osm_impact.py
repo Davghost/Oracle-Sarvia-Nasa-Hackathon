@@ -13,7 +13,7 @@ import geopandas as gpd
 import numpy as np
 import osmnx as ox
 import pandas as pd
-from osmnx._errors import InsufficientResponseError
+from osmnx._errors import InsufficientResponseError, ResponseStatusCodeError
 from PIL import Image
 from pyproj import Transformer
 from rasterio.features import shapes
@@ -105,19 +105,38 @@ def query_tiles(flood, tile_size_deg):
                 yield tile
 
 
+def fetch_tile(tile, flood, depth=0):
+    try:
+        frame = ox.features_from_polygon(tile, tags={"highway": True, "building": True})
+    except InsufficientResponseError:
+        return []
+    except ResponseStatusCodeError:
+        if depth >= 1:
+            raise
+        west, south, east, north = tile.bounds
+        mid_x, mid_y = (west + east) / 2, (south + north) / 2
+        print(f"Overpass request failed for {tile.bounds}; retrying as smaller tiles")
+        frames = []
+        for bounds in (
+            (west, south, mid_x, mid_y),
+            (west, mid_y, mid_x, north),
+            (mid_x, south, east, mid_y),
+            (mid_x, mid_y, east, north),
+        ):
+            child = box(*bounds)
+            if flood.intersects(child):
+                frames.extend(fetch_tile(child, flood, depth + 1))
+        return frames
+    return [frame] if not frame.empty else []
+
+
 def download_features(flood, tile_size_deg):
     """Fetch tagged OSM features in bounded tiles instead of the full convex hull."""
     tiles = list(query_tiles(flood, tile_size_deg))
     frames = []
     for number, tile in enumerate(tiles, start=1):
         print(f"OSM tile {number}/{len(tiles)}")
-        try:
-            frame = ox.features_from_polygon(tile, tags={"highway": True, "building": True})
-        except InsufficientResponseError:
-            print(f"OSM tile {number}/{len(tiles)} returned no matching features")
-            continue
-        if not frame.empty:
-            frames.append(frame)
+        frames.extend(fetch_tile(tile, flood))
     if not frames:
         raise RuntimeError("Overpass returned no matching OSM features for any flood-area tile")
     combined = gpd.GeoDataFrame(

@@ -163,8 +163,8 @@ em `pipeline/make_db.py` como `BBOX`; os granules conhecidos estão em
 - A data de 5 de janeiro pode já conter enchentes.
 - O método perde ou confunde água em vegetação, culturas, vento, sombras de
   relevo e solo molhado.
-- O limiar é heurístico e ainda não foi comparado com uma referência
-  independente.
+- O limiar é heurístico. A referência independente foi selecionada, mas a
+  comparação quantitativa ainda está pendente; veja a seção 16.
 - Valores de impacto do mock não podem ser tratados como resultados reais.
 - O download está explicitamente marcado como não testado contra a API atual.
 - A interface e os textos são majoritariamente em inglês, embora este
@@ -272,3 +272,32 @@ executar a etapa OSM e reconstruir `docs/`. Em 15/11/2026, a tentativa real
 retornou HTTP 502 por fila cheia e a repetição excedeu 5 minutos sem resposta;
 nenhuma métrica/layer OSM real foi incluída no `stats.json` atual. Relatório:
 [`docs/osm_impact_report_2026-11-15.md`](docs/osm_impact_report_2026-11-15.md).
+
+## 16. Referência independente de validação (15/11/2026)
+
+**Referência escolhida:** Copernicus Emergency Management Service Rapid Mapping,
+ativação `EMSR857`, produto **AOI02 Massiguita — FEP Sentinel-1**, imagem
+`EMSR857_AOI02_FEP_PRODUCT_SENTINEL1_20260117_0319_ORTHO.tif`, adquirida em
+**17/01/2026 às 03:19 UTC**. A AOI cobre parte da área analisada e intersecta
+o polígono de água nova local. A imagem é do mesmo dia da cena NISAR de
+17/01/2026 (03:42 UTC), cerca de 23 minutos antes, sendo a referência com
+melhor correspondência temporal e geográfica entre as fontes consultadas.
+
+Esta escolha registra uma referência disponível, **não uma validação já
+realizada**. A comparação espacial/quantitativa ainda precisa ser executada.
+O produto também é uma análise remota por radar (Sentinel-1), não observação de
+campo nem verdade-terreno; diferenças de sensor, resolução, método e definição
+de inundação devem ser consideradas. O arquivo está no pacote público da
+ativação; ele não foi baixado ou comparado neste trabalho.
+
+OPERA DSWx-S1 também tem granules catalogados para tiles da região em
+04/01 e 16–17/01/2026; DSWx-HLS tem granules no período. Não foram escolhidos
+porque o produto EMSR857 selecionado é uma delimitação de inundação de resposta
+de emergência para a AOI e data mais diretamente comparáveis. A busca UNOSAT
+encontrou uma análise de 05/01/2026 em Sofala (fora da área-alvo) e análises de
+23–24/01/2026 em Gaza/Maputo (posteriores à cena NISAR). O catálogo Copernicus
+também confirma EMSR857 como ativação de inundação em Moçambique e África do
+Sul, iniciada em 17/01/2026.
+
+Relatório, fontes e limites da busca:
+[`docs/validation_reference_report_2026-11-15.md`](docs/validation_reference_report_2026-11-15.md).
