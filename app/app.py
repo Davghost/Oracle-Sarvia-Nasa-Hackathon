@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS = ROOT / "outputs"
 
 app = Flask(__name__)
+MAX_TILE_BYTES = 8 * 1024 * 1024
 
 DEFAULT_SATELLITE_TILE_URL = (
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/"
@@ -83,7 +84,13 @@ def stats_path() -> Path:
 @app.get("/")
 def index():
     """Render the interactive flood-story page."""
-    return render_template("index.html", map_config=map_config())
+    return render_template("index.html", map_config=map_config(), workspace=False)
+
+
+@app.get("/workspace")
+def workspace():
+    """Render the impact and route-planning workspace."""
+    return render_template("index.html", map_config=map_config(), workspace=True)
 
 
 @app.get("/how-to-read-radar")
@@ -102,7 +109,7 @@ def map_tiles(provider, z, x, y):
     template = os.environ.get(f"SARVIA_{provider.upper()}_TILE_URL", defaults.get(provider))
     if not template or provider not in {"satellite", "hybrid"}:
         abort(404)
-    if z < 0 or x < 0 or y < 0:
+    if z > 22 or x >= 2 ** z or y >= 2 ** z:
         abort(404)
     try:
         url = template.format(z=z, x=x, y=y, s="a")
@@ -110,13 +117,15 @@ def map_tiles(provider, z, x, y):
         app.logger.error("invalid tile URL template for %s", provider)
         abort(502)
     try:
-        response = urlopen(Request(url, headers={"User-Agent": "SarvIA/1.0"}), timeout=10)
-        payload = response.read()
-        content_type = response.headers.get_content_type()
+        with urlopen(Request(url, headers={"User-Agent": "SarvIA/1.0"}), timeout=10) as response:
+            content_type = response.headers.get_content_type()
+            if content_type not in {"image/png", "image/jpeg", "image/webp"}:
+                abort(502)
+            payload = response.read(MAX_TILE_BYTES + 1)
     except (HTTPError, URLError, ValueError) as exc:
         app.logger.warning("map tile unavailable for %s: %s", provider, exc)
         abort(502)
-    if content_type not in {"image/png", "image/jpeg", "image/webp"}:
+    if len(payload) > MAX_TILE_BYTES:
         abort(502)
     return app.response_class(payload, content_type=content_type,
                               headers={"Cache-Control": "public, max-age=3600"})
@@ -221,7 +230,7 @@ def api_route():
         return jsonify(exc.to_json()), exc.http_status
     except Exception as exc:  # report engine bugs as JSON instead of an HTML 500 page
         app.logger.exception("route computation failed")
-        return jsonify({"status": "routing_error", "error": f"Route computation failed: {exc}"}), 500
+        return jsonify({"status": "routing_error", "error": "Route computation failed unexpectedly."}), 500
     return jsonify(result)
 
 

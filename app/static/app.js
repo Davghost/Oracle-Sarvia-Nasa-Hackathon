@@ -1,10 +1,12 @@
 // The static GitHub Pages copy has no Flask backend for route calculations.
 const STATIC = Boolean(window.STATS_URL);
+const WORKSPACE = Boolean(window.SARVIA_WORKSPACE);
 const $ = (id) => document.getElementById(id);
 if (STATIC) {
   document.querySelectorAll('.server-only').forEach(el => el.remove());
 }
-const TOTAL = 5;
+const MIN_STEP = WORKSPACE ? 4 : 1;
+const TOTAL = WORKSPACE ? 5 : 3;
 const COLORS = {standing: '#1f5fae', newwater: '#e0442a', roads: '#f0a500', slate: '#1b2830', safe: '#1b8a4b'};
 const map = L.map('map', {
   zoomSnap: 0.25,
@@ -69,7 +71,7 @@ const LayerPanel = L.Control.extend({
       '<div class="lp-card" id="lp-card" hidden>' +
       '<p class="lp-title">Mapa base</p><div class="lp-bases" role="radiogroup" aria-label="Mapa base"></div>' +
       '<p class="lp-title">Dados no mapa</p><ul class="lp-overlays"></ul>' +
-      '<p class="lp-hint">Cada passo da história liga as camadas que ele usa.</p></div>';
+      `<p class="lp-hint">${WORKSPACE ? 'As abas controlam as camadas de cada ferramenta.' : 'Cada passo da história liga as camadas que ele usa.'}</p></div>`;
     L.DomEvent.disableClickPropagation(box);
     L.DomEvent.disableScrollPropagation(box);
     this._box = box;
@@ -160,14 +162,15 @@ externalTileLayers.forEach(layer => layer.on('tileerror', () => {
   }
 }));
 
-['vegetationPane', 'radarPane', 'beforePane', 'duringPane', 'validationPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
+['vegetationPane', 'radarPane', 'beforePane', 'duringPane', 'timelinePane', 'validationPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
   map.createPane(name).style.zIndex = 405 + i * 10;
 });
 
 const fmt = (v, unit = '') => (v === null || v === undefined) ? 'to be confirmed' : v + unit;
 const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
 
-let stats = null, layers = {}, step = 1;
+let stats = null, layers = {}, step = MIN_STEP, mapView = 'compare';
+let timelineIndex = 0, timelineTimer = null, timelineAnimationFrame = null;
 let routePoints = [], routeLayers = [], routeMarkers = {origin: null, destination: null, launch: null, landing: null};
 let routeController = null;
 
@@ -243,9 +246,93 @@ function updateClip(active) {
   $('divider').style.left = (ratio * 100) + '%';
 }
 
+function hasTimeline() {
+  return Boolean(stats && stats.timeline && Array.isArray(stats.timeline.observations) && stats.timeline.observations.length);
+}
+
+function setTimelineIndex(index, {animate = false} = {}) {
+  if (!hasTimeline()) return;
+  const observations = stats.timeline.observations;
+  const previousIndex = timelineIndex;
+  if (timelineAnimationFrame !== null) cancelAnimationFrame(timelineAnimationFrame);
+  timelineAnimationFrame = null;
+  timelineIndex = Math.max(0, Math.min(observations.length - 1, Number(index) || 0));
+  const observation = observations[timelineIndex];
+  $('timeline-slider').value = String(timelineIndex);
+  $('timeline-map-date').textContent = fmtDate(observation.date);
+  $('timeline-map-frame').textContent = `${timelineIndex + 1}/${observations.length}`;
+  $('timeline-frame-count').textContent = `Observation ${timelineIndex + 1} of ${observations.length} · ${fmtDate(observation.date)}`;
+  $('timeline-progress').style.width = `${observations.length > 1 ? timelineIndex / (observations.length - 1) * 100 : 100}%`;
+  const newArea = Number(observation.new_vs_reference_km2 || 0);
+  const recededArea = Number(observation.receded_vs_reference_km2 || 0);
+  const netArea = Number(observation.net_change_vs_reference_km2 || 0);
+  const signed = (value) => `${value > 0 ? '+' : ''}${value.toLocaleString('en-US', {maximumFractionDigits: 1})}`;
+  $('timeline-reading').textContent =
+    `${fmtDate(observation.date)} · ${Number(observation.water_area_km2).toLocaleString('pt-BR', {maximumFractionDigits: 1})} km² de água aberta mapeada na área comum. ` +
+    `${signed(newArea)} km² de mudança em água aberta detectável e ${recededArea.toLocaleString('pt-BR', {maximumFractionDigits: 1})} km² não mapeados em relação a 12/dez; saldo ${signed(netArea)} km².`;
+  const visible = step === 3 && mapView === 'timeline';
+  if (animate && visible && previousIndex !== timelineIndex && layers.timeline[previousIndex] && layers.timeline[timelineIndex]) {
+    const outgoing = layers.timeline[previousIndex], incoming = layers.timeline[timelineIndex];
+    layers.timeline.forEach((layer, i) => {
+      if (i !== previousIndex && i !== timelineIndex) show(layer, false);
+    });
+    outgoing.setOpacity(1);
+    incoming.setOpacity(0);
+    show(outgoing, true);
+    show(incoming, true);
+    const started = performance.now(), duration = 900;
+    const dissolve = (now) => {
+      const t = Math.min(1, (now - started) / duration);
+      outgoing.setOpacity(1 - t);
+      incoming.setOpacity(t);
+      if (t < 1) timelineAnimationFrame = requestAnimationFrame(dissolve);
+      else {
+        show(outgoing, false);
+        incoming.setOpacity(1);
+        timelineAnimationFrame = null;
+      }
+    };
+    timelineAnimationFrame = requestAnimationFrame(dissolve);
+  } else {
+    layers.timeline.forEach((layer, i) => {
+      layer.setOpacity(1);
+      show(layer, visible && i === timelineIndex);
+    });
+  }
+}
+
+function setTimelinePlaying(playing) {
+  if (timelineTimer) { clearInterval(timelineTimer); timelineTimer = null; }
+  const button = $('timeline-play');
+  if (!button) return;
+  button.textContent = playing ? 'Ⅱ Pause' : '▶ Play';
+  button.setAttribute('aria-label', playing ? 'Pausar sequência da inundação' : 'Reproduzir sequência da inundação');
+  $('timeline-panel').classList.toggle('playing', playing);
+  if (!playing || !hasTimeline()) return;
+  if (timelineIndex >= stats.timeline.observations.length - 1) setTimelineIndex(0);
+  const advance = () => {
+    if (timelineIndex >= stats.timeline.observations.length - 1) {
+      setTimelinePlaying(false);
+      return;
+    }
+    setTimelineIndex(timelineIndex + 1, {animate: true});
+    timelineTimer = setTimeout(advance, 1900);
+  };
+  timelineTimer = setTimeout(advance, 500);
+}
+
+function setMapView(view) {
+  mapView = view === 'timeline' && hasTimeline() ? 'timeline' : 'compare';
+  setTimelinePlaying(false);
+  $('timeline-view-button').setAttribute('aria-pressed', String(mapView === 'timeline'));
+  $('compare-view-button').setAttribute('aria-pressed', String(mapView === 'compare'));
+  setStep(step);
+}
+
 function setStep(n) {
   // Each story step controls both explanatory content and visible map layers.
-  step = Math.max(1, Math.min(TOTAL, n));
+  step = Math.max(MIN_STEP, Math.min(TOTAL, n));
+  if (step !== 3 && timelineTimer) setTimelinePlaying(false);
   document.querySelectorAll('.step').forEach(el => el.classList.toggle('on', +el.dataset.step === step));
   document.querySelectorAll('#progress button').forEach((b, i) => {
     b.classList.toggle('on', i + 1 === step);
@@ -253,17 +340,24 @@ function setStep(n) {
     if (i + 1 === step) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
   });
   $('steps').scrollTop = 0;
-  $('prev').disabled = step === 1;
+  $('prev').disabled = step === MIN_STEP;
   $('next').disabled = step === TOTAL;
   $('next').textContent = step === TOTAL ? 'End of the story' : `Next: ${stepName(step + 1)}`;
+  if (WORKSPACE) {
+    $('workspace-impact-tab').setAttribute('aria-selected', String(step === 4));
+    $('workspace-route-tab').setAttribute('aria-selected', String(step === 5));
+  }
 
-  const compare = step === 3;
+  const timelineAvailable = hasTimeline();
+  const timelineActive = step === 3 && timelineAvailable && mapView === 'timeline';
+  const compare = step === 3 && !timelineActive;
   const routing = step === 5;
   $('clouds').classList.toggle('lifted', step !== 1);
   $('mapwrap').dataset.step = step;
   show(layers.radar, step === 2);
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4 || routing);
+  if (layers.timeline) layers.timeline.forEach((layer, i) => show(layer, timelineActive && i === timelineIndex));
   show(layers.vegetation, step >= 2);
   show(layers.validation, step === 4);
   show(impact.layer, step === 4);
@@ -272,9 +366,15 @@ function setStep(n) {
   routeLayers.forEach(layer => show(layer, routing));
   Object.values(routeMarkers).forEach(marker => show(marker, routing));
   $('curtain').hidden = !compare;
+  $('timeline-view-switch').hidden = !timelineAvailable;
+  $('timeline-panel').hidden = !(step === 3 && timelineAvailable && mapView === 'timeline');
+  $('compare-instructions').hidden = !compare;
+  $('compare-result-note').hidden = !compare;
+  $('timeline-map-caption').hidden = !timelineActive;
   $('legend').hidden = step < 2;
   $('before-legend').hidden = !(step === 2 || compare || routing);   // boats use rivers and lakes too
   $('during-legend').hidden = !(compare || step === 4 || routing);
+  $('timeline-legend').hidden = !timelineActive;
   if ($('vegetation-legend')) $('vegetation-legend').hidden = !layers.vegetation || step < 2;
   $('roads-legend').hidden = step !== 4 || !impact.roads;
   $('validation-legend').hidden = step !== 4 || !layers.validation;
@@ -626,12 +726,12 @@ function cancelRoute() {
 }
 
 // ----- step 4: the impact map (schools, health, communities, bridges, roads)
-// Colour stays data-only: red = on new water, amber = cut off by flooded roads,
+// Colour stays data-only: red = on detectable open water, amber = potential isolation,
 // slate = dry road access, grey = unknown. Shape tells the category.
 const STATE_INFO = {
-  in_water: {key: 'On new water', label: 'On new water', short: 'on water', fill: COLORS.newwater, ink: '#fff'},
-  isolated: {key: 'Cut off', label: 'Cut off by flooded roads', short: 'cut off', fill: COLORS.roads, ink: COLORS.slate},
-  near_water: {key: 'Near new water', label: 'Near new water', short: 'near water', fill: '#fff', ink: COLORS.newwater},
+  in_water: {key: 'Água aberta detectável', label: 'Sobre água aberta detectável', short: 'sobre água', fill: COLORS.newwater, ink: '#fff'},
+  isolated: {key: 'Impacto potencial: isolamento', label: 'Potencialmente isolado pela rede viária mapeada', short: 'possível isolamento', fill: COLORS.roads, ink: COLORS.slate},
+  near_water: {key: 'Perto de água aberta detectável', label: 'Perto de água aberta detectável', short: 'perto da água', fill: '#fff', ink: COLORS.newwater},
   accessible: {key: 'Dry road access', label: 'Dry road access', short: 'dry access', fill: COLORS.slate, ink: '#fff'},
   no_road: {key: 'No road link', label: 'No mapped road link', short: 'no road', fill: '#8e9ba3', ink: '#fff'},
   not_observed: {key: 'Not seen by radar', label: 'Outside radar coverage', short: 'not seen', fill: '#c3ccd1', ink: '#fff'},
@@ -724,18 +824,18 @@ function stateExplanation(p) {
   const area = p.geom === 'area' ? 'Part of its mapped area is' : (p.kind === 'building_cluster' ? 'These buildings are' : 'It is');
   if (p.category === 'bridge') {
     return {
-      in_water: `Every road leaving at least one end is on new water within ${approach} m of the bridge. The bridge deck itself is not tested.`,
-      isolated: 'Its approaches are dry, but every road from the main network to it crosses new water.',
-      near_water: `New water within ${near} m of the bridge or on part of its approaches; at least one dry way on and off remains.`,
+      in_water: `As vias mapeadas que saem de pelo menos uma extremidade intersectam água aberta detectável a até ${approach} m da ponte. O tabuleiro não é avaliado.`,
+      isolated: 'Os acessos mapeados não intersectam água aberta detectável, mas todas as rotas mapeadas desde a rede principal cruzam essa água.',
+      near_water: `Há água aberta detectável a até ${near} m da ponte ou em parte dos acessos; permanece ao menos uma via mapeada sem água detectada.`,
       accessible: 'A dry road links it to the main road network.',
       no_road: 'Its roads are not linked to the main road network in OpenStreetMap.',
       not_observed: 'The radar footprint does not cover this place.',
     }[p.state];
   }
   return {
-    in_water: `${area} on new flood water seen by the radar.`,
-    isolated: 'Out of the water, but every road from the main network to it crosses new water: no dry way in by car.',
-    near_water: `Within ${near} m of new water; a dry road still links it to the main network.`,
+    in_water: `${area} sobre água aberta detectável nos dados de radar.`,
+    isolated: 'Fora da água aberta detectável, mas todas as rotas mapeadas desde a rede principal cruzam essa água: não há acesso viário seco mapeado.',
+    near_water: `A até ${near} m de água aberta detectável; uma via mapeada sem água detectada ainda liga o local à rede principal.`,
     accessible: 'A dry road links it to the main road network.',
     no_road: p.road_m === null ? `No mapped drivable road within ${snap} m in OpenStreetMap.`
       : 'Its nearby roads are not linked to the main road network in OpenStreetMap (a gap in the map).',
@@ -752,11 +852,11 @@ function impactPopup(p, lat, lon) {
   lines.push(`<p class="pp-state" data-state="${p.state}"><b>${ESC(info.label)}</b> ${ESC(stateExplanation(p))}</p>`);
   const facts = [];
   if (p.state !== 'not_observed') {
-    facts.push(['New water', p.water_m === 0 ? 'on it' : p.water_m === null ? 'more than 5 km away' : `${metresText(p.water_m)} away`]);
+    facts.push(['Água aberta detectável', p.water_m === 0 ? 'sobre o local' : p.water_m === null ? 'a mais de 5 km' : `a ${metresText(p.water_m)}`]);
   }
   if (p.category === 'bridge') {
     if (p.length_m) facts.push(['Length', metresText(p.length_m)]);
-    if (p.approaches) facts.push(['Approach roads with new water', `${p.approaches_flooded} of ${p.approaches}`]);
+    if (p.approaches) facts.push(['Acessos com água aberta detectável', `${p.approaches_flooded} de ${p.approaches}`]);
   } else if (p.road_m !== null && p.road_m !== undefined) {
     facts.push(['Nearest mapped road', metresText(p.road_m)]);
   }
@@ -771,7 +871,7 @@ function impactPopup(p, lat, lon) {
     if (nh) actions.push(`<button type="button" class="quiet pp-from" data-lon="${lon}" data-lat="${lat}" data-from-lon="${nh.lon}" data-from-lat="${nh.lat}">Route from that facility</button>`);
     lines.push(`<p class="pp-actions">${actions.join('')}</p>`);
   }
-  lines.push(`<p class="pp-note">Estimate from radar water on ${ESC(fmtDate(impact.data.radar_date))}. Not confirmed damage. &copy; OpenStreetMap contributors</p>`);
+  lines.push(`<p class="pp-note">Estimativa de impacto potencial baseada na água aberta detectável pelo radar em ${ESC(fmtDate(impact.data.radar_date))}. Não confirma dano. &copy; OpenStreetMap contributors</p>`);
   return `<div class="impact-popup"><h3>${ESC(impactTitle(p))}</h3>${lines.join('')}</div>`;
 }
 
@@ -895,14 +995,16 @@ function renderImpactPanel() {
 
   const b = d.buildings.by_state, comm = d.categories.community, c = d.categories;
   $('impact-buildings').textContent =
-    `Communities are ${fmtN(comm.places.total)} named places and ${fmtN(comm.clusters.total)} clusters of ${d.parameters.min_cluster_buildings}+ buildings. ` +
-    `Of ${fmtN(d.buildings.total)} mapped building footprints, ${fmtN(b.in_water)} are on new water, ${fmtN(b.isolated)} are cut off and ` +
-    `${fmtN(b.near_water)} are within ${d.parameters.near_water_m} m of new water. Footprints are not people: OpenStreetMap has no population here.`;
+    `As comunidades são ${fmtN(comm.places.total)} lugares nomeados e ${fmtN(comm.clusters.total)} aglomerados de ${d.parameters.min_cluster_buildings}+ edificações. ` +
+    `Das ${fmtN(d.buildings.total)} edificações mapeadas, ${fmtN(b.in_water)} intersectam água aberta detectável, ${fmtN(b.isolated)} têm impacto potencial de isolamento e ` +
+    `${fmtN(b.near_water)} estão a até ${d.parameters.near_water_m} m dessa água. Edificações não são pessoas: o OpenStreetMap não fornece população.`;
   $('impact-coverage').textContent =
     `OpenStreetMap maps ${fmtN(c.school.mapped)} schools, ${fmtN(c.health.mapped)} health facilities and ${fmtN(comm.places.total)} named places here; ` +
     `rural mapping is incomplete, so a place missing here is not a place the flood spared. The radar covers ` +
     `${Math.round(d.coverage.radar_observed_fraction * 100)}% of the area; the south, including Maputo, is outside it. ` +
     `OSM extract of ${String(d.osm_timestamp || '').slice(0, 10) || 'unknown date'}.`;
+  const osmDate = String(d.osm_timestamp || '').slice(0, 10) || 'data desconhecida';
+  $('route-osm-date').textContent = `Rede viária: OpenStreetMap, extrato de ${osmDate}. A data é posterior às cenas de radar e não representa condições históricas da via na data da enchente.`;
   $('impact-panel').hidden = false;
 }
 
@@ -921,9 +1023,9 @@ async function loadImpact() {
     map.on('zoomend', () => impact.roads.setStyle({weight: roadWeight()}));
     impact.roads.bindTooltip(l => {
       const p = l.feature.properties;
-      return `${ESC(p.name || kindLabel(p.highway) + ' road')}: ${metresText(p.flooded_m)} on new water`;
+      return `${ESC(p.name || kindLabel(p.highway) + ' road')}: ${metresText(p.flooded_m)} sobre água aberta detectável`;
     }, {sticky: true});
-    layerControl.addOverlay(impact.roads, 'Estradas em água nova (OSM)', {color: COLORS.roads, kind: 'line'});
+    layerControl.addOverlay(impact.roads, 'Vias OSM sobre água aberta detectável', {color: COLORS.roads, kind: 'line'});
   }
   buildImpactLayer();
   layerControl.addOverlay(impact.layer, 'Escolas, saúde, comunidades e pontes', {color: COLORS.roads, kind: 'points'});
@@ -960,6 +1062,44 @@ function card(label, value, mock) {
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
   layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1.5, fillColor: COLORS.standing, fillOpacity: 0.72, opacity: 0.72});
   layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 2, fillColor: COLORS.newwater, fillOpacity: 0.78, opacity: 0.78});
+  layers.timeline = [];
+  if (stats.timeline && Array.isArray(stats.timeline.observations)) {
+    mapView = 'timeline';
+    const observations = stats.timeline.observations;
+    $('timeline-view-switch').hidden = false;
+    $('timeline-slider').max = String(observations.length - 1);
+    $('timeline-slider').value = String(observations.length - 1);
+    $('timeline-method').textContent =
+      `${stats.timeline.method} Common valid coverage: ${stats.timeline.common_coverage_pct}% ` +
+      `(${Number(stats.timeline.common_coverage_area_km2).toLocaleString('en-US')} km²).`;
+    $('timeline-caveat').textContent = stats.timeline.limitation;
+    const ticks = $('timeline-ticks');
+    for (const observation of observations) {
+      const tick = document.createElement('span');
+      tick.textContent = new Date(`${observation.date}T00:00:00Z`).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
+      tick.title = observation.granule;
+      ticks.appendChild(tick);
+      const spec = stats.layers[observation.layer];
+      if (spec) layers.timeline.push(await addLayer(spec, 'timelinePane', {opacity: 1}));
+    }
+    if (layers.timeline.length !== observations.length) {
+      $('timeline-view-switch').hidden = true;
+      $('timeline-panel').hidden = true;
+      layers.timeline = [];
+      mapView = 'compare';
+      $('layer-status').hidden = false;
+      $('layer-status').textContent = 'Some NISAR timeline frames are missing; the primary two-scene comparison remains available.';
+    } else {
+      setTimelineIndex(observations.length - 1);
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        $('timeline-play').disabled = true;
+        $('timeline-play').title = 'Use the slider to review observations; animation is disabled by your motion preference.';
+      }
+    }
+  } else {
+    $('timeline-view-switch').hidden = true;
+    $('timeline-panel').hidden = true;
+  }
   if (layers.radar) layerControl.addOverlay(layers.radar, 'Radar NISAR (contexto)', {color: '#6b7f3a', opacity: true});
   if (layers.before) layerControl.addOverlay(layers.before, 'Água que já existia', {color: COLORS.standing, opacity: true});
   if (layers.during) layerControl.addOverlay(layers.during, 'Água nova da cheia', {color: COLORS.newwater, opacity: true});
@@ -1000,12 +1140,28 @@ function card(label, value, mock) {
   $('date-during').textContent = fmtDate(stats.scenes.during.date);
   $('tag-before').textContent = fmtDate(stats.scenes.before.date);
   $('tag-during').textContent = fmtDate(stats.scenes.during.date);
-  $('big-km2').textContent = stats.flooded_area_km2 == null ? '…' : Math.round(stats.flooded_area_km2).toLocaleString('en-US');
+  $('big-km2').textContent = stats.flooded_area_km2 == null ? '…' :
+    Number(stats.flooded_area_km2).toLocaleString('pt-BR', {maximumFractionDigits: 1});
 
+  const method = stats.method || {};
+  const loosen = Number(method.loosen_db), minDrop = Number(method.min_drop_db);
+  const hasSensitivitySettings = Number.isFinite(loosen) && Number.isFinite(minDrop);
+  $('estimate-method-note').textContent = hasSensitivitySettings
+    ? `Estimativa principal: água aberta detectável entre 5 e 17 de janeiro, com --loosen ${loosen} dB aplicado a pixels cujo HH escureceu pelo menos ${minDrop} dB em relação à mudança global da cena. A timeline usa limiar estrito e outra referência temporal; não é diretamente comparável.`
+    : 'Estimativa principal: água aberta detectável entre 5 e 17 de janeiro. As configurações de sensibilidade não estão registradas neste contrato.';
   const rg = stats.flooded_area_range_km2;
   if (rg) {
-    const f = (v) => Math.round(v).toLocaleString('en-US');
-    $('range-note').textContent = `Conservative estimate. Treating the darker land of the first scene differently gives up to ${f(rg[1])} km² (range ${f(rg[0])} to ${f(rg[1])} km²).`;
+    const f = (v) => Number(v).toLocaleString('pt-BR', {maximumFractionDigits: 1});
+    const scenarios = method.sensitivity_scenarios_km2 || {};
+    const scenarioText = [
+      ['limiar absoluto estrito', scenarios.strict_absolute_thresholds],
+      ['configuração --loosen selecionada', scenarios.selected_loosen],
+      ['referência ajustada pela moda terrestre', scenarios.land_mode_adjusted_reference],
+    ].filter(([, value]) => Number.isFinite(Number(value)))
+      .map(([label, value]) => `${label}: ${f(value)} km²`).join('; ');
+    $('range-note').textContent =
+      `Cenários de sensibilidade: ${f(rg[0])}–${f(rg[1])} km². Não é um intervalo de confiança estatístico.` +
+      (scenarioText ? ` ${scenarioText}.` : '');
     $('range-note').hidden = false;
   }
 
@@ -1025,28 +1181,28 @@ function card(label, value, mock) {
     const referenceOnlyArea = validation.reference_only_area_km2 ??
       validation.ems_flood_area_aoi_km2 - validation.intersection_area_km2;
     [
-      ['NISAR new water in AOI02', km2(validation.nisar_new_water_aoi_km2)],
-      ['EMS mapped flood in AOI02', km2(validation.ems_flood_area_aoi_km2)],
-      ['Intersecting area', km2(validation.intersection_area_km2)],
-      ['Detected only by NISAR', km2(systemOnlyArea)],
-      ['Mapped only by Copernicus', km2(referenceOnlyArea)],
-      ['Spatial IoU', Number(validation.iou).toFixed(2)],
+      ['Água aberta detectável pelo NISAR na AOI02', km2(validation.nisar_new_water_aoi_km2)],
+      ['Inundação mapeada pelo EMS na AOI02', km2(validation.ems_flood_area_aoi_km2)],
+      ['Área de interseção', km2(validation.intersection_area_km2)],
+      ['Somente NISAR', km2(systemOnlyArea)],
+      ['Somente Copernicus', km2(referenceOnlyArea)],
+      ['IoU espacial', Number(validation.iou).toFixed(2)],
     ].forEach(([label, value]) => metrics.appendChild(card(label, value, false)));
     $('validation-note').textContent =
-      `${validation.product}, ${validation.reference}, acquired ${validation.acquisition_utc}. ` +
-      `${validation.interpretation} Overlap: ` +
-      `${Math.round(validation.overlap_fraction_nisar * 100)}% of NISAR area; ` +
-      `${Math.round(validation.overlap_fraction_ems * 100)}% of EMS area. ` +
-      'IoU is the intersection divided by the union; this comparison covers AOI02 only.';
+      `${validation.product}, ${validation.reference}, aquisição em ${validation.acquisition_utc}. ` +
+      `${validation.interpretation} Sobreposição: ` +
+      `${Math.round(validation.overlap_fraction_nisar * 100)}% da área NISAR e ` +
+      `${Math.round(validation.overlap_fraction_ems * 100)}% da área EMS. ` +
+      'O IoU é a interseção dividida pela união. Esta comparação cobre somente a AOI02 do EMSR857: não valida toda a área estimada pelo projeto nem constitui confirmação em campo. O mapa EMS é uma referência de mapeamento de emergência, com método e cobertura próprios.';
     const source = document.createElement('a');
     source.href = validation.reference_url || 'https://mapping.emergency.copernicus.eu/activations/EMSR857/';
     source.target = '_blank';
     source.rel = 'noopener noreferrer';
-    source.textContent = 'Copernicus EMSR857 source';
+    source.textContent = 'Fonte: Copernicus EMSR857';
     $('validation-note').append(' Source: ', source);
     if (!layers.validation) {
       $('validation-map-note').textContent =
-        'Difference polygons are not available in this build. Rebuild the static site after running the reference validation pipeline.';
+      'Os polígonos de diferença não estão disponíveis nesta versão. Gere novamente o site estático após executar a validação de referência.';
       $('validation-map-note').hidden = false;
     }
     $('validation-section').hidden = false;
@@ -1058,7 +1214,7 @@ function card(label, value, mock) {
     ['Direction', stats.scenes.during.direction],
     ['Polarizations', fmt(stats.scenes.during.polarizations && stats.scenes.during.polarizations.join(', '))],
     ['Data level', stats.maturity], ['Product', stats.product],
-    ['New water', Math.round(stats.flooded_area_km2) + ' km²' + (stats.mock ? ' (mock)' : '')],
+    ['Água aberta detectável', Number(stats.flooded_area_km2).toLocaleString('pt-BR', {maximumFractionDigits: 1}) + ' km²' + (stats.mock ? ' (mock)' : '')],
     ['Permanent water', Math.round(stats.permanent_water_km2) + ' km²' + (stats.mock ? ' (mock)' : '')],
   ];
   const dl = $('numbers');
@@ -1074,6 +1230,7 @@ function card(label, value, mock) {
   // progress bar buttons
   const nav = $('progress');
   for (let i = 1; i <= TOTAL; i++) {
+    if (WORKSPACE) continue;
     const li = document.createElement('li');
     const b = document.createElement('button');
     b.type = 'button';
@@ -1093,8 +1250,19 @@ function card(label, value, mock) {
     if (ev.key === 'ArrowRight') setStep(step + 1);
     if (ev.key === 'ArrowLeft') setStep(step - 1);
   });
-  $('slider').addEventListener('input', () => updateClip(step === 3));
-  map.on('move zoom resize', () => updateClip(step === 3));
+  $('slider').addEventListener('input', () => updateClip(step === 3 && mapView === 'compare'));
+  $('timeline-slider').addEventListener('input', (ev) => {
+    setTimelinePlaying(false);
+    setTimelineIndex(ev.target.value);
+  });
+  $('timeline-play').addEventListener('click', () => {
+    if (!timelineTimer) setTimelinePlaying(true); else setTimelinePlaying(false);
+  });
+  $('timeline-view-button').addEventListener('click', () => setMapView('timeline'));
+  $('compare-view-button').addEventListener('click', () => setMapView('compare'));
+  document.querySelectorAll('[data-workspace-step]').forEach(button =>
+    button.addEventListener('click', () => setStep(Number(button.dataset.workspaceStep))));
+  map.on('move zoom resize', () => updateClip(step === 3 && mapView === 'compare'));
   if (!STATIC) {
     $('route-calculate').addEventListener('click', calculateRoute);
     $('route-cancel').addEventListener('click', cancelRoute);
