@@ -22,8 +22,8 @@ from pyproj import Transformer
 from rasterio.features import shapes
 from rasterio.transform import array_bounds
 from rasterio.warp import Resampling, calculate_default_transform, reproject
-from shapely.geometry import shape, mapping
-from shapely.ops import transform as shapely_transform
+from shapely.geometry import mapping, shape
+from shapely.ops import transform as transform_geometry, unary_union
 
 import water
 
@@ -84,12 +84,34 @@ def save_flood_geojson(path, mask, transform, crs):
     features = []
     for geometry, value in shapes(mask.astype(np.uint8), mask=mask, transform=transform):
         if value:
-            geom = shapely_transform(to_ll.transform, shape(geometry))
+            geom = transform_geometry(to_ll.transform, shape(geometry))
             features.append({"type": "Feature", "properties": {},
                              "geometry": mapping(geom)})
     payload = {"type": "FeatureCollection", "features": features,
                "crs": {"type": "name", "properties": {"name": "EPSG:4326"}}}
     path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def save_flood_extent(mask, tr, crs, path):
+    """Write the new-water mask as a simplified WGS84 GeoJSON polygon."""
+    polygons = (
+        shape(geom)
+        for geom, value in shapes(mask.astype(np.uint8), mask=mask, transform=tr)
+        if value == 1
+    )
+    extent = unary_union(list(polygons))
+    transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+    extent = extent.simplify(40, preserve_topology=True)
+    extent = transform_geometry(transformer.transform, extent)
+    feature = {
+        "type": "Feature",
+        "properties": {"classification": "new_water", "source": "NISAR GCOV"},
+        "geometry": mapping(extent),
+    }
+    path.write_text(
+        json.dumps({"type": "FeatureCollection", "features": [feature]}, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main():
@@ -194,6 +216,7 @@ def main():
     save_overlay(out / "water_before.png", [(mb, BLUE)])
     save_overlay(out / "water_during.png", [(mp, BLUE), (mn, RED)])   # blue = already water, red = new
     save_flood_geojson(out / "flood_mask.geojson", new, tr, crs)
+    save_flood_extent(new, tr, crs, out / "flood_extent.geojson")
     west, south, east, north = array_bounds(dst[2], dst[1], dst[0])
     to_ll = Transformer.from_crs(3857, 4326, always_xy=True)
     (lon_w, lat_s), (lon_e, lat_n) = to_ll.transform(west, south), to_ll.transform(east, north)
@@ -251,7 +274,7 @@ def main():
             "NISAR data are provisional and may be reprocessed.",
             "The first scene (5 Jan) was taken when flooding may already have started in places, so 'new water' means new compared with that date.",
             "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
-            "Rough water (wind) and relief shadows can cause errors. Thresholds were set on one scene and not validated against an independent map yet.",
+            "Rough water (wind) and relief shadows can cause errors. Thresholds are heuristic; the optional EMSR857 AOI02 comparison is spatial agreement, not scientific validation or ground truth.",
         ],
     }
     (out / "stats.json").write_text(json.dumps(stats, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

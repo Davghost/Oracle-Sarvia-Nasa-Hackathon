@@ -18,7 +18,9 @@ Example: `outputs/mock/stats.json` (all values there are fake).
 | `method` | object | `threshold_db` (a number, or an object like `{"HH": -14.5, "HV": -21}`), `speckle_filter`, `notes`. |
 | `layers.before` / `layers.during` | object | `{"type":"geojson","url":...}` or `{"type":"image","url":...,"bounds":[[south,west],[north,east]]}`. URLs start with `/outputs/`. |
 | `layers.radar_rgb` | object, optional | Same format as other layers. NASA-style false-color radar image (HH red, HV green, ratio blue). Shown in story step 2 when present. |
-| `impact` | object, optional | `roads_blocked_km`, `buildings_affected` (numbers, estimates from OSM, T19). Cards in step 4 appear only for fields that exist. |
+| `layers.roads_blocked` | object, optional | GeoJSON line features clipped to the detected flood area: `{"type":"geojson","url":"/outputs/roads_blocked.geojson"}`. Displayed in step 4. OpenStreetMap attribution is required when the layer is present. |
+| `impact` | object, optional | `roads_blocked_km` is the summed length of OSM road centerlines inside the detected flood polygons; `buildings_affected` counts mapped building footprints with positive-area overlap (boundary-only contact is excluded). Both are OSM estimates. `source` and `estimated_at_utc` identify provenance/time. Cards only appear when values exist. |
+| `validation` | object, optional | AOI02 comparison written by `pipeline/validate_reference.py`: NISAR and EMS areas, intersection/union, IoU, overlap fractions, reference metadata, metric CRS, number of repaired invalid input geometries, and an interpretation warning. It is a spatial comparison, not ground truth. |
 | `context_figures` | object | `source` (string) and `items` (list of `{label, value}`). Official figures with a citation, shown in step 1. |
 | `limitations` | list of strings | Shown in the panel. |
 | `routing` | object, opcional | Metadados da funcionalidade experimental. `flood_mask` é GeoJSON em WGS84 e `network_cache` é o cache GraphML offline. |
@@ -43,4 +45,4 @@ dentro do limite configurado pelo servidor; fora dele, a API retorna
 O resultado seguro significa apenas que as arestas do grafo não intersectam a
 máscara disponível. É experimental e não é orientação operacional.
 
-Rules: never invent values; use `null` when something is not confirmed. Keep layer files small (they go in git).
+Rules: never invent values; use `null` when something is not confirmed. Road and building estimates require the optional OSM enrichment step; never use mock values as real results. Keep layer files small (they go in git).
