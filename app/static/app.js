@@ -1,4 +1,8 @@
-const TOTAL = 5;
+// The static GitHub Pages copy has no Flask backend, so it drops the routing step.
+const STATIC = Boolean(window.STATS_URL);
+if (STATIC) document.getElementById('routing-step').remove();
+const TOTAL = STATIC ? 4 : 5;
+const COLORS = {standing: '#1f5fae', newwater: '#e0442a', roads: '#f0a500', slate: '#1b2830', safe: '#1b8a4b'};
 const map = L.map('map', {zoomSnap: 0.25});
 L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png', {
  maxZoom: 18,
@@ -13,7 +17,7 @@ const $ = (id) => document.getElementById(id);
 const fmt = (v, unit = '') => (v === null || v === undefined) ? 'to be confirmed' : v + unit;
 const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
 
-let stats = null, layers = {}, step = 1, selectedScene = 'during';
+let stats = null, layers = {}, step = 1;
 let routePoints = [], routeLayers = [], routeMarkers = {origin: null, destination: null};
 let routeController = null;
 
@@ -57,23 +61,35 @@ function setStep(n) {
   document.querySelectorAll('#progress button').forEach((b, i) => {
     b.classList.toggle('on', i + 1 === step);
     b.classList.toggle('done', i + 1 < step);
+    if (i + 1 === step) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
   });
-  $('stepcount').textContent = `${step} / ${TOTAL}`;
+  $('steps').scrollTop = 0;
   $('prev').disabled = step === 1;
   $('next').disabled = step === TOTAL;
+  $('next').textContent = step === TOTAL ? 'End of the story' : `Next: ${stepName(step + 1)}`;
 
   const compare = step === 3;
+  const routing = step === 5;
+  $('clouds').classList.toggle('lifted', step !== 1);
   show(layers.radar, step === 2);
   show(layers.before, step === 2 || compare);
-  show(layers.during, compare || step === 4);
+  show(layers.during, compare || step === 4 || routing);
   show(layers.roads, step === 4);
-  routeLayers.forEach(layer => show(layer, step === 5));
-  Object.values(routeMarkers).forEach(marker => show(marker, step === 5));
+  routeLayers.forEach(layer => show(layer, routing));
+  Object.values(routeMarkers).forEach(marker => show(marker, routing));
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
+  $('before-legend').hidden = !(step === 2 || compare);
+  $('during-legend').hidden = !(compare || step === 4 || routing);
   $('roads-legend').hidden = step !== 4 || !layers.roads;
+  $('route-legend').hidden = !routing;
   updateClip(compare);
   map.invalidateSize();
+}
+
+function stepName(n) {
+  const el = document.querySelector(`.step[data-step="${n}"]`);
+  return el ? el.dataset.short : '';
 }
 
 function routeMessage(text, error = false) {
@@ -84,9 +100,11 @@ function routeMessage(text, error = false) {
 
 function parsePoint(value) {
   const parts = value.split(',').map(Number);
-  if (parts.length !== 2 || parts.some(Number.isNaN)) throw new Error('Use longitude, latitude.');
+  if (parts.length !== 2 || parts.some(Number.isNaN)) throw new Error('Type the point as longitude, latitude, for example 32.10, -25.10.');
   return {lon: parts[0], lat: parts[1]};
 }
+
+const km = (m) => `${(m / 1000).toLocaleString('en-US', {maximumFractionDigits: 1})} km`;
 
 function drawRouteLine(route, style) {
   return route ? L.polyline(route.coordinates.map(([lon, lat]) => [lat, lon]), style).addTo(map) : null;
@@ -107,7 +125,7 @@ function clearRouteSelection() {
   $('route-origin').value = '';
   $('route-destination').value = '';
   $('route-results').innerHTML = '';
-  routeMessage('Clique no mapa para definir a origem.');
+  routeMessage('Click the map to set the start.');
 }
 
 function selectRoutePoint(event) {
@@ -116,10 +134,11 @@ function selectRoutePoint(event) {
   const key = routePoints.length === 0 ? 'origin' : 'destination';
   routePoints.push(point);
   $(`route-${key}`).value = point;
-  routeMarkers[key] = L.marker(event.latlng, {title: key === 'origin' ? 'Origem' : 'Destino'})
-    .bindTooltip(key === 'origin' ? 'Origem' : 'Destino', {permanent: true, direction: 'top'})
+  const name = key === 'origin' ? 'Start' : 'Destination';
+  routeMarkers[key] = L.marker(event.latlng, {title: name})
+    .bindTooltip(name, {permanent: true, direction: 'top'})
     .addTo(map);
-  routeMessage(key === 'origin' ? 'Origem definida. Clique no mapa para definir o destino.' : 'Origem e destino definidos. Clique em “Calcular rotas”.');
+  routeMessage(key === 'origin' ? 'Start set. Click the map to set the destination.' : 'Start and destination set. Select “Find routes”.');
 }
 
 async function calculateRoute() {
@@ -136,7 +155,7 @@ async function calculateRoute() {
   try {
     const origin = parsePoint($('route-origin').value);
     const destination = parsePoint($('route-destination').value);
-    routeMessage('Calculando rota offline...');
+    routeMessage('Finding routes on the offline road network…');
     progress.value = 35;
     const response = await fetch('/api/route', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -146,20 +165,20 @@ async function calculateRoute() {
     progress.value = 80;
     const result = await response.json();
     clearRoutes();
-    if (!response.ok) throw new Error(result.error || 'Não foi possível calcular a rota.');
-    if (result.normal) routeLayers.push(drawRouteLine(result.normal, {color: '#2878b5', weight: 5, dashArray: '8 6'}));
-    if (result.safe) routeLayers.push(drawRouteLine(result.safe, {color: '#1b8a4b', weight: 6}));
+    if (!response.ok) throw new Error(result.error || 'No route found between these points.');
+    if (result.normal) routeLayers.push(drawRouteLine(result.normal, {color: COLORS.slate, weight: 4, dashArray: '8 7'}));
+    if (result.safe) routeLayers.push(drawRouteLine(result.safe, {color: COLORS.safe, weight: 6}));
     (result.blocked_segments || []).forEach(segment => {
-      routeLayers.push(drawRouteLine(segment, {color: '#d62828', weight: 5}));
+      routeLayers.push(drawRouteLine(segment, {color: COLORS.newwater, weight: 6}));
     });
     const dl = $('route-results');
     dl.innerHTML = '';
     const rows = [
-      ['Situação', result.status],
-      ['Rota normal', result.normal ? `${result.normal.distance_m.toLocaleString('pt-BR')} m` : 'indisponível'],
-      ['Rota segura', result.safe ? `${result.safe.distance_m.toLocaleString('pt-BR')} m` : 'indisponível'],
-      ['Desvio', result.detour_percent == null ? 'não calculável' : `${result.detour_percent}%`],
-      ['Trechos bloqueados', result.blocked_edges],
+      ['Status', result.status],
+      ['Shortest route', result.normal ? km(result.normal.distance_m) : 'not available'],
+      ['Flood-avoiding route', result.safe ? km(result.safe.distance_m) : 'not available'],
+      ['Detour', result.detour_percent == null ? 'not available' : `${result.detour_percent}% longer`],
+      ['Flooded segments', result.blocked_edges],
     ];
     rows.forEach(([label, value]) => {
       const dt = document.createElement('dt'); dt.textContent = label;
@@ -172,7 +191,7 @@ async function calculateRoute() {
   } catch (error) {
     clearRoutes();
     routeMessage(error.name === 'AbortError'
-      ? 'Roteamento cancelado ou excedeu o tempo limite.' : error.message, true);
+      ? 'Route search stopped: it was cancelled or took longer than 16 seconds.' : error.message, true);
   } finally {
     clearTimeout(timeout);
     routeController = null;
@@ -192,7 +211,7 @@ function card(label, value, mock) {
   d.className = 'fact';
   const b = document.createElement('b'); b.textContent = value;
   const s = document.createElement('span'); s.textContent = label;
-  if (mock) { const m = document.createElement('i'); m.className = 'mock'; m.textContent = 'MOCK'; s.appendChild(m); }
+  if (mock) { const m = document.createElement('i'); m.className = 'mock'; m.textContent = 'mock'; s.appendChild(m); }
   d.append(b, s);
   return d;
 }
@@ -206,15 +225,17 @@ function card(label, value, mock) {
   map.fitBounds([[so, w], [n, e]]);
 
   layers.radar = await addLayer(stats.layers.radar_rgb, 'radarPane', {});
-  layers.before = await addLayer(stats.layers.before, 'beforePane', {color: '#1f78c8', weight: 1, fillColor: '#1f78c8', fillOpacity: 0.65});
-  layers.during = await addLayer(stats.layers.during, 'duringPane', {color: '#e4572e', weight: 1, fillColor: '#e4572e', fillOpacity: 0.65});
+  layers.before = await addLayer(stats.layers.before, 'beforePane', {color: COLORS.standing, weight: 1, fillColor: COLORS.standing, fillOpacity: 0.65});
+  layers.during = await addLayer(stats.layers.during, 'duringPane', {color: COLORS.newwater, weight: 1, fillColor: COLORS.newwater, fillOpacity: 0.65});
   layers.roads = await addLayer(stats.layers.roads_blocked, 'roadsPane', {
-    color: '#ffb000', weight: 3, opacity: 1,
+    color: COLORS.roads, weight: 3, opacity: 1,
   });
 
   // text that depends on the data
   $('date-before').textContent = fmtDate(stats.scenes.before.date);
   $('date-during').textContent = fmtDate(stats.scenes.during.date);
+  $('tag-before').textContent = fmtDate(stats.scenes.before.date);
+  $('tag-during').textContent = fmtDate(stats.scenes.during.date);
   $('big-km2').textContent = stats.flooded_area_km2 == null ? '…' : Math.round(stats.flooded_area_km2).toLocaleString('en-US');
 
   const rg = stats.flooded_area_range_km2;
@@ -284,23 +305,33 @@ function card(label, value, mock) {
   // progress bar buttons
   const nav = $('progress');
   for (let i = 1; i <= TOTAL; i++) {
+    const li = document.createElement('li');
     const b = document.createElement('button');
-    b.type = 'button'; b.setAttribute('aria-label', 'Step ' + i);
+    b.type = 'button';
+    b.setAttribute('aria-label', `Step ${i}: ${stepName(i)}`);
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = i;
+    const label = document.createElement('span'); label.className = 'label'; label.textContent = stepName(i);
+    b.append(n, label);
     b.addEventListener('click', () => setStep(i));
-    nav.appendChild(b);
+    li.appendChild(b);
+    nav.appendChild(li);
   }
   $('prev').addEventListener('click', () => setStep(step - 1));
   $('next').addEventListener('click', () => setStep(step + 1));
   document.addEventListener('keydown', (ev) => {
+    // Arrow keys move the story, except while typing or dragging the curtain.
+    if (ev.target.closest('input, textarea, select')) return;
     if (ev.key === 'ArrowRight') setStep(step + 1);
     if (ev.key === 'ArrowLeft') setStep(step - 1);
   });
   $('slider').addEventListener('input', () => updateClip(step === 3));
   map.on('move zoom resize', () => updateClip(step === 3));
-  $('route-calculate').addEventListener('click', calculateRoute);
-  $('route-cancel').addEventListener('click', cancelRoute);
-  $('route-clear').addEventListener('click', clearRouteSelection);
-  map.on('click', selectRoutePoint);
+  if (!STATIC) {
+    $('route-calculate').addEventListener('click', calculateRoute);
+    $('route-cancel').addEventListener('click', cancelRoute);
+    $('route-clear').addEventListener('click', clearRouteSelection);
+    map.on('click', selectRoutePoint);
+  }
 
   setStep(1);
 })();

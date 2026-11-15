@@ -4,77 +4,112 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Seeing the flood through the clouds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap">
 <link rel="stylesheet" href="static/vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
-<div id="banner">NISAR data are <b>provisional</b> and may be reprocessed. <span id="mock-flag" hidden>MOCK DATA: not real results.</span></div>
+<div id="banner">NISAR data are provisional and may be reprocessed. <span id="mock-flag" hidden>Mock data, not real results</span></div>
 
 <div id="layout">
   <aside id="story">
-    <nav id="progress" aria-label="Story steps"></nav>
+    <header id="masthead">
+      <p class="wordmark">Sarvia</p>
+      <nav aria-label="Story steps"><ol id="progress"></ol></nav>
+    </header>
 
-    <section class="step" data-step="1">
-      <p class="kicker">January 2026 · southern Mozambique</p>
-      <h1>The clouds hid the flood</h1>
-      <p>Heavy rain flooded the Limpopo and Incomati basins. Optical satellites could not see the water: NASA reports that Sentinel-2 saw only clouds while the flood was happening.</p>
-      <div id="context-figures" class="facts"></div>
-      <p class="source" id="context-source"></p>
-    </section>
-
-    <section class="step" data-step="2">
-      <p class="kicker">Step 2</p>
-      <h1>Radar sees through clouds</h1>
-      <p>NISAR sends its own signal and listens for the echo. Clouds do not stop it, day or night. Calm water acts like a mirror and sends the signal away, so water looks <b>dark</b>.</p>
-      <p>The map shows the water the radar found on the <b>first date</b>: rivers, lakes and the sea.</p>
-      <p><a href="how-to-read-radar.html">How to read the radar →</a></p>
-    </section>
-
-    <section class="step" data-step="3">
-      <p class="kicker">Step 3</p>
-      <h1>Where the water rose</h1>
-      <p>Drag the bar at the bottom of the map. Left is <b id="date-before">before</b>, right is <b id="date-during">during</b> the flood. <span class="dot before"></span>Blue is water that was already there, <span class="dot during"></span>red is new flood water.</p>
-      <div class="big"><span id="big-km2">…</span><small>km² of new water</small></div>
-      <p class="range" id="range-note" hidden></p>
-      <p class="source">New water = water during the flood that was not water before. An estimate from a simple threshold, not an official assessment.</p>
-    </section>
-
-    <section class="step" data-step="4">
-      <p class="kicker">Step 4</p>
-      <h1>Who is affected</h1>
-      <div id="impact" class="facts"></div>
-      <section id="validation-section" hidden>
-        <h2>Independent map comparison</h2>
-        <div id="validation-metrics" class="facts"></div>
-        <p id="validation-note" class="source"></p>
+    <div id="steps">
+      <section class="step" data-step="1" data-short="Clouds">
+        <h1>The clouds hid the flood</h1>
+        <p class="lead">Southern Mozambique, January 2026.</p>
+        <p>Heavy rain flooded the Limpopo and Incomati basins. Optical satellites could not see the water: NASA reports that Sentinel-2 saw only clouds while the flood was happening.</p>
+        <div id="context-figures" class="facts"></div>
+        <p class="source" id="context-source"></p>
       </section>
-      <h2>Limitations</h2>
-      <ul id="limits"></ul>
-      <details>
-        <summary>Data details</summary>
-        <dl id="numbers"></dl>
-      </details>
-    </section>
+
+      <section class="step" data-step="2" data-short="Radar">
+        <h1>Radar sees through clouds</h1>
+        <p>NISAR sends its own signal and listens for the echo. Clouds do not stop it, day or night. Calm water acts like a mirror and sends the signal away, so water looks <b>dark</b>.</p>
+        <p>The map shows the water the radar found on the <b>first date</b>: rivers, lakes and the sea.</p>
+        <p><a href="how-to-read-radar.html">How to read the radar</a></p>
+      </section>
+
+      <section class="step" data-step="3" data-short="New water">
+        <h1>Where the water rose</h1>
+        <p>Drag the handle across the map. Left is <b id="date-before">before</b>, right is <b id="date-during">during</b> the flood. <span class="key before"></span>Blue is water that was already there, <span class="key during"></span>red is new flood water.</p>
+        <p class="big"><span id="big-km2">…</span> km² <small>of land newly under water</small></p>
+        <p class="range" id="range-note" hidden></p>
+        <p class="source">New water is water during the flood that was not water before. An estimate from a simple threshold, not an official assessment.</p>
+      </section>
+
+      <section class="step" data-step="4" data-short="Impact">
+        <h1>Who is affected</h1>
+        <div id="impact" class="facts"></div>
+        <section id="validation-section" hidden>
+          <h2>Independent map comparison</h2>
+          <div id="validation-metrics" class="facts"></div>
+          <p id="validation-note" class="source"></p>
+        </section>
+        <h2>Limitations</h2>
+        <ul id="limits"></ul>
+        <details>
+          <summary>Data details</summary>
+          <dl id="numbers"></dl>
+        </details>
+      </section>
+
+      <section class="step" data-step="5" data-short="Routes" id="routing-step">
+        <h1>Routes around the water</h1>
+        <p class="badge">Experimental</p>
+        <p>Click the map to set a start and a destination, or type longitude and latitude (WGS84).</p>
+        <div class="route-fields">
+          <label>Start (lon, lat)<input id="route-origin" placeholder="32.10, -25.10" autocomplete="off"></label>
+          <label>Destination (lon, lat)<input id="route-destination" placeholder="32.20, -25.20" autocomplete="off"></label>
+        </div>
+        <div class="route-actions">
+          <button id="route-calculate" type="button" class="primary">Find routes</button>
+          <button id="route-clear" type="button" class="quiet">Clear points</button>
+          <button id="route-cancel" type="button" class="quiet" hidden>Cancel</button>
+        </div>
+        <progress id="route-progress" max="100" value="0" hidden></progress>
+        <p id="route-status" class="route-status" role="status">Click the map to set the start.</p>
+        <dl id="route-results" class="route-results"></dl>
+        <p class="source">The flood-avoiding route only avoids the flood mask we detected. It is experimental and does not replace local authorities.</p>
+      </section>
+    </div>
 
     <div id="controls">
-      <button id="prev" type="button">← Back</button>
-      <span id="stepcount"></span>
-      <button id="next" type="button">Next →</button>
+      <button id="prev" type="button" class="quiet">Back</button>
+      <button id="next" type="button" class="primary">Next</button>
     </div>
   </aside>
 
   <main id="mapwrap">
     <div id="map"></div>
+
+    <div id="clouds" aria-hidden="true">
+      <div class="cloud-field"></div>
+      <p class="cloud-caption">During the flood, optical satellites saw this: cloud, not water.</p>
+    </div>
+
     <div id="curtain" hidden>
-      <div id="divider"></div>
-      <span class="tag left">Before</span>
-      <span class="tag right">During</span>
+      <div id="divider"><span id="knob"></span></div>
+      <span class="tag left">Before <b id="tag-before"></b></span>
+      <span class="tag right">During <b id="tag-during"></b></span>
       <input id="slider" type="range" min="0" max="100" value="50" aria-label="Compare before and during">
     </div>
+
     <div id="legend" hidden>
-      <div><span class="sw before"></span> Water already there</div>
-      <div><span class="sw during"></span> New flood water</div>
-      <div id="roads-legend" hidden><span class="sw roads"></span> Blocked road segments (OSM)</div>
+      <div id="before-legend"><span class="sw before"></span> Water already there</div>
+      <div id="during-legend"><span class="sw during"></span> New flood water</div>
+      <div id="roads-legend" hidden><span class="sw roads"></span> Road inside the flood (OSM)</div>
+      <div id="route-legend" hidden>
+        <div><span class="sw line normal"></span> Shortest route</div>
+        <div><span class="sw line safe"></span> Flood-avoiding route</div>
+        <div><span class="sw line blocked"></span> Flooded segment</div>
+      </div>
     </div>
   </main>
 </div>
