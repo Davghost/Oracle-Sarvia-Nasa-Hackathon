@@ -149,6 +149,8 @@ usada: aguarde e repita o comando. A aplicação continuará mostrando os dados
 de inundação normalmente e informará `routing_unavailable` até que o índice preparado seja criado.
 `--grid 4` divide a área em 16 blocos menores e junta os resultados, sendo
 recomendado para áreas grandes ou servidores Overpass congestionados.
+Blocos sem vias OSM (por exemplo, áreas de oceano) são ignorados; a preparação
+falha somente se nenhum bloco retornar uma rede.
 O cache precisa cobrir os pontos escolhidos. A API pode aproximar cada ponto
 ao nó mais próximo somente dentro de um limite explícito e informa as
 distâncias de snap; fora desse limite, recusa a rota. Se a rede disponível
