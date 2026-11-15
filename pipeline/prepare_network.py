@@ -621,12 +621,31 @@ def build_network(ways, flood=None, sample_step_m=10.0, bbox=None, water=None):
     return arrays, meta
 
 
+OSM_ATTRIBUTION = ("Contains information from OpenStreetMap (c) OpenStreetMap contributors, "
+                   "made available under the Open Database License (ODbL) 1.0: "
+                   "https://www.openstreetmap.org/copyright")
+
+
+def _compact(array):
+    """float64 -> float32 and int64 -> int32 for storage (about 0.2 m precision on coordinates)."""
+    array = np.asarray(array)
+    if array.dtype == np.float64:
+        return array.astype(np.float32)
+    if array.dtype == np.int64 and (array.size == 0 or np.abs(array).max() < 2**31):
+        return array.astype(np.int32)
+    return array
+
+
 def save_network(path, arrays, meta):
-    """Write an uncompressed .npz (fast to load) plus a readable metadata JSON."""
+    """Write a compressed .npz small enough to ship in Git, plus a readable metadata JSON.
+
+    The engine converts the arrays back to 64-bit when it loads them.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    meta = {**meta, "license": OSM_ATTRIBUTION}
     tmp = path.with_name(path.stem + ".tmp.npz")
-    np.savez(tmp, meta=np.array(json.dumps(meta)), **arrays)
+    np.savez_compressed(tmp, meta=np.array(json.dumps(meta)), **{k: _compact(v) for k, v in arrays.items()})
     tmp.replace(path)
     path.with_suffix(".json").write_text(json.dumps(
         {k: v for k, v in meta.items() if k != "names"}, indent=2) + "\n", encoding="utf-8")

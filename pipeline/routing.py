@@ -206,7 +206,11 @@ class RoutingNetwork:
                  boat_speed_kmh=BOAT_SPEED_KMH, walk_speed_kmh=WALK_SPEED_KMH, launch_minutes=BOAT_LAUNCH_S / 60):
         if meta.get("format_version") != SUPPORTED_FORMAT:
             raise ValueError("routing network was built by an incompatible prepare_network.py; rebuild it")
-        a = {k: np.asarray(v) for k, v in arrays.items()}
+        # the file stores 32-bit arrays; compute in 64-bit
+        a = {}
+        for k, v in arrays.items():
+            v = np.asarray(v)
+            a[k] = v.astype(np.float64) if v.dtype.kind == "f" else v.astype(np.int64) if v.dtype.kind == "i" else v
         self.meta = meta
         self.max_snap_m = float(max_snap_m)
         self.block_flood_m = float(block_flood_m)

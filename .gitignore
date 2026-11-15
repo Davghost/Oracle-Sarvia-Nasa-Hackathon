@@ -233,6 +233,6 @@ outputs/flood_mask.geojson
 *earthdata*token*
 /data/osmnx_cache/
 /outputs/flood_extent.geojson
-# compiled route network (rebuild with pipeline/prepare_network.py)
-/outputs/routing_network.npz
+# the compiled route network (outputs/routing_network.npz, ~18 MB) is versioned
+# so the app works right after cloning; only its temporary file is ignored
 /outputs/routing_network.tmp.npz

@@ -67,5 +67,6 @@
   "boat_max_gap_m": 250.0,
   "osm_source": "mozambique-latest.osm.pbf",
   "osm_timestamp": "2026-11-14T21:20:41Z",
-  "build_seconds": 91.1
+  "build_seconds": 91.1,
+  "license": "Contains information from OpenStreetMap (c) OpenStreetMap contributors, made available under the Open Database License (ODbL) 1.0: https://www.openstreetmap.org/copyright"
 }

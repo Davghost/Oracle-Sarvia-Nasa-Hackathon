@@ -203,3 +203,15 @@ def test_routing_speed_on_a_larger_network():
                   alternatives=0)
         times.append(time.perf_counter() - t0)
     assert np.percentile(times, 95) < 0.5
+
+
+def test_saved_network_is_compact_and_credits_openstreetmap(tmp_path):
+    import json
+    arrays, meta = pn.build_network(grid_ways(n=4))
+    path = pn.save_network(tmp_path / "net.npz", arrays, meta)
+    with np.load(path) as stored:
+        assert stored["vert_lon"].dtype == np.float32
+        assert "OpenStreetMap" in json.loads(str(stored["meta"]))["license"]
+    assert "ODbL" in json.loads((tmp_path / "net.json").read_text())["license"]
+    net = routing.RoutingNetwork.load(path)
+    assert net.vert_lon.dtype == np.float64            # computed in 64-bit again

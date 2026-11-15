@@ -150,14 +150,16 @@ token no repositório.
 python app\app.py
 ```
 
-Abra <http://localhost:5000>. O servidor carrega a rede de rotas em segundo
-plano ao iniciar (cerca de 4 s). Sem `outputs/routing_network.npz`, a
-narrativa funciona normalmente e o passo de rotas avisa que a rede não foi
-preparada.
+Abra <http://localhost:5000>. As rotas funcionam direto depois de clonar: a
+rede compilada (`outputs/routing_network.npz`, cerca de 18 MB) vem no
+repositório e o servidor a carrega em segundo plano ao iniciar (cerca de
+5 s). Não é preciso baixar o OpenStreetMap nem rodar nenhum script.
 
-### Preparar as rotas
+### Atualizar a rede de rotas
 
-A ordem completa, a partir das cenas de radar:
+Só é preciso recompilar a rede para usar dados mais novos do OpenStreetMap
+ou depois de uma nova detecção. A ordem completa, a partir das cenas de
+radar:
 
 ```powershell
 python pipeline\detect_flood.py --loosen 3
@@ -172,9 +174,9 @@ python pipeline\prepare_network.py --download
    Moçambique da Geofabrik (cerca de 256 MB, com retomada, novas tentativas e
    verificação de MD5) para `data/osm/` e compila a rede em cerca de 2 min.
 
-O resultado é `outputs/routing_network.npz` (não versionado) e
-`outputs/routing_network.json`, com a data do extrato, as fontes das máscaras
-e as contagens: 150.853 cruzamentos, 33.532 km de vias, 370,6 km de vias
+O resultado é `outputs/routing_network.npz` (comprimido, versionado) e
+`outputs/routing_network.json`, com a data do extrato, as fontes das máscaras,
+a licença e as contagens: 150.853 cruzamentos, 33.532 km de vias, 370,6 km de vias
 alagadas, 332.870 células de barco, 6.131 pontos de lançamento e 16.045
 ligações de arrasto.
 
@@ -340,8 +342,8 @@ Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
 ## Integrações externas
 
 - **OpenStreetMap via Geofabrik:** extrato `.osm.pbf` baixado só por
-  `prepare_network.py --download` (dados ODbL). O app não acessa a internet
-  para calcular rotas.
+  `prepare_network.py --download`. O app não acessa a internet para calcular
+  rotas.
 - **OpenStreetMap.de:** tiles do mapa-base; exige internet e mantém a
   atribuição.
 - **ASF DAAC/Earthdata:** download das cenas, só em `download_gcov.py`.
@@ -349,6 +351,15 @@ Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
 - **OSRM público:** comparação opcional de `route_benchmark.py --osrm`.
 - **NASA Scientific Visualization Studio #5661:** números de contexto.
 - Leaflet é servido localmente, sem CDN.
+
+## Dados e licenças
+
+`outputs/routing_network.npz` contém informações do OpenStreetMap
+(© colaboradores do OpenStreetMap), disponibilizadas sob a
+[Open Database License (ODbL) 1.0](https://www.openstreetmap.org/copyright).
+Quem redistribuir a rede ou um banco derivado dela deve manter essa
+atribuição e a mesma licença. A atribuição também está em
+`outputs/routing_network.json` e no mapa do app.
 
 ## Limitações
 
@@ -386,6 +397,7 @@ alternativas, mão única, entradas inválidas), `test_prepare_network.py`
 
 Antes de alterar o sistema, leia [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md),
 [`docs/stats_contract.md`](docs/stats_contract.md) e os docstrings do módulo
-que será modificado. Não versione credenciais, tokens, HDF5, o extrato OSM
-nem a rede compilada. Registre usos de IA em
+que será modificado. Não versione credenciais, tokens, HDF5 nem o extrato OSM
+(`data/osm/`). A rede compilada é versionada de propósito; ao recompilá-la,
+confira o tamanho (deve ficar bem abaixo de 50 MB). Registre usos de IA em
 [`AI_USAGE_LOG.md`](AI_USAGE_LOG.md).

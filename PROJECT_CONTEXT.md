@@ -49,7 +49,9 @@ retrospectiva de água, comparando duas datas de radar, para planejar o acesso
 - O passo 5 da interface é um painel de direções: base da equipe e destino
   (clique no mapa ou `lon, lat`), "Car and boat" / "Car only", opções em
   lista e no mapa e passo a passo com o ponto de lançamento.
-- Sem a rede compilada, a API responde `routing_unavailable` e a narrativa
+- A rede compilada vem no repositório (`outputs/routing_network.npz`,
+  comprimida, ~18 MB); ninguém precisa rodar `prepare_network.py` para usar
+  as rotas. Sem ela, a API responde `routing_unavailable` e a narrativa
   continua funcionando. Os GraphML/pickle antigos de `outputs/road_network.*`
   não são mais usados e podem ser apagados.
 - `pipeline/osm_impact.py` implementa enriquecimento OSM opcional, mas não
@@ -266,7 +268,9 @@ em `pipeline/make_db.py` como `BBOX`; os granules conhecidos estão em
 - Não chamar o pipeline pesado durante requisições Flask.
 - Não alterar o formato de `stats.json` ou da API de rotas sem atualizar
   `docs/stats_contract.md`, o frontend e os testes.
-- Não versionar o extrato OSM (`data/osm/`) nem `outputs/routing_network.npz`.
+- Não versionar o extrato OSM (`data/osm/`). `outputs/routing_network.npz` é
+  versionado (comprimido, ~18 MB, dados OSM sob ODbL com atribuição) para as
+  rotas funcionarem logo depois de clonar.
 - Não chamar estimativas mock de resultados científicos.
 - Não remover as limitações exibidas ao usuário.
 - Ao alterar limiares ou reprojeção, atualizar testes e explicar a decisão.
