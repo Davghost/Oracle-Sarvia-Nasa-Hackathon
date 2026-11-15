@@ -1,11 +1,12 @@
 """Water / flood detection from backscatter arrays. Pure numpy, no file I/O.
 
-Input arrays are 2D backscatter POWER in LINEAR scale (what GCOV stores; to be
-confirmed in T37). Nothing here reads HDF5: that comes after T37.
+Input arrays are 2D backscatter power in linear scale, as read from the GCOV
+datasets. This module is numerical only; HDF5 reading happens in gcov_reader.
 
-Method (hypothesis, to be calibrated on real data in T11):
-  linear -> boxcar speckle filter -> dB -> threshold (Otsu or manual) -> water mask
-  -> remove small blobs -> new flood = water(during) AND NOT water(before)
+Methods provided here include linear-power boxcar filtering, dB conversion,
+histogram thresholds, water-mask cleanup and the before/during mask
+difference. The production pipeline selects and records its thresholds in
+outputs/stats.json.
 Open water is dark in radar (smooth surface reflects the signal away).
 Known limits: flooded forest (bright, double bounce), wind-roughened water,
 relief shadows. A single dB threshold will miss or confuse these.

@@ -370,9 +370,9 @@ python pipeline\build_static.py
 python -m http.server 8000 --directory docs
 ```
 
-A cópia estática mostra a narrativa da cheia e o passo 5 de rotas. Nesse passo,
-o GitHub Pages explica a limitação, mas **não calcula rotas**: o planejador
-precisa do servidor Flask e da API. Gere a cópia só com `outputs/stats.json`
+A cópia estática mostra os cinco passos e overlays pré-gerados. **O cálculo
+de rotas precisa do servidor Flask**: no Pages, o passo 5 informa essa
+limitação e não oferece cálculo. Gere a cópia só com `outputs/stats.json`
 real (`mock: false`).
 Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
 
@@ -492,3 +492,15 @@ que será modificado. Não versione credenciais, tokens, HDF5 nem o extrato OSM
 (`data/osm/`). A rede compilada é versionada de propósito; ao recompilá-la,
 confira o tamanho (deve ficar bem abaixo de 50 MB). Registre usos de IA em
 [`AI_USAGE_LOG.md`](AI_USAGE_LOG.md).
+
+## Documentação especializada
+
+Este README é a visão principal do projeto e reúne instalação, uso,
+funcionamento, resultados e limitações. Para aprofundar por público e nível
+técnico, consulte:
+
+- [Índice da documentação](docs/README.md)
+- [Visão do projeto](docs/project_overview.md) e [conceitos](docs/concepts.md)
+- [Guia de uso](docs/user_guide.md)
+- [Documentação técnica](docs/technical/README.md)
+- [Revisão de prontidão para avaliação](docs/project_review.md)

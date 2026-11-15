@@ -234,4 +234,6 @@ def outputs(name):
 if __name__ == "__main__":
     # Warm the routing engine in the background so the first route is fast.
     threading.Thread(target=lambda: network_path().exists() and get_network(), daemon=True).start()
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    # Keep the interactive debugger off by default, including on a public bind.
+    # Enable it explicitly only during local development with FLASK_DEBUG=1.
+    app.run(host="0.0.0.0", port=5000, debug=os.environ.get("FLASK_DEBUG") == "1")

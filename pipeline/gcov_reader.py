@@ -1,4 +1,4 @@
-"""Windowed reader for NISAR L2 GCOV files (T10).
+"""Windowed reader for NISAR L2 GCOV files.
 
 Paths and fields below come from the real file structure (docs/h5_structure_17jan.txt):
   /science/LSAR/GCOV/grids/frequencyA/{HHHH,HVHV,xCoordinates,yCoordinates,projection,...}

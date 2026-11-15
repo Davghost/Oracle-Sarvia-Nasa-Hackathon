@@ -1,26 +1,35 @@
-# Downloading the GCOV scenes
+# Download das cenas NISAR GCOV
 
-Each GCOV file is about 3.8 GB. On a slow home connection it takes ~4 h each, so download in the Codespace.
+Cada arquivo GCOV tem aproximadamente 3,8 GB. O download deve ser feito em
+um ambiente com conexão adequada, como um Codespace.
 
-1. Store the Earthdata token as a Codespaces secret named `EARTHDATA_TOKEN` (never in the repo or shell history).
-2. Install `requirements-pipeline.txt`.
-3. Run `python pipeline/download_gcov.py`.
+## Usando o script do projeto
 
-The downloader was tested on 15 Nov 2026 with `asf_search` 14.1.0 for the
-project's two NISAR GCOV granules (5 and 17 Jan 2026). This does not guarantee
-that every ASF product or future API version behaves the same way. The
-downloaded HDF5 files belong in `data/`, which is ignored by git.
+1. Configure um secret do Codespaces chamado EARTHDATA_TOKEN. Não salve o
+   token no repositório nem em histórico de shell.
+2. Instale os requisitos do pipeline:
 
-## Fallback with wget
+       python -m pip install -r requirements-pipeline.txt
 
-Copy each scene's download URL from ASF Vertex, then in the Codespace:
+3. Execute o downloader:
 
-```bash
-wget --header="Authorization: Bearer $EARTHDATA_TOKEN" -P data/ "<URL_FROM_VERTEX>"
-```
+       python pipeline/download_gcov.py
 
-(If the server answers 401/403, use a `~/.netrc` with your Earthdata login instead; keep it out of the repo.)
+O script busca os dois granules configurados para 5 e 17 de janeiro de 2026
+e salva os HDF5 em data/, ignorado pelo Git. O registro de execução disponível
+foi feito com asf_search 14.1.0; mudanças futuras na API ASF podem exigir
+ajustes.
 
-Files go to `data/`, which is ignored by git. Never include a real Earthdata
-token in commands committed to documentation, source files, or repository
-configuration.
+## Alternativa manual com wget
+
+Copie a URL de cada cena no ASF Vertex e baixe-a com o token Earthdata
+configurado no ambiente:
+
+    wget --header="Authorization: Bearer $EARTHDATA_TOKEN" -P data/ "<URL_FROM_VERTEX>"
+
+Se o servidor devolver 401/403, siga o fluxo de autenticação oficial da ASF
+ou use o mecanismo Earthdata recomendado para o seu ambiente. Não publique
+token, senha ou arquivo de credenciais.
+
+Para continuar com conversão, detecção e validação, siga o
+[pipeline de dados](technical/pipeline.md).

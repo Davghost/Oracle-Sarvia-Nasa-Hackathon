@@ -1,4 +1,4 @@
-"""Water and flood detection from the two dB scenes, plus web exports (T11, T13).
+"""Water and flood detection from the two dB scenes, plus web exports.
 
 Method (explainable, no machine learning):
   water = (HH < t_HH) and (HV < t_HV)    both polarizations dark
