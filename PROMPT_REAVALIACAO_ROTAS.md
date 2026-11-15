@@ -1,5 +1,12 @@
 # Prompt para reavaliação do sistema de rotas
 
+> **Histórico.** Este prompt descreve o sistema de rotas antigo (NetworkX,
+> Overpass, cache em pickle), que foi substituído em 15/11/2026 pelas rotas
+> de resgate com carro e barco. O sistema atual está documentado no
+> [`README.md`](README.md), na seção 22 do
+> [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) e em
+> [`docs/stats_contract.md`](docs/stats_contract.md).
+
 Você é um engenheiro sênior responsável por reavaliar e reimplementar o módulo de rotas deste projeto.
 
 ## Contexto

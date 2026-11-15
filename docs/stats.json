@@ -79,12 +79,8 @@
     }
   },
   "routing": {
-    "flood_mask": {
-      "type": "geojson",
-      "url": "/outputs/flood_mask.geojson",
-      "crs": "EPSG:4326"
-    },
-    "network_cache": "outputs/road_network.graphml"
+    "flood_raster": "outputs/flood_new_water.tif",
+    "network": "outputs/routing_network.npz"
   },
   "context_figures": {
     "source": "NASA Scientific Visualization Studio #5661, NISAR Reveals Major Flooding in Mozambique",

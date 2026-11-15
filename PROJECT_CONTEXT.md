@@ -1,21 +1,27 @@
 # Contexto atual do projeto — The Algorithm's Oracle
 
 > Documento de transferência. Ele descreve a implementação encontrada no
-> repositório em 14/11/2026. Não trate ideias futuras como funcionalidades
+> repositório em 15/11/2026. Não trate ideias futuras como funcionalidades
 > existentes. Ao mudar uma decisão técnica, atualize este arquivo e
 > `AI_USAGE_LOG.md`.
 
 ## 1. Objetivo
 
 O projeto é uma aplicação para o NASA Space Apps Challenge 2026, desafio
-**Dancing with the SARs**. Seu objetivo é explicar visualmente uma cheia de
-janeiro de 2026 no sul de Moçambique, nas bacias do Limpopo e do Incomati,
-usando duas cenas NISAR L2 GCOV (5 e 17 de janeiro, track 114, frame 165,
-direção ascending, HH/HV).
+**Dancing with the SARs**, sobre a cheia de janeiro de 2026 no sul de
+Moçambique, nas bacias do Limpopo e do Incomati, com duas cenas NISAR L2 GCOV
+(5 e 17 de janeiro, track 114, frame 165, direção ascending, HH/HV).
 
-O problema abordado é a dificuldade de observar água durante eventos cobertos
-por nuvens. A solução atual não prevê enchentes: ela detecta e comunica uma
-estimativa retrospectiva de água nova comparando duas datas de radar.
+**A funcionalidade principal é o planejamento de rotas de resgate.** A equipe
+marca a base e o destino, que normalmente está dentro da área alagada, e o
+app calcula a rota: carro pelas vias que o radar viu secas até a borda da
+água, barco até o destino e, se preciso, desembarque a pé. A narrativa dos
+passos 1 a 4 explica os dados de radar que alimentam essas rotas.
+
+O problema abordado é a dificuldade de ver a água durante eventos cobertos
+por nuvens. A solução não prevê enchentes: ela usa uma estimativa
+retrospectiva de água, comparando duas datas de radar, para planejar o acesso
+às áreas alagadas.
 
 ## 2. Estado real
 
@@ -32,15 +38,20 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
   mock.
 - A cópia estática em `docs/` foi reconstruída após o reprocessamento HDF5 e
   validada localmente; a versão pública não recebeu essas alterações.
-- O roteamento web prefere o índice offline
-  `outputs/road_network_routing_cache.pickle`, gerado por
-  `prepare_network.py`; ele contém índice espacial de nós, cobertura,
-  componentes conexos e arestas bloqueadas pré-calculadas. O GraphML/pickle
-  antigo permanece apenas como artefato de preparação e não é carregado por
-  requisições web. Sem esses artefatos, a aplicação preserva a narrativa e
-  informa `routing_unavailable`.
-- No passo de rotas, o primeiro clique no mapa marca a origem e o segundo
-  marca o destino; “Limpar seleção” remove os marcadores e reinicia a escolha.
+- **Rotas de resgate funcionando na rede real** (reconstruídas em
+  15/11/2026, detalhes na seção 22). `prepare_network.py` compila o extrato
+  OSM da Geofabrik em `outputs/routing_network.npz`: 150.853 cruzamentos,
+  33.532 km de vias, 370,6 km de vias alagadas, 332.870 células de barco,
+  6.131 pontos de lançamento e 16.045 ligações de arrasto. `routing.py`
+  responde rotas de carro + barco, rotas secas, alternativas e a rota com
+  menos água. Na rede real, 87% de destinos aleatórios dentro da água
+  recebem rota; os demais ficam em manchas de água isoladas.
+- O passo 5 da interface é um painel de direções: base da equipe e destino
+  (clique no mapa ou `lon, lat`), "Car and boat" / "Car only", opções em
+  lista e no mapa e passo a passo com o ponto de lançamento.
+- Sem a rede compilada, a API responde `routing_unavailable` e a narrativa
+  continua funcionando. Os GraphML/pickle antigos de `outputs/road_network.*`
+  não são mais usados e podem ser apagados.
 - `pipeline/osm_impact.py` implementa enriquecimento OSM opcional, mas não
   conseguiu concluir consulta real ao Overpass; o `stats.json` atual não tem
   métricas nem camada OSM.
@@ -53,7 +64,10 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
 - h5py: leitura HDF5 NISAR.
 - rasterio/pyproj: GeoTIFF, reprojeção e transformações CRS.
 - Pillow/matplotlib: overlays PNG e QA.
-- NetworkX/Shapely: roteamento prototipal.
+- pyosmium: leitura do extrato OSM na preparação da rede.
+- NumPy/SciPy (`scipy.sparse.csgraph`, `cKDTree`): motor de rotas; é a única
+  dependência pesada do servidor web.
+- Shapely/OSMnx: só nos scripts opcionais (`osm_impact.py`, testes).
 - JavaScript sem framework + Leaflet 1.9.4 local.
 - pytest: suíte em `tests/`.
 
@@ -69,15 +83,23 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
 4. **Detecção**: `pipeline/detect_flood.py` calcula limiares de vale do
    histograma, exige HH e HV abaixo do limiar, remove blobs pequenos, compara
    datas, reprojeta para EPSG:3857 e grava o contrato JSON e overlays.
-5. **Serviço**: `app/app.py` serve HTML, JSON e arquivos em `outputs/`.
-6. **Cliente**: `app/static/app.js` lê o contrato, carrega as camadas e controla
-   a narrativa, o slider e os números.
-7. **Publicação**: `pipeline/build_static.py` gera páginas e recursos em
-   `docs/`, sem Flask.
-8. **Impacto OSM (opcional)**: `pipeline/osm_impact.py` baixa feições OSM via
+5. **Rede de rotas**: `pipeline/prepare_network.py` baixa o extrato OSM
+   (Geofabrik), divide as vias em segmentos, mede a água nova em cada um,
+   monta a grade de barco a partir de `water_during.tif`, os pontos de
+   lançamento e as ligações de arrasto, e grava `routing_network.npz`.
+6. **Motor de rotas**: `pipeline/routing.py` carrega a rede e responde
+   pedidos com Dijkstra (SciPy) num grafo de três camadas (carro, barco,
+   caminhada).
+7. **Serviço**: `app/app.py` serve HTML, JSON, arquivos em `outputs/` e a API
+   de rotas, com fila limitada, timeout e cache.
+8. **Cliente**: `app/static/app.js` lê o contrato, controla a narrativa e o
+   painel de rotas (opções, mapa e passo a passo).
+9. **Publicação**: `pipeline/build_static.py` gera páginas e recursos em
+   `docs/`, sem Flask e sem o passo de rotas.
+10. **Impacto OSM (opcional)**: `pipeline/osm_impact.py` baixa feições OSM via
    Overpass, cruza vias e footprints com água nova e exporta segmentos GeoJSON
    e contagens estimadas.
-9. **Validação espacial opcional**: `pipeline/validate_reference.py` compara
+11. **Validação espacial opcional**: `pipeline/validate_reference.py` compara
    a máscara NISAR aos vetores EMSR857 AOI02, adiciona métricas ao contrato e
    recusa `stats.json` mock.
 
@@ -87,10 +109,13 @@ estimativa retrospectiva de água nova comparando duas datas de radar.
 HDF5 GCOV
   -> make_db.py / gcov_reader.py
   -> *_HH_db.tif e *_HV_db.tif
-  -> detect_flood.py
-  -> stats.json, water_before.png, water_during.png
-  -> Flask /api/stats + /outputs/*
-  -> Leaflet e narrativa em quatro etapas
+  -> detect_flood.py --loosen 3
+  -> stats.json, water_before.png, water_during.png,
+     flood_new_water.tif, water_during.tif
+  -> prepare_network.py (+ extrato OSM da Geofabrik)
+  -> routing_network.npz
+  -> Flask /api/stats, /api/route, /outputs/*
+  -> Leaflet: narrativa (passos 1-4) e painel de rotas (passo 5)
 ```
 
 O detector define:
@@ -108,7 +133,10 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
 
 ## 5. Funcionalidades implementadas
 
-- Storytelling em inglês com quatro passos.
+- Rotas de resgate (passo 5): carro + barco + caminhada até destinos dentro
+  da água, rota seca, alternativas, rota com menos água e rota mais rápida
+  de referência, com passo a passo e ponto de lançamento.
+- Storytelling em inglês com quatro passos que explicam os dados.
 - Mapa Leaflet com tiles do servidor OpenStreetMap.de e atribuição a
   OpenStreetMap e ao servidor de tiles.
 - Camada antes (azul), camada durante (água permanente azul e água nova
@@ -122,16 +150,17 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
   etapa 4; só aparecem quando o enriquecimento foi executado com dados OSM.
 - Comparação EMSR857 AOI02 opcional na etapa 4, exibida a partir do campo
   `validation` do `stats.json`; não é rótulo de verdade-terreno.
-- Testes para `water.py`, `gcov_reader.py`, `detect_flood.py` e `routing.py`.
+- 127 testes em `tests/`, incluindo `test_rescue.py`, `test_routing.py`,
+  `test_prepare_network.py`, `test_route_api.py` e `test_routing_real.py`.
 
 ## 6. Parcial, pendente e não conectado
 
 ### Parcial/prototipal
 
-- `routing.py` aceita um grafo NetworkX com nós `x/y` e geometrias Shapely,
-  prepara índices offline, bloqueia arestas alagadas e calcula desvio. Não
-  obtém dados OSM, não é uma rota operacional; o `app/app.py` consome somente
-  o cache preparado.
+- Rotas de resgate: funcionam sobre a rede OSM real e as máscaras
+  publicadas, mas são experimentais. O radar não mede profundidade nem
+  correnteza; os arrastos por faixas secas são inferidos; velocidades vêm da
+  classe da via; "seca" significa só "sem água nova detectada na data".
 - A consulta OSM de vias/buildings é opcional, depende do Overpass e da cobertura
   OSM. As interseções mostram vias dentro da máscara, não um fechamento oficial
   nem rota segura.
@@ -148,16 +177,24 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
   série temporal completa.
 - Validação científica independente: a comparação EMSR857 disponível mede
   somente concordância geométrica entre produtos diferentes.
-- Atualização periódica da rede OSM e validação independente das rotas para
-  uso fora do protótipo. A rota segura só evita a máscara de inundação disponível.
+- Atualização periódica do extrato OSM e validação das rotas com equipes
+  de resgate ou relatos de campo.
+- Rotas com mais datas de radar (a cheia muda) e com dados de profundidade.
 - Mais polarizações/visualizações e calibração científica do detector.
 - Exercitar o downloader com outros granules/versões do ASF; o teste atual
   cobre apenas os dois granules do projeto com `asf_search` 14.1.0.
 
 ## 7. Decisões técnicas e contratos
 
-- O processamento pesado fica fora do Flask; requisições não abrem HDF5 nem
-  calculam máscaras.
+- O processamento pesado fica fora do Flask; requisições não abrem HDF5, não
+  calculam máscaras, não baixam dados e não usam Shapely: o motor de rotas
+  roda só com NumPy/SciPy sobre `routing_network.npz`.
+- Rotas: custo em tempo de viagem; a água nas vias vem de
+  `flood_new_water.tif` (água nova, para não bloquear pontes sobre rios) e o
+  barco usa `water_during.tif` (toda a água). A busca por barco só roda com
+  água no caminho e, havendo rota seca, só procura opções mais rápidas.
+- `routing_network.npz` tem `format_version`; o motor recusa redes de outra
+  versão e pede para recompilar.
 - O leitor trabalha em janela e strips para limitar RAM.
 - GCOV é tratado como potência linear; o filtro/multilook ocorre antes de dB.
 - Água aberta é modelada como retorno escuro; isso é uma hipótese operacional,
@@ -177,9 +214,9 @@ arquivo atual, não valores fixos que futuros processamentos devem reproduzir.
   `EARTHDATA_TOKEN`, nunca em arquivo ou commit.
 - Mapa-base visual: tiles OpenStreetMap.de, de servidor independente; não usa
   o endpoint `tile.openstreetmap.org`.
-- OSMnx/OSM: `pipeline/prepare_network.py` baixa a rede uma vez e grava
-  GraphML e um cache de roteamento preparado; Flask não faz download por
-  requisição nem processa a máscara no caminho crítico.
+- OSM via Geofabrik: `prepare_network.py --download` baixa o extrato
+  `.osm.pbf` (com retomada e MD5) e lê as vias com `pyosmium`; o Flask só lê
+  a rede compilada e não usa a internet para rotas.
 - OpenStreetMap: consultas opcionais de vias/edificações via Overpass.
 - Leaflet: cópia local em `app/static/vendor/leaflet`.
 - NASA SVS #5661: fonte declarada dos números contextuais sobre pessoas,
@@ -199,8 +236,9 @@ em `pipeline/make_db.py` como `BBOX`; os granules conhecidos estão em
   EMSR857 AOI02 usando uma máscara reprocessada dos HDF5; a referência é um
   produto semiautomático, não verdade-terreno. Veja a seção 16.
 - Valores de impacto do mock não podem ser tratados como resultados reais.
-- Rotas dependem da qualidade do OSM, da resolução do radar e do alinhamento
-  entre CRS; são experimentais e não substituem autoridades locais.
+- Rotas dependem da qualidade do OSM e da resolução do radar (células de
+  barco de 80 m perdem canais estreitos); usam uma única data de água e são
+  experimentais, sem substituir autoridades locais.
 - O download foi testado com `asf_search` 14.1.0 para os dois granules atuais;
   outras versões/produtos da API não foram cobertos.
 - A interface e os textos são majoritariamente em inglês, embora este
@@ -214,17 +252,21 @@ em `pipeline/make_db.py` como `BBOX`; os granules conhecidos estão em
 3. Rode `pytest -q` antes de mudar o pipeline.
 4. Para alterar a detecção, leia `water.py`, `detect_flood.py`, os testes e
    compare também `docs/preview/hist.png`/`flood_qa.png`.
-5. Depois de uma nova detecção, confira `stats.json`, overlays e a aplicação
-   em `http://localhost:5000`.
-6. Se publicar em GitHub Pages, execute `pipeline/build_static.py` somente
+5. Depois de uma nova detecção, recompile a rede com
+   `python pipeline/prepare_network.py` e confira `stats.json`, overlays e a
+   aplicação em `http://localhost:5000`, incluindo uma rota no passo 5.
+6. Para mexer nas rotas, leia `routing.py`, `prepare_network.py`,
+   `tests/test_rescue.py` e meça com `python pipeline/route_benchmark.py`.
+7. Se publicar em GitHub Pages, execute `pipeline/build_static.py` somente
    com resultado real e revise o diff de `docs/`.
 
 ## 11. Restrições para futuros desenvolvedores
 
 - Não versionar tokens, credenciais, HDF5 ou artefatos grandes de `data/`.
 - Não chamar o pipeline pesado durante requisições Flask.
-- Não alterar o formato de `stats.json` sem atualizar
+- Não alterar o formato de `stats.json` ou da API de rotas sem atualizar
   `docs/stats_contract.md`, o frontend e os testes.
+- Não versionar o extrato OSM (`data/osm/`) nem `outputs/routing_network.npz`.
 - Não chamar estimativas mock de resultados científicos.
 - Não remover as limitações exibidas ao usuário.
 - Ao alterar limiares ou reprojeção, atualizar testes e explicar a decisão.
@@ -401,3 +443,32 @@ após `detect_flood.py` e então `build_static.py`.
 
 Relatório da alteração e verificações:
 [`docs/readme_review_report_2026-11-15.md`](docs/readme_review_report_2026-11-15.md).
+
+## 22. Rotas de resgate (15/11/2026)
+
+O sistema de rotas anterior nunca respondeu uma rota: o cache que a API
+carregava não era gerado, a rede baixada pelo Overpass parava em 32,90° E e a
+máscara usada era a da detecção estrita. Ele foi substituído por:
+
+- **Rede:** extrato OSM de Moçambique da Geofabrik (dados de 14/11/2026),
+  lido com `pyosmium`, segmentos entre cruzamentos, velocidade por classe de
+  via e sentido de circulação. A água nova é medida a cada 10 m em cada
+  segmento contra `flood_new_water.tif` (982,5 km², a máscara publicada).
+- **Barco:** grade de ~80 m sobre `water_during.tif` (1.954,6 km² de água na
+  data da cheia), pontos de lançamento onde as vias alagadas encontram a água
+  e em cruzamentos a até 100 m dela, e ligações de arrasto entre manchas a
+  até 250 m. Com o arrasto, a parte da água alcançável a partir de algum
+  lançamento subiu de 83% para 90%.
+- **Motor:** Dijkstra do SciPy num grafo de três camadas (carro, barco,
+  caminhada) com trocas de lançamento (10 min), desembarque (3 min) e
+  estacionamento (1 min). Barco a 12 km/h, caminhada a 4 km/h, arrasto a
+  2 km/h; velocidade do barco e tempo de lançamento são configuráveis.
+- **Medições** (`route_benchmark.py`): destinos na água com mediana de
+  122 ms (p95 222 ms); rotas de carro sem água no caminho com mediana de
+  30 ms; distâncias com diferença mediana de 1,1% para o OSRM em 10 rotas;
+  8,2 pedidos/s com 8 threads. 127 testes passando.
+- **Interface:** painel de direções no passo 5, com opções selecionáveis na
+  lista e no mapa e passo a passo.
+
+`PROMPT_REAVALIACAO_ROTAS.md` descreve o sistema antigo e é mantido só como
+histórico.

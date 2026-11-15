@@ -233,3 +233,6 @@ outputs/flood_mask.geojson
 *earthdata*token*
 /data/osmnx_cache/
 /outputs/flood_extent.geojson
+# compiled route network (rebuild with pipeline/prepare_network.py)
+/outputs/routing_network.npz
+/outputs/routing_network.tmp.npz

@@ -61,22 +61,46 @@
       </section>
 
       <section class="step" data-step="5" data-short="Routes" id="routing-step">
-        <h1>Routes around the water</h1>
-        <p class="badge">Experimental</p>
-        <p>Click the map to set a start and a destination, or type longitude and latitude (WGS84).</p>
-        <div class="route-fields">
-          <label>Start (lon, lat)<input id="route-origin" placeholder="32.10, -25.10" autocomplete="off"></label>
-          <label>Destination (lon, lat)<input id="route-destination" placeholder="32.20, -25.20" autocomplete="off"></label>
+        <h1>Plan a rescue route</h1>
+        <p class="intro">Start from the team's base. The destination can be inside the flood: the route drives on dry roads to the water's edge, then continues by boat. <span class="badge">Experimental</span></p>
+
+        <div class="directions" role="group" aria-label="Start and destination">
+          <div class="dir-row">
+            <span class="dir-dot start" aria-hidden="true"></span>
+            <label for="route-origin" class="dir-label">Team base</label>
+            <input id="route-origin" placeholder="Click the map, or type lon, lat" autocomplete="off" spellcheck="false">
+          </div>
+          <span class="dir-link" aria-hidden="true"></span>
+          <div class="dir-row">
+            <span class="dir-dot end" aria-hidden="true"></span>
+            <label for="route-destination" class="dir-label">Destination</label>
+            <input id="route-destination" placeholder="Click the map, or type lon, lat" autocomplete="off" spellcheck="false">
+          </div>
+          <button id="route-swap" type="button" class="icon-btn" aria-label="Swap team base and destination" title="Swap">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 4v13M7 4 3.5 7.5M7 4l3.5 3.5M17 20V7m0 13-3.5-3.5M17 20l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
         </div>
+
+        <div class="mode-switch" role="radiogroup" aria-label="Vehicles the team has">
+          <button type="button" role="radio" aria-checked="true" data-boats="true">Car and boat</button>
+          <button type="button" role="radio" aria-checked="false" data-boats="false">Car only</button>
+        </div>
+
         <div class="route-actions">
           <button id="route-calculate" type="button" class="primary">Find routes</button>
-          <button id="route-clear" type="button" class="quiet">Clear points</button>
+          <button id="route-clear" type="button" class="quiet">Clear</button>
           <button id="route-cancel" type="button" class="quiet" hidden>Cancel</button>
         </div>
         <progress id="route-progress" max="100" value="0" hidden></progress>
-        <p id="route-status" class="route-status" role="status">Click the map to set the start.</p>
-        <dl id="route-results" class="route-results"></dl>
-        <p class="source">The flood-avoiding route only avoids the flood mask we detected. It is experimental and does not replace local authorities.</p>
+        <p id="route-status" class="route-status" role="status">Click the map to set the team's base.</p>
+
+        <ol id="route-options" class="route-options" aria-label="Route options"></ol>
+        <section id="route-itinerary" class="itinerary" aria-label="Directions for the selected route" hidden>
+          <h2>Directions</h2>
+          <ol id="route-steps"></ol>
+        </section>
+        <p class="source" id="route-assumptions"></p>
+        <p class="source">Routes use the water the radar saw on the analysis date. A dry road is not proof that it is open, and boat legs assume water deep enough to navigate. This does not replace local authorities.</p>
       </section>
     </div>
 
@@ -106,9 +130,11 @@
       <div id="during-legend"><span class="sw during"></span> New flood water</div>
       <div id="roads-legend" hidden><span class="sw roads"></span> Road inside the flood (OSM)</div>
       <div id="route-legend" hidden>
-        <div><span class="sw line normal"></span> Shortest route</div>
-        <div><span class="sw line safe"></span> Flood-avoiding route</div>
-        <div><span class="sw line blocked"></span> Flooded segment</div>
+        <div data-route-key="drive" hidden><span class="sw line drive"></span> By car</div>
+        <div data-route-key="boat" hidden><span class="sw line boatleg"></span> By boat</div>
+        <div data-route-key="walk" hidden><span class="sw line walk"></span> On foot</div>
+        <div data-route-key="other" hidden><span class="sw line other"></span> Other options (click to pick)</div>
+        <div data-route-key="blocked" hidden><span class="sw line blocked"></span> Flood water on the road</div>
       </div>
     </div>
   </main>

@@ -18,7 +18,7 @@ const fmt = (v, unit = '') => (v === null || v === undefined) ? 'to be confirmed
 const fmtDate = (iso) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', {day: 'numeric', month: 'short', timeZone: 'UTC'});
 
 let stats = null, layers = {}, step = 1;
-let routePoints = [], routeLayers = [], routeMarkers = {origin: null, destination: null};
+let routePoints = [], routeLayers = [], routeMarkers = {origin: null, destination: null, launch: null, landing: null};
 let routeController = null;
 
 async function addLayer(spec, pane, style) {
@@ -71,6 +71,7 @@ function setStep(n) {
   const compare = step === 3;
   const routing = step === 5;
   $('clouds').classList.toggle('lifted', step !== 1);
+  $('mapwrap').dataset.step = step;
   show(layers.radar, step === 2);
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4 || routing);
@@ -79,7 +80,7 @@ function setStep(n) {
   Object.values(routeMarkers).forEach(marker => show(marker, routing));
   $('curtain').hidden = !compare;
   $('legend').hidden = step < 2;
-  $('before-legend').hidden = !(step === 2 || compare);
+  $('before-legend').hidden = !(step === 2 || compare || routing);   // boats use rivers and lakes too
   $('during-legend').hidden = !(compare || step === 4 || routing);
   $('roads-legend').hidden = step !== 4 || !layers.roads;
   $('route-legend').hidden = !routing;
@@ -98,107 +99,330 @@ function routeMessage(text, error = false) {
   el.classList.toggle('error', error);
 }
 
-function parsePoint(value) {
-  const parts = value.split(',').map(Number);
-  if (parts.length !== 2 || parts.some(Number.isNaN)) throw new Error('Type the point as longitude, latitude, for example 32.10, -25.10.');
-  return {lon: parts[0], lat: parts[1]};
+function parsePoint(value, name) {
+  const parts = value.split(',').map(part => Number(part.trim()));
+  if (parts.length !== 2 || parts.some(v => !Number.isFinite(v))) {
+    throw new Error(`Type the ${name} as longitude, latitude, for example 33.00, -24.53, or click the map.`);
+  }
+  const [lon, lat] = parts;
+  if (lon < -180 || lon > 180 || lat < -90 || lat > 90) {
+    throw new Error(`The ${name} is not a valid longitude, latitude pair.`);
+  }
+  return {lon, lat};
 }
 
-const km = (m) => `${(m / 1000).toLocaleString('en-US', {maximumFractionDigits: 1})} km`;
+const km = (m) => m >= 1000 ? `${(m / 1000).toLocaleString('en-US', {maximumFractionDigits: 1})} km` : `${Math.round(m)} m`;
+const minutes = (s) => {
+  const total = Math.max(1, Math.round(s / 60));
+  return total < 60 ? `${total} min` : `${Math.floor(total / 60)} h ${total % 60} min`;
+};
+const fmtPoint = ([lon, lat]) => `${Math.abs(lat).toFixed(4)}° ${lat < 0 ? 'S' : 'N'}, ${Math.abs(lon).toFixed(4)}° ${lon < 0 ? 'W' : 'E'}`;
 
-function drawRouteLine(route, style) {
-  return route ? L.polyline(route.coordinates.map(([lon, lat]) => [lat, lon]), style).addTo(map) : null;
-}
+const ICONS = {
+  drive: '<path d="M5 16V11l2-5h10l2 5v5M5 16h14M5 16v2M19 16v2M7.5 13.5h.01M16.5 13.5h.01" />',
+  boat: '<path d="M3 15h18l-2.5 4h-13zM12 15V4l6 9h-6M12 6 7 13h5" />',
+  walk: '<path d="M13 4.5a1.5 1.5 0 1 0 0 .01M11 21l1.5-6 2.5 2v4M9 11l3-3 3 3 2 1M12 8l-1.5 5" />',
+  launch: '<path d="M4 18c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 4 0M12 3v10M8 9l4 4 4-4" />',
+  arrive: '<path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10zM12 11h.01" />',
+};
+const icon = (name) => `<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+
+let routeOptions = [], selectedOption = 0, lastResult = null, boatsEnabled = true, activeField = 'origin';
 
 function clearRoutes() {
   routeLayers.forEach(layer => map.removeLayer(layer));
   routeLayers = [];
+  ['launch', 'landing'].forEach(key => {
+    if (routeMarkers[key]) map.removeLayer(routeMarkers[key]);
+    routeMarkers[key] = null;
+  });
+  document.querySelectorAll('[data-route-key]').forEach(el => { el.hidden = true; });
+}
+
+const PIN = L.divIcon({
+  className: 'pin-icon', iconSize: [28, 36], iconAnchor: [14, 34],
+  html: '<svg viewBox="0 0 28 36" width="28" height="36" aria-hidden="true"><path d="M14 35s11-11.2 11-20A11 11 0 0 0 3 15c0 8.8 11 20 11 20z" fill="#1b2830" stroke="#fff" stroke-width="2"/><circle cx="14" cy="15" r="4.2" fill="#fff"/></svg>',
+});
+const BOAT_ICON = (label) => L.divIcon({
+  className: 'boat-icon', iconSize: [30, 30], iconAnchor: [15, 15],
+  html: `<span title="${label}">${icon('boat')}</span>`,
+});
+
+function placeMarker(key, latlng) {
+  if (routeMarkers[key]) map.removeLayer(routeMarkers[key]);
+  routeMarkers[key] = key === 'origin'
+    ? L.circleMarker(latlng, {radius: 8, color: COLORS.slate, weight: 4, fillColor: '#fff', fillOpacity: 1}).bindTooltip('Team base')
+    : L.marker(latlng, {icon: PIN, title: 'Destination', keyboard: false});
+  routeMarkers[key].addTo(map);
+}
+
+function setActiveField(key) {
+  activeField = key;
+  document.querySelectorAll('.dir-row').forEach((row, i) => row.classList.toggle('active', (i === 0) === (key === 'origin')));
 }
 
 function clearRouteSelection() {
   clearRoutes();
-  Object.keys(routeMarkers).forEach(key => {
+  ['origin', 'destination'].forEach(key => {
     if (routeMarkers[key]) map.removeLayer(routeMarkers[key]);
     routeMarkers[key] = null;
   });
   routePoints = [];
+  routeOptions = [];
+  lastResult = null;
   $('route-origin').value = '';
   $('route-destination').value = '';
-  $('route-results').innerHTML = '';
-  routeMessage('Click the map to set the start.');
+  $('route-options').innerHTML = '';
+  $('route-itinerary').hidden = true;
+  $('route-assumptions').textContent = '';
+  setActiveField('origin');
+  routeMessage("Click the map to set the team's base.");
 }
 
 function selectRoutePoint(event) {
-  if (step !== 5 || routePoints.length >= 2) return;
+  if (step !== 5) return;
   const point = `${event.latlng.lng.toFixed(6)}, ${event.latlng.lat.toFixed(6)}`;
-  const key = routePoints.length === 0 ? 'origin' : 'destination';
-  routePoints.push(point);
+  const key = activeField;
   $(`route-${key}`).value = point;
-  const name = key === 'origin' ? 'Start' : 'Destination';
-  routeMarkers[key] = L.marker(event.latlng, {title: name})
-    .bindTooltip(name, {permanent: true, direction: 'top'})
-    .addTo(map);
-  routeMessage(key === 'origin' ? 'Start set. Click the map to set the destination.' : 'Start and destination set. Select “Find routes”.');
+  placeMarker(key, event.latlng);
+  if (key === 'origin') {
+    setActiveField('destination');
+    if (!$('route-destination').value) { routeMessage('Now click the destination, for example a place inside the flood.'); return; }
+  }
+  if ($('route-origin').value && $('route-destination').value) calculateRoute();
+}
+
+function swapPoints() {
+  const a = $('route-origin').value, b = $('route-destination').value;
+  $('route-origin').value = b;
+  $('route-destination').value = a;
+  ['origin', 'destination'].forEach(key => {
+    if (routeMarkers[key]) { map.removeLayer(routeMarkers[key]); routeMarkers[key] = null; }
+  });
+  [['origin', b], ['destination', a]].forEach(([key, value]) => {
+    try { const p = parsePoint(value, key); placeMarker(key, [p.lat, p.lon]); } catch { /* empty field */ }
+  });
+  if (a && b) calculateRoute();
+}
+
+function setBoats(on) {
+  boatsEnabled = on;
+  document.querySelectorAll('.mode-switch [role=radio]').forEach(btn => {
+    btn.setAttribute('aria-checked', String((btn.dataset.boats === 'true') === on));
+  });
+  if ($('route-origin').value && $('route-destination').value) calculateRoute();
+}
+
+function driveLeg(route) {
+  return {mode: 'drive', coordinates: route.coordinates, distance_m: route.distance_m, duration_s: route.duration_s, via: route.via};
+}
+
+function buildOptions(result) {
+  const opts = [];
+  const water = (m) => `Crosses ${km(m)} of flood water`;
+  const r = result.rescue, n = result.normal, s = result.safe;
+  if (r && r.uses_boat) {
+    const parts = [[r.drive_m, 'by car'], [r.boat_m, 'by boat'], [r.walk_m, 'on foot']]
+      .filter(([m]) => m >= 1).map(([m, how]) => `${km(m)} ${how}`);
+    opts.push({key: 'rescue', title: 'Car and boat', route: r, legs: r.legs, detail: parts.join(', '),
+               note: r.portage_m > 0 ? `Includes ${km(r.portage_m)} dragging the boat over dry strips` : ''});
+  }
+  if (s) {
+    const same = n && s.distance_m === n.distance_m && n.flooded_m === 0;
+    opts.push({key: 'safe', title: same ? 'Fastest road, dry' : 'Dry roads only', route: s, legs: [driveLeg(s)],
+               detail: s.via.length ? `via ${s.via.join(', ')}` : ''});
+  }
+  (result.alternatives || []).forEach(alt => opts.push({key: 'alt', title: 'Other dry road', route: alt, legs: [driveLeg(alt)],
+                                                        detail: alt.via.length ? `via ${alt.via.join(', ')}` : ''}));
+  if (r && !r.uses_boat) opts.push({key: 'rescue', title: 'Car, then on foot', route: r, legs: r.legs, detail: ''});
+  if (result.least_flooded) {
+    const lf = result.least_flooded;
+    opts.push({key: 'least', title: 'Least water by road', route: lf, legs: [driveLeg(lf)], warn: water(lf.flooded_m)});
+  }
+  if (n && n.flooded_m > 0) {
+    opts.push({key: 'normal', title: 'Fastest road', route: n, legs: [driveLeg(n)], warn: `${water(n.flooded_m)}: not passable by car`, blocked: true});
+  }
+  const rec = {rescue: 'rescue', safe: 'safe', least_flooded: 'least'}[result.recommended];
+  const first = opts.findIndex(o => o.key === rec);
+  if (first > 0) opts.unshift(opts.splice(first, 1)[0]);
+  if (opts.length && opts[0].key === rec) opts[0].recommended = true;
+  return opts;
+}
+
+function renderOptions() {
+  const list = $('route-options');
+  list.innerHTML = '';
+  routeOptions.forEach((opt, i) => {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'option';
+    btn.setAttribute('aria-pressed', String(i === selectedOption));
+    const time = document.createElement('span'); time.className = 'opt-time'; time.textContent = minutes(opt.route.duration_s);
+    const dist = document.createElement('span'); dist.className = 'opt-dist'; dist.textContent = km(opt.route.distance_m);
+    const title = document.createElement('span'); title.className = 'opt-title'; title.textContent = opt.title;
+    btn.append(time, dist, title);
+    if (opt.recommended) { const tag = document.createElement('span'); tag.className = 'opt-tag'; tag.textContent = 'Recommended'; title.append(' ', tag); }
+    [['opt-detail', opt.detail], ['opt-detail', opt.note], ['opt-warn', opt.warn]].forEach(([cls, text]) => {
+      if (!text) return;
+      const el = document.createElement('span'); el.className = cls; el.textContent = text; btn.append(el);
+    });
+    btn.addEventListener('click', () => selectOption(i));
+    li.append(btn);
+    list.append(li);
+  });
+}
+
+function renderItinerary(opt) {
+  const steps = $('route-steps');
+  steps.innerHTML = '';
+  const add = (kind, title, detail) => {
+    const li = document.createElement('li');
+    li.className = `stepline ${kind}`;
+    li.innerHTML = `<span class="step-icon">${icon(kind)}</span>`;
+    const text = document.createElement('span'); text.className = 'step-text';
+    const b = document.createElement('b'); b.textContent = title; text.append(b);
+    if (detail) { const d = document.createElement('span'); d.textContent = detail; text.append(d); }
+    li.append(text);
+    steps.append(li);
+  };
+  opt.legs.forEach((leg, i) => {
+    if (leg.mode === 'boat') {
+      const prev = opt.legs[i - 1];
+      const start = leg.coordinates[0];
+      const title = prev ? 'Launch the boat at the water\'s edge'
+        : lastResult.origin.in_water ? 'Start on the water' : 'Launch the boat next to the team\'s base';
+      add('launch', title, fmtPoint(start));
+      const portage = opt.route.portage_m > 0 ? `, including ${km(opt.route.portage_m)} dragging the boat` : '';
+      add('boat', `Boat ${km(leg.distance_m)}`, `${minutes(leg.duration_s)}${portage}`);
+    } else if (leg.mode === 'walk') {
+      add('walk', `Walk ${km(leg.distance_m)}`, minutes(leg.duration_s));
+    } else {
+      add('drive', `Drive ${km(leg.distance_m)}`, `${minutes(leg.duration_s)}${leg.via && leg.via.length ? ` via ${leg.via.join(', ')}` : ''}`);
+    }
+  });
+  const inWater = lastResult.destination.in_water;
+  add('arrive', inWater ? 'Arrive in the flood water' : 'Arrive', fmtPoint(lastResult.destination.input));
+  $('route-itinerary').hidden = false;
+}
+
+function drawLine(coords, style, casing) {
+  const latlngs = coords.map(([lon, lat]) => [lat, lon]);
+  if (casing) routeLayers.push(L.polyline(latlngs, {color: '#fff', weight: style.weight + 4, opacity: 0.95, interactive: false}).addTo(map));
+  const line = L.polyline(latlngs, style).addTo(map);
+  routeLayers.push(line);
+  return line;
+}
+
+const LEG_STYLE = {
+  drive: {color: COLORS.slate, weight: 6},
+  boat: {color: COLORS.slate, weight: 5, dashArray: '10 9', lineCap: 'butt'},
+  walk: {color: COLORS.slate, weight: 4, dashArray: '1 8'},
+};
+
+function selectOption(i, fit = false) {
+  selectedOption = i;
+  clearRoutes();
+  const present = new Set();
+  const bounds = L.latLngBounds([]);
+  // other options first, in grey, clickable like on a road map
+  routeOptions.forEach((opt, j) => {
+    if (j === i) return;
+    opt.legs.forEach(leg => {
+      const line = drawLine(leg.coordinates, {color: '#7d8b93', weight: 5, opacity: 0.85}, true);
+      line.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        selectOption(j);
+        const card = document.querySelectorAll('#route-options .option')[j];
+        if (card) card.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+      });
+      line.bindTooltip(`${opt.title}: ${minutes(opt.route.duration_s)}`, {sticky: true});
+    });
+    present.add('other');
+  });
+  const opt = routeOptions[i];
+  opt.legs.forEach(leg => {
+    drawLine(leg.coordinates, {...LEG_STYLE[leg.mode], interactive: false}, true);
+    present.add(leg.mode);
+    leg.coordinates.forEach(([lon, lat]) => bounds.extend([lat, lon]));
+  });
+  if (opt.blocked || opt.key === 'least') {
+    (lastResult.blocked_segments || []).forEach(seg => drawLine(seg.coordinates, {color: COLORS.newwater, weight: 7, interactive: false}));
+    if ((lastResult.blocked_segments || []).length) present.add('blocked');
+  }
+  if (opt.route.launch) routeMarkers.launch = L.marker([opt.route.launch[1], opt.route.launch[0]], {icon: BOAT_ICON('Boat launch'), keyboard: false}).addTo(map);
+  if (opt.route.landing) routeMarkers.landing = L.marker([opt.route.landing[1], opt.route.landing[0]], {icon: BOAT_ICON('Boat landing'), keyboard: false}).addTo(map);
+  ['origin', 'destination'].forEach(key => { if (routeMarkers[key]) routeMarkers[key].bringToFront?.(); });
+  document.querySelectorAll('[data-route-key]').forEach(el => { el.hidden = !present.has(el.dataset.routeKey); });
+  document.querySelectorAll('#route-options .option').forEach((btn, j) => btn.setAttribute('aria-pressed', String(j === i)));
+  renderItinerary(opt);
+  if (fit && bounds.isValid()) map.fitBounds(bounds.pad(0.15), {maxZoom: 15});
+}
+
+function showRoutes(result) {
+  lastResult = result;
+  routeOptions = buildOptions(result);
+  selectedOption = 0;
+  renderOptions();
+  if (routeOptions.length) selectOption(0, true);
+  const a = result.boat_assumptions;
+  $('route-assumptions').textContent = a
+    ? `Boat legs assume ${a.boat_speed_kmh} km/h on open water and ${a.launch_minutes} minutes to launch; car speeds depend on the road type.`
+    : 'Car speeds depend on the road type.';
+  routeMessage(result.message || '', result.status !== 'ok');
 }
 
 async function calculateRoute() {
-  if (routeController) return;
+  if (routeController) routeController.abort();
   const progress = $('route-progress');
   const calculateButton = $('route-calculate');
   const cancelButton = $('route-cancel');
-  routeController = new AbortController();
-  const timeout = setTimeout(() => routeController.abort(), 16000);
+  const controller = new AbortController();
+  routeController = controller;
+  const timeout = setTimeout(() => controller.abort(), 20000);
   progress.hidden = false;
   progress.value = 15;
   calculateButton.disabled = true;
   cancelButton.hidden = false;
   try {
-    const origin = parsePoint($('route-origin').value);
-    const destination = parsePoint($('route-destination').value);
-    routeMessage('Finding routes on the offline road network…');
+    const origin = parsePoint($('route-origin').value, "team's base");
+    const destination = parsePoint($('route-destination').value, 'destination');
+    placeMarker('origin', [origin.lat, origin.lon]);
+    placeMarker('destination', [destination.lat, destination.lon]);
+    routePoints = [$('route-origin').value, $('route-destination').value];
+    routeMessage('Finding routes…');
     progress.value = 35;
     const response = await fetch('/api/route', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({origin, destination}),
-      signal: routeController.signal
+      body: JSON.stringify({origin, destination, alternatives: 2, boats: boatsEnabled}),
+      signal: controller.signal
     });
     progress.value = 80;
-    const result = await response.json();
+    let result;
+    try { result = await response.json(); } catch { result = {}; }
+    if (routeController !== controller) return;            // a newer request replaced this one
     clearRoutes();
-    if (!response.ok) throw new Error(result.error || 'No route found between these points.');
-    if (result.normal) routeLayers.push(drawRouteLine(result.normal, {color: COLORS.slate, weight: 4, dashArray: '8 7'}));
-    if (result.safe) routeLayers.push(drawRouteLine(result.safe, {color: COLORS.safe, weight: 6}));
-    (result.blocked_segments || []).forEach(segment => {
-      routeLayers.push(drawRouteLine(segment, {color: COLORS.newwater, weight: 6}));
-    });
-    const dl = $('route-results');
-    dl.innerHTML = '';
-    const rows = [
-      ['Status', result.status],
-      ['Shortest route', result.normal ? km(result.normal.distance_m) : 'not available'],
-      ['Flood-avoiding route', result.safe ? km(result.safe.distance_m) : 'not available'],
-      ['Detour', result.detour_percent == null ? 'not available' : `${result.detour_percent}% longer`],
-      ['Flooded segments', result.blocked_edges],
-    ];
-    rows.forEach(([label, value]) => {
-      const dt = document.createElement('dt'); dt.textContent = label;
-      const dd = document.createElement('dd'); dd.textContent = value; dl.append(dt, dd);
-    });
-    routeMessage(result.error
-      ? `${result.status}: ${result.error}` : result.experimental_warning,
-      Boolean(result.error));
+    $('route-options').innerHTML = '';
+    $('route-itinerary').hidden = true;
+    if (!response.ok) throw new Error(result.error || `The route service answered with HTTP ${response.status}.`);
+    showRoutes(result);
     setStep(5);
   } catch (error) {
+    if (routeController !== controller && error.name === 'AbortError') return;
     clearRoutes();
-    routeMessage(error.name === 'AbortError'
-      ? 'Route search stopped: it was cancelled or took longer than 16 seconds.' : error.message, true);
+    let message = error.message;
+    if (error.name === 'AbortError') message = 'Route search stopped: it was cancelled or took longer than 20 seconds.';
+    else if (error instanceof TypeError) message = 'The route service could not be reached. Check that the Flask app is running.';
+    routeMessage(message, true);
   } finally {
     clearTimeout(timeout);
-    routeController = null;
-    progress.value = 100;
-    setTimeout(() => { progress.hidden = true; }, 250);
-    calculateButton.disabled = false;
-    cancelButton.hidden = true;
+    if (routeController === controller) {
+      routeController = null;
+      progress.value = 100;
+      setTimeout(() => { progress.hidden = true; }, 250);
+      calculateButton.disabled = false;
+      cancelButton.hidden = true;
+    }
   }
 }
 
@@ -330,6 +554,14 @@ function card(label, value, mock) {
     $('route-calculate').addEventListener('click', calculateRoute);
     $('route-cancel').addEventListener('click', cancelRoute);
     $('route-clear').addEventListener('click', clearRouteSelection);
+    $('route-swap').addEventListener('click', swapPoints);
+    document.querySelectorAll('.mode-switch [role=radio]').forEach(btn =>
+      btn.addEventListener('click', () => setBoats(btn.dataset.boats === 'true')));
+    ['origin', 'destination'].forEach(key => {
+      $(`route-${key}`).addEventListener('focus', () => setActiveField(key));
+      $(`route-${key}`).addEventListener('keydown', (ev) => { if (ev.key === 'Enter') calculateRoute(); });
+    });
+    setActiveField('origin');
     map.on('click', selectRoutePoint);
   }
 

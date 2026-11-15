@@ -92,6 +92,19 @@ def save_flood_geojson(path, mask, transform, crs):
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def save_flood_raster(path, mask, transform, crs):
+    """Write the new-water mask as a compressed 0/1 GeoTIFF in the radar grid.
+
+    Routing samples road geometry against this raster directly, which avoids
+    the precision loss and cost of polygonising and re-rasterising the mask.
+    """
+    profile = {"driver": "GTiff", "height": mask.shape[0], "width": mask.shape[1],
+               "count": 1, "dtype": "uint8", "crs": crs, "transform": transform,
+               "compress": "deflate", "nodata": None}
+    with rasterio.open(path, "w", **profile) as dst:
+        dst.write(mask.astype(np.uint8), 1)
+
+
 def save_flood_extent(mask, tr, crs, path):
     """Write the new-water mask as a simplified WGS84 GeoJSON polygon."""
     polygons = (
@@ -215,6 +228,8 @@ def main():
     mn, _ = warp(new, tr, crs, dst)
     save_overlay(out / "water_before.png", [(mb, BLUE)])
     save_overlay(out / "water_during.png", [(mp, BLUE), (mn, RED)])   # blue = already water, red = new
+    save_flood_raster(out / "flood_new_water.tif", new, tr, crs)     # used by the route network
+    save_flood_raster(out / "water_during.tif", w_during, tr, crs)    # all water on the flood date: boat routes
     save_flood_geojson(out / "flood_mask.geojson", new, tr, crs)
     save_flood_extent(new, tr, crs, out / "flood_extent.geojson")
     west, south, east, north = array_bounds(dst[2], dst[1], dst[0])
@@ -260,9 +275,9 @@ def main():
             "during": {"type": "image", "url": "/outputs/water_during.png", "bounds": bounds},
         },
         "routing": {
-            "flood_mask": {"type": "geojson", "url": "/outputs/flood_mask.geojson",
-                           "crs": "EPSG:4326"},
-            "network_cache": "outputs/road_network.graphml",
+            "flood_raster": "outputs/flood_new_water.tif",
+            "boat_water_raster": "outputs/water_during.tif",
+            "network": "outputs/routing_network.npz",
         },
         "context_figures": {
             "source": "NASA Scientific Visualization Studio #5661, NISAR Reveals Major Flooding in Mozambique",
