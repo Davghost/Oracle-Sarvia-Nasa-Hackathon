@@ -122,8 +122,10 @@ Os passos 1 a 4 explicam os dados que alimentam as rotas:
    5 de janeiro.
 3. **New water:** cortina antes/depois e a área de água nova (982,5 km²,
    intervalo de 709,5 a 1.455,6 km²).
-4. **Impact:** mapa de impacto acionável (abaixo), comparação com a
-   referência Copernicus EMSR857 e limitações.
+4. **Impact and validation:** mapa de impacto acionável (abaixo), comparação
+   espacial com a referência Copernicus EMSR857 e limitações. A comparação
+   mostra IoU e polígonos exclusivos de cada produto; é concordância espacial,
+   não verdade-terreno.
 
 ### Mapa de impacto (passo 4)
 
@@ -343,6 +345,10 @@ com o vetor Copernicus EMSR857 AOI02).
    `python pipeline\validate_reference.py`. Requer
    `data/reference/EMSR857_products.zip` e `outputs/flood_extent.geojson`. É
    concordância espacial entre produtos diferentes, não verdade-terreno.
+   Calcula IoU, interseção e áreas exclusivas na AOI02 e grava
+   `outputs/validation_difference.geojson`; o mapa distingue áreas mapeadas
+   só pelo NISAR e só pelo Copernicus. Rode `python pipeline\build_static.py`
+   depois para copiar a comparação ao site estático.
 
 6. (Opcional) QA: `python pipeline\preview.py`.
 

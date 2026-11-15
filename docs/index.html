@@ -74,6 +74,7 @@
           <h2>Independent map comparison</h2>
           <div id="validation-metrics" class="facts"></div>
           <p id="validation-note" class="source"></p>
+          <p id="validation-map-note" class="source" hidden></p>
         </section>
         <h2>Limitations</h2>
         <ul id="limits"></ul>
@@ -88,6 +89,9 @@
         <h1>Plan a rescue route</h1>
         <p class="intro">Start from the team's base. The destination can be inside the flood: the route drives on dry roads to the water's edge, then continues by boat. <span class="badge">Experimental</span></p>
 
+        <p id="static-route-note" class="route-status" hidden>Route planning needs the live Flask server, so it cannot calculate routes on this static GitHub Pages site. Run the project with <code>python app/app.py</code> to use the planner. Routes are experimental and do not replace local authorities.</p>
+
+        <div id="route-planner-controls">
         <div class="directions" role="group" aria-label="Start and destination">
           <div class="dir-row">
             <span class="dir-dot start" aria-hidden="true"></span>
@@ -125,6 +129,7 @@
         </section>
         <p class="source" id="route-assumptions"></p>
         <p class="source">Routes use the water the radar saw on the analysis date. A dry road is not proof that it is open, and boat legs assume water deep enough to navigate. This does not replace local authorities.</p>
+        </div>
       </section>
     </div>
 
@@ -156,6 +161,10 @@
         <div id="during-legend"><span class="sw during"></span> New flood water</div>
         <div id="vegetation-legend" hidden></div>
         <div id="roads-legend" hidden><span class="sw roads"></span> Road on new water (OSM)</div>
+        <div id="validation-legend" hidden>
+          <div><span class="sw validation-nisar"></span> Mapped only by NISAR</div>
+          <div><span class="sw validation-ems"></span> Mapped only by Copernicus</div>
+        </div>
         <div id="route-legend" hidden>
         <div data-route-key="drive" hidden><span class="sw line drive"></span> By car</div>
         <div data-route-key="boat" hidden><span class="sw line boatleg"></span> By boat</div>

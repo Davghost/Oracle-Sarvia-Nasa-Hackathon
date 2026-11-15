@@ -43,7 +43,7 @@ def test_static_site_serves_pages_stats_and_prebuilt_layers():
             assert stats["mock"] is False
             assert stats["validation"]["iou"] == 0.4616
             assert stats["impact"]["categories"]["school"]["total"] > 0
-            assert {"impact_features", "impact_roads"} <= set(stats["layers"])
+            assert {"impact_features", "impact_roads", "validation_difference"} <= set(stats["layers"])
 
         for layer in stats["layers"].values():
             with urlopen(f"{base_url}/{layer['url']}") as response:
@@ -77,9 +77,10 @@ def test_static_build_copies_optional_geojson_layer(tmp_path, monkeypatch):
         "layers": {
             "impact_features": {"type": "geojson", "url": "/outputs/impact_features.geojson"},
             "impact_roads": {"type": "geojson", "url": "/outputs/impact_roads.geojson"},
+            "validation_difference": {"type": "geojson", "url": "/outputs/validation_difference.geojson"},
         },
     }))
-    for name in ("impact_features", "impact_roads"):
+    for name in ("impact_features", "impact_roads", "validation_difference"):
         (outputs / f"{name}.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": []}))
     monkeypatch.setattr(build_static, "ROOT", root)
     monkeypatch.setattr(build_static, "DOCS", docs)
@@ -90,3 +91,9 @@ def test_static_build_copies_optional_geojson_layer(tmp_path, monkeypatch):
     for name in ("impact_features", "impact_roads"):
         assert built_stats["layers"][name]["url"] == f"outputs/{name}.geojson"
         assert json.loads((docs / "outputs" / f"{name}.geojson").read_text())["type"] == "FeatureCollection"
+    assert built_stats["layers"]["validation_difference"]["url"] == (
+        "outputs/validation_difference.geojson"
+    )
+    assert json.loads(
+        (docs / "outputs" / "validation_difference.geojson").read_text()
+    )["type"] == "FeatureCollection"

@@ -311,6 +311,7 @@ button:disabled:hover{background:inherit}
 .vegetation-key i{display:inline-block;width:14px;height:10px;border:1px solid rgba(27,40,48,.35);border-radius:1px}
 #vegetation-legend b,#vegetation-legend small{display:block}
 #vegetation-legend small{margin:4px 0 0;color:var(--echo);line-height:1.3}
+.sw.validation-nisar{background:#e0442a}.sw.validation-ems{background:#7b2cbf}
 .sw.line{width:22px;height:0;border-top:4px solid}
 .sw.normal{border-top:3px dashed var(--slate)}
 .sw.safe{border-color:var(--safe)}

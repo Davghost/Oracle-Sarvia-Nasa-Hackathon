@@ -1,11 +1,10 @@
-// The static GitHub Pages copy has no Flask backend, so it drops the routing step.
+// The static GitHub Pages copy has no Flask backend for route calculations.
 const STATIC = Boolean(window.STATS_URL);
 const $ = (id) => document.getElementById(id);
 if (STATIC) {
-  document.getElementById('routing-step').remove();
   document.querySelectorAll('.server-only').forEach(el => el.remove());
 }
-const TOTAL = STATIC ? 4 : 5;
+const TOTAL = 5;
 const COLORS = {standing: '#1f5fae', newwater: '#e0442a', roads: '#f0a500', slate: '#1b2830', safe: '#1b8a4b'};
 const map = L.map('map', {
   zoomSnap: 0.25,
@@ -59,7 +58,7 @@ externalTileLayers.forEach(layer => layer.on('tileerror', () => {
   }
 }));
 
-['vegetationPane', 'radarPane', 'beforePane', 'duringPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
+['vegetationPane', 'radarPane', 'beforePane', 'duringPane', 'validationPane', 'roadsPane', 'impactPane'].forEach((name, i) => {
   map.createPane(name).style.zIndex = 405 + i * 10;
 });
 
@@ -164,6 +163,7 @@ function setStep(n) {
   show(layers.before, step === 2 || compare);
   show(layers.during, compare || step === 4 || routing);
   show(layers.vegetation, step >= 2);
+  show(layers.validation, step === 4);
   show(impact.layer, step === 4);
   show(impact.roads, step === 4 && impact.cats.has('roads'));
   if (step !== 4 && map.closePopup) map.closePopup();
@@ -175,6 +175,7 @@ function setStep(n) {
   $('during-legend').hidden = !(compare || step === 4 || routing);
   if ($('vegetation-legend')) $('vegetation-legend').hidden = !layers.vegetation || step < 2;
   $('roads-legend').hidden = step !== 4 || !impact.roads;
+  $('validation-legend').hidden = step !== 4 || !layers.validation;
   $('route-legend').hidden = !routing;
   updateClip(compare);
   map.invalidateSize();
@@ -873,6 +874,15 @@ function card(label, value, mock) {
       }
     }
   }
+  layers.validation = await addLayer(
+    stats.layers.validation_difference,
+    'validationPane',
+    (feature) => {
+      const color = feature.properties.classification === 'system_only' ? '#e0442a' : '#7b2cbf';
+      return {color, weight: 1, fillColor: color, fillOpacity: 0.72};
+    },
+  );
+  if (layers.validation) layerControl.addOverlay(layers.validation, 'Diferença NISAR x Copernicus');
   try {
     await loadImpact();
   } catch (error) {
@@ -908,17 +918,35 @@ function card(label, value, mock) {
   if (validation) {
     const metrics = $('validation-metrics');
     const km2 = (value) => `${Number(value).toLocaleString('en-US', {maximumFractionDigits: 1})} km²`;
+    const systemOnlyArea = validation.system_only_area_km2 ??
+      validation.nisar_new_water_aoi_km2 - validation.intersection_area_km2;
+    const referenceOnlyArea = validation.reference_only_area_km2 ??
+      validation.ems_flood_area_aoi_km2 - validation.intersection_area_km2;
     [
       ['NISAR new water in AOI02', km2(validation.nisar_new_water_aoi_km2)],
       ['EMS mapped flood in AOI02', km2(validation.ems_flood_area_aoi_km2)],
       ['Intersecting area', km2(validation.intersection_area_km2)],
+      ['Detected only by NISAR', km2(systemOnlyArea)],
+      ['Mapped only by Copernicus', km2(referenceOnlyArea)],
       ['Spatial IoU', Number(validation.iou).toFixed(2)],
     ].forEach(([label, value]) => metrics.appendChild(card(label, value, false)));
     $('validation-note').textContent =
-      `${validation.reference}, acquired ${validation.acquisition_utc}. ` +
+      `${validation.product}, ${validation.reference}, acquired ${validation.acquisition_utc}. ` +
       `${validation.interpretation} Overlap: ` +
       `${Math.round(validation.overlap_fraction_nisar * 100)}% of NISAR area; ` +
-      `${Math.round(validation.overlap_fraction_ems * 100)}% of EMS area.`;
+      `${Math.round(validation.overlap_fraction_ems * 100)}% of EMS area. ` +
+      'IoU is the intersection divided by the union; this comparison covers AOI02 only.';
+    const source = document.createElement('a');
+    source.href = validation.reference_url || 'https://mapping.emergency.copernicus.eu/activations/EMSR857/';
+    source.target = '_blank';
+    source.rel = 'noopener noreferrer';
+    source.textContent = 'Copernicus EMSR857 source';
+    $('validation-note').append(' Source: ', source);
+    if (!layers.validation) {
+      $('validation-map-note').textContent =
+        'Difference polygons are not available in this build. Rebuild the static site after running the reference validation pipeline.';
+      $('validation-map-note').hidden = false;
+    }
     $('validation-section').hidden = false;
   }
 
@@ -978,6 +1006,9 @@ function card(label, value, mock) {
     });
     setActiveField('origin');
     map.on('click', selectRoutePoint);
+  } else {
+    $('route-planner-controls').hidden = true;
+    $('static-route-note').hidden = false;
   }
 
   $('legend-toggle').addEventListener('click', () => {

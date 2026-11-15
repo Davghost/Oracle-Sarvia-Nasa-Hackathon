@@ -7,7 +7,7 @@ from zipfile import BadZipFile, ZipFile
 
 import geopandas as gpd
 from shapely import make_valid
-from shapely.geometry import shape
+from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -96,15 +96,40 @@ def compare_geometries(mask, reference, aoi, feature_count, geometry_repairs=0):
     epsg = metric_epsg(aoi)
     mask_clipped = project_to_metric(mask.intersection(aoi), epsg)
     reference_clipped = project_to_metric(reference.intersection(aoi), epsg)
-    intersection_area = mask_clipped.intersection(reference_clipped).area / 1_000_000
+    intersection = mask_clipped.intersection(reference_clipped)
+    system_only = mask_clipped.difference(reference_clipped)
+    reference_only = reference_clipped.difference(mask_clipped)
+    intersection_area = intersection.area / 1_000_000
     mask_area = mask_clipped.area / 1_000_000
     reference_area = reference_clipped.area / 1_000_000
     union_area = mask_clipped.union(reference_clipped).area / 1_000_000
     if min(mask_area, reference_area, union_area) <= 0:
         raise ValueError("AOI02 comparison contains an empty or zero-area geometry")
 
+    def difference_feature(geometry, classification, source):
+        if geometry.is_empty or geometry.area <= 0:
+            return None
+        geographic = gpd.GeoSeries([geometry], crs=f"EPSG:{epsg}").to_crs(
+            epsg=4326
+        ).iloc[0]
+        geographic = geographic.simplify(20, preserve_topology=True)
+        if geographic.is_empty:
+            return None
+        return {
+            "type": "Feature",
+            "properties": {"classification": classification, "source": source},
+            "geometry": mapping(geographic),
+        }
+
+    difference_features = [
+        feature for feature in (
+            difference_feature(system_only, "system_only", "NISAR GCOV"),
+            difference_feature(reference_only, "reference_only", "Copernicus EMS"),
+        ) if feature is not None
+    ]
     return {
         "reference": "Copernicus EMSR857 AOI02 Massiguita",
+        "reference_url": "https://mapping.emergency.copernicus.eu/activations/EMSR857/",
         "product": "FEP observedEventA, event_type 5-Flood",
         "acquisition_utc": "2026-01-17T03:19:00Z",
         "metric_crs": f"EPSG:{epsg}",
@@ -114,9 +139,12 @@ def compare_geometries(mask, reference, aoi, feature_count, geometry_repairs=0):
         "ems_flood_area_aoi_km2": round(reference_area, 3),
         "intersection_area_km2": round(intersection_area, 3),
         "union_area_km2": round(union_area, 3),
+        "system_only_area_km2": round(system_only.area / 1_000_000, 3),
+        "reference_only_area_km2": round(reference_only.area / 1_000_000, 3),
         "iou": round(intersection_area / union_area, 4),
         "overlap_fraction_nisar": round(intersection_area / mask_area, 4),
         "overlap_fraction_ems": round(intersection_area / reference_area, 4),
+        "difference_features": difference_features,
         "interpretation": (
             "Spatial agreement only, not ground truth: NISAR new water is relative "
             "to 2026-01-05; EMS maps semi-automatically extracted flooded area."
@@ -149,9 +177,22 @@ def main():
         stats["validation"] = compare_geometries(
             mask, reference, aoi, count, mask_repairs + reference_repairs
         )
+        differences = stats["validation"].pop("difference_features")
     except (OSError, KeyError, ValueError, BadZipFile) as exc:
         parser.error(f"could not validate EMSR857: {exc}")
 
+    difference_path = args.stats.parent / "validation_difference.geojson"
+    difference_path.write_text(
+        json.dumps(
+            {"type": "FeatureCollection", "features": differences},
+            ensure_ascii=False,
+        ) + "\n",
+        encoding="utf-8",
+    )
+    stats.setdefault("layers", {})["validation_difference"] = {
+        "type": "geojson",
+        "url": "/outputs/validation_difference.geojson",
+    }
     args.stats.write_text(
         json.dumps(stats, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
