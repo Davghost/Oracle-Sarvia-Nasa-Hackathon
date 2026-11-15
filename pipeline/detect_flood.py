@@ -145,16 +145,34 @@ def main():
     ap.add_argument("--min-pixels", type=int, default=8, help="drop water blobs smaller than this")
     ap.add_argument("--maturity", default="Pre-validation release (Beta or Provisional), L2 GCOV product version 1.0.2")
     a = ap.parse_args()
+    for tag in (a.before, a.during):
+        if tag not in GRANULES:
+            ap.error(f"unsupported scene tag {tag!r}; supported tags: {', '.join(sorted(GRANULES))}")
+    if a.before == a.during:
+        ap.error("--before and --during must identify different acquisitions")
+    if a.min_pixels < 1:
+        ap.error("--min-pixels must be at least 1")
+    if a.min_drop < 0 or a.loosen < 0:
+        ap.error("--min-drop and --loosen must be non-negative")
+    if any(value is not None and not np.isfinite(value) for value in (a.hh_thr, a.hv_thr, a.loosen, a.min_drop)):
+        ap.error("thresholds and sensitivity values must be finite")
     d, out, qa = Path(a.dir), Path(a.out), Path(a.qa)
     out.mkdir(parents=True, exist_ok=True); qa.mkdir(parents=True, exist_ok=True)
 
     # The four rasters must share the same grid: comparisons are pixel-wise and
     # `common` excludes any pixel lacking data in either date/polarization.
     arr = {}
+    grid = None
     for tag in (a.before, a.during):
         for pol in ("HH", "HV"):
-            arr[(tag, pol)], tr, crs = load(tag, pol, d)
-    px_km2 = abs(tr.a * tr.e) / 1e6
+            arr[(tag, pol)], current_tr, current_crs = load(tag, pol, d)
+            current_grid = (arr[(tag, pol)].shape, current_tr, current_crs)
+            if grid is None:
+                grid = current_grid
+            elif current_grid != grid:
+                raise SystemExit(f"{tag} {pol} raster grid differs from the other inputs; align shape, transform, and CRS first")
+    _, tr, crs = grid
+    px_km2 = abs(tr.a * tr.e - tr.b * tr.d) / 1e6
 
     t_hh = a.hh_thr if a.hh_thr is not None else water.valley_threshold(arr[(a.during, "HH")])
     t_hv = a.hv_thr if a.hv_thr is not None else water.valley_threshold(arr[(a.during, "HV")])
@@ -166,6 +184,10 @@ def main():
     common = np.ones(arr[(a.before, "HH")].shape, bool)
     for v in arr.values():
         common &= np.isfinite(v)
+    if not common.any():
+        raise SystemExit("the input rasters have no shared valid pixels; check that their coverage overlaps")
+    if not np.isfinite(px_km2) or px_km2 <= 0:
+        raise SystemExit("input raster has an invalid pixel area")
     print(f"pixels with data in both dates: {100 * common.mean():.1f}% of the window")
 
     # Both polarizations must be dark. The helper also removes isolated blobs
@@ -266,10 +288,20 @@ def main():
         "method": {
             "threshold_db": {"HH": round(t_hh, 1), "HV": round(t_hv, 1)},
             "speckle_filter": "4x4 multilook in linear power (40 m pixels)",
-            "notes": "Water = HH and HV both below threshold. Thresholds from the valley of the during-scene histogram. "
-                     "New flood = water(during) and not water(before). Pixel area counted only where both dates have data. "
-                     "Permanent open water has the same brightness in both dates (HH -18.4 vs -17.7 dB) while land is about 3 dB brighter on 17 Jan, "
-                     "so one absolute threshold is used. Moving the 5 Jan thresholds by the land-peak difference gives a higher estimate; both are reported.",
+            "loosen_db": round(a.loosen, 1),
+            "min_drop_db": round(a.min_drop, 1),
+            "sensitivity_scenarios_km2": {
+                "strict_absolute_thresholds": round(new_abs_km2, 1),
+                "selected_loosen": round(new_chosen_km2, 1),
+                "land_mode_adjusted_reference": round(new_rel_km2, 1),
+            },
+            "notes": "Água aberta detectável = HH e HV abaixo dos limiares, derivados do vale do histograma da cena durante a cheia. "
+                     "Mudança em água aberta detectável = água(durante) e não água(antes). A área considera apenas pixels com dados nas duas datas. "
+                     "A água permanente tem brilho semelhante nas duas datas (HH -18,4 vs. -17,7 dB), enquanto o terreno está cerca de 3 dB mais brilhante em 17/01; "
+                     "por isso é usado um limiar absoluto. A estimativa principal usa --loosen "
+                     f"{a.loosen:g} dB em pixels cujo HH escureceu pelo menos {a.min_drop:g} dB em relação à mudança global da cena. "
+                     "Os cenários de sensibilidade comparam limiares absolutos estritos, a configuração --loosen selecionada "
+                     "e uma referência ajustada pela moda terrestre; o mínimo e o máximo não são um intervalo de confiança estatístico.",
         },
         "layers": {
             "before": {"type": "image", "url": "/outputs/water_before.png", "bounds": bounds},
@@ -288,9 +320,9 @@ def main():
         },
         "limitations": [
             "NISAR data are provisional and may be reprocessed.",
-            "The first scene (5 Jan) was taken when flooding may already have started in places, so 'new water' means new compared with that date.",
-            "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
-            "Rough water (wind) and relief shadows can cause errors. Thresholds are heuristic; the optional EMSR857 AOI02 comparison is spatial agreement, not scientific validation or ground truth.",
+            "A cheia pode já ter começado em alguns locais na primeira cena (05/01); água aberta detectável adicional significa mudança em relação a essa data.",
+            "Florestas e plantações inundadas podem aparecer brilhantes ao radar e provavelmente não são capturadas por um limiar de escurecimento.",
+            "Vento e sombras de relevo podem causar erros. Os limiares são heurísticos; a comparação EMSR857 AOI02 mede concordância espacial, não validação científica nem verdade-terreno. As classificações representam impacto potencial, não dano confirmado.",
         ],
     }
     (out / "stats.json").write_text(json.dumps(stats, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
