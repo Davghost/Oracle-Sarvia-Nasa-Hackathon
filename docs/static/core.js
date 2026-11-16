@@ -33,7 +33,10 @@ function setStatus(text) {
 }
 
 // ----- map and basemaps
-const map = L.map('map', {zoomSnap: 0.25, preferCanvas: true, zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false});
+// Keep the view on Africa and its surroundings: no zooming out to repeated world copies.
+const AFRICA_BOUNDS = L.latLngBounds([[-45, -30], [42, 65]]);
+const map = L.map('map', {zoomSnap: 0.25, preferCanvas: true, zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false,
+                          minZoom: 3, maxBounds: AFRICA_BOUNDS, maxBoundsViscosity: 1, worldCopyJump: false});
 const mapConfig = Object.assign({
   satellite: true,
   hybrid: true,
@@ -42,7 +45,7 @@ const mapConfig = Object.assign({
   hybrid_labels_url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
 }, window.SARVIA_MAP_CONFIG || {});
 mapConfig.attribution = Object.assign({satellite: '&copy; Esri', hybrid: '&copy; Esri | &copy; OpenStreetMap contributors'}, mapConfig.attribution || {});
-const tileOptions = {maxZoom: 19, updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 2};
+const tileOptions = {maxZoom: 19, minZoom: 3, noWrap: true, bounds: AFRICA_BOUNDS, updateWhenZooming: false, updateWhenIdle: true, keepBuffer: 2};
 
 // id, full name, short label for the thumbnail picker, Leaflet layer
 const BASEMAPS = [
