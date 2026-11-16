@@ -1,4 +1,4 @@
-"""Quick-look images to calibrate water detection (T11). Reads the dB GeoTIFFs from make_db.py.
+"""Create quick-look images from the dB GeoTIFFs produced by make_db.py.
 
 Writes small PNGs to docs/preview/ (safe to commit):
   falsecolor_<tag>.png   R=HH, G=HV, B=HH-HV (approximation of NASA's false color, to be checked)

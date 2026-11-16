@@ -11,7 +11,8 @@ produto AOI02 Massiguita, tipo FEP, imagem Sentinel-1 adquirida em
 
 O catálogo oficial identifica a ativação como inundação em Moçambique e África
 do Sul, com hora de início em 17/01/2026 07:38 UTC, e lista o produto acima sob
-a AOI Massiguita. A geometria da AOI intersecta o polígono de água nova
+a AOI Massiguita. A geometria da AOI intersecta o polígono de água aberta
+detectável adicional
 disponível neste checkout. A aquisição do Sentinel-1 é do mesmo dia da cena
 NISAR de 17/01/2026 às 03:42 UTC, aproximadamente 23 minutos antes. Esta
 proximidade temporal e a interseção espacial fazem deste o melhor candidato
@@ -55,12 +56,13 @@ foram lidos no recorte da área. `pipeline/make_db.py` gerou os rasters 40 m em
 
 ## Limites e próximos passos
 
-Foi feita uma comparação espacial entre a máscara de água nova do NISAR,
+Foi feita uma comparação espacial entre a máscara de água aberta detectável
+adicional do NISAR,
 reprocessada dos HDF5 originais, e a camada vetorial `observedEventA` da AOI02:
 
 | Medida na AOI02 | Resultado |
 |---|---:|
-| Área NISAR de água nova | 66,798 km² |
+| Área NISAR de água aberta detectável adicional | 66,798 km² |
 | Área EMS de inundação observada | 93,048 km² |
 | Interseção | 50,483 km² |
 | União | 109,364 km² |
@@ -74,13 +76,15 @@ Método: foram selecionadas as 811 feições da camada com
 AOI02 e projetadas para UTM 36S (EPSG:32736) para calcular áreas e interseção.
 O limite AOI02 é identificado no pacote como “First Estimate Product”. A
 execução `detect_flood.py --loosen 3` reproduziu exatamente o contrato
-atualmente publicado: 982,5 km² de água nova no estudo, intervalo
-709,5–1.455,6 km² e 972,0 km² de água permanente. A execução estrita sem
+atualmente publicado: 982,5 km² de mudança em água aberta detectável com
+`--loosen 3`, cenários de sensibilidade de 709,5–1.455,6 km² e 972,0 km² de
+água permanente. A execução estrita sem
 `--loosen` produz 709,5 km² e não foi usada nesta comparação.
 
 **Interpretação:** os números medem concordância geométrica entre esses dois
 vetores, não acurácia científica. O produto EMS é uma extração semiautomática
-de inundação, não verdade-terreno. A máscara NISAR representa “água nova” em
+de inundação, não verdade-terreno. A máscara NISAR representa mudança em
+“água aberta detectável” em
 relação a 5 de janeiro, enquanto a camada EMS mapeia área inundada; diferenças
 de classe, cobertura e método impedem tratar comissão/omissão como erros
 absolutos. O resultado é uma comparação quantitativa reproduzível com o vetor

@@ -46,7 +46,14 @@
       "HV": -21.4
     },
     "speckle_filter": "4x4 multilook in linear power (40 m pixels)",
-    "notes": "Water = HH and HV both below threshold. Thresholds from the valley of the during-scene histogram. New flood = water(during) and not water(before). Pixel area counted only where both dates have data. Permanent open water has the same brightness in both dates (HH -18.4 vs -17.7 dB) while land is about 3 dB brighter on 17 Jan, so one absolute threshold is used. Moving the 5 Jan thresholds by the land-peak difference gives a higher estimate; both are reported."
+    "loosen_db": 3.0,
+    "min_drop_db": 3.0,
+    "sensitivity_scenarios_km2": {
+      "strict_absolute_thresholds": 709.5,
+      "selected_loosen": 982.5,
+      "land_mode_adjusted_reference": 1455.6
+    },
+    "notes": "Água aberta detectável = HH e HV abaixo dos limiares. Os limiares vêm do vale do histograma da cena durante a cheia. Mudança em água aberta detectável = water(during) AND NOT water(before). A área considera apenas pixels com dados nas duas datas. A estimativa principal usa --loosen 3 dB em pixels cujo HH escureceu pelo menos 3 dB em relação à mudança global da cena. Os cenários de sensibilidade comparam limiar absoluto estrito, configuração --loosen selecionada e referência ajustada pela moda terrestre; mínimo e máximo não são intervalo de confiança estatístico."
   },
   "layers": {
     "before": {
@@ -88,6 +95,62 @@
     "validation_difference": {
       "type": "geojson",
       "url": "outputs/validation_difference.geojson"
+    },
+    "timeline_20251212": {
+      "type": "image",
+      "url": "outputs/water_timeline_20251212.png",
+      "bounds": [
+        [
+          -26.00341,
+          31.98362
+        ],
+        [
+          -23.99668,
+          33.508
+        ]
+      ]
+    },
+    "timeline_20251224": {
+      "type": "image",
+      "url": "outputs/water_timeline_20251224.png",
+      "bounds": [
+        [
+          -26.00341,
+          31.98362
+        ],
+        [
+          -23.99668,
+          33.508
+        ]
+      ]
+    },
+    "timeline_20260105": {
+      "type": "image",
+      "url": "outputs/water_timeline_20260105.png",
+      "bounds": [
+        [
+          -26.00341,
+          31.98362
+        ],
+        [
+          -23.99668,
+          33.508
+        ]
+      ]
+    },
+    "timeline_20260117": {
+      "type": "image",
+      "url": "outputs/water_timeline_20260117.png",
+      "bounds": [
+        [
+          -26.00341,
+          31.98362
+        ],
+        [
+          -23.99668,
+          33.508
+        ]
+      ]
     }
   },
   "routing": {
@@ -113,9 +176,9 @@
   },
   "limitations": [
     "NISAR data are provisional and may be reprocessed.",
-    "The first scene (5 Jan) was taken when flooding may already have started in places, so 'new water' means new compared with that date.",
+    "A cheia pode já ter começado em alguns locais na primeira cena (05/01); água aberta detectável adicional significa mudança em relação a essa data.",
     "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
-    "Rough water (wind) and relief shadows can cause errors. Thresholds are heuristic; the optional EMSR857 AOI02 comparison is spatial agreement, not scientific validation or ground truth."
+    "Vento e sombras de relevo podem causar erros. Os limiares são heurísticos; a comparação EMSR857 AOI02 mede concordância espacial, não validação científica nem verdade-terreno. As classificações representam impacto potencial, não dano confirmado."
   ],
   "validation": {
     "reference": "Copernicus EMSR857 AOI02 Massiguita",
@@ -134,7 +197,7 @@
     "iou": 0.4616,
     "overlap_fraction_nisar": 0.7557,
     "overlap_fraction_ems": 0.5425,
-    "interpretation": "Spatial agreement only, not ground truth: NISAR new water is relative to 2026-01-05; EMS maps semi-automatically extracted flooded area."
+    "interpretation": "Concordância espacial, não verdade-terreno: a mudança em água aberta detectável pelo NISAR é relativa a 05/01/2026; o EMS mapeia área inundada por extração semiautomática. São estimativas de impacto potencial."
   },
   "impact": {
     "categories": {
@@ -316,6 +379,99 @@
     "license": "© OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
     "radar_date": "2026-01-17",
     "estimated_at_utc": "2026-11-15T16:22:48+00:00",
-    "method": "Each mapped element gets one state from the new water the radar saw on the flood date: on new water; cut off (no dry road from the main road network); within 250 m of new water; dry road access; no mapped road link; or outside the radar footprint. Potentially affected, not confirmed damage."
+    "method": "Cada elemento mapeado recebe um estado de impacto potencial baseado na água aberta detectável pelo radar: sobre água detectável; com possível isolamento pela rede viária mapeada; a até 250 m da água detectável; acesso por via sem água detectada; sem ligação viária mapeada; ou fora da cobertura do radar. São estimativas, não dano ou isolamento confirmados."
+  },
+  "timeline": {
+    "reference_date": "2025-12-12",
+    "track": 114,
+    "frame": 165,
+    "direction": "ascending",
+    "resolution_m": 40.0,
+    "common_coverage_pct": 67.17,
+    "common_coverage_area_km2": 22732.6,
+    "threshold_reference_date": "2026-01-17",
+    "observations": [
+      {
+        "date": "2025-12-12",
+        "tag": "20251212",
+        "granule": "NISAR_L2_PR_GCOV_007_114_A_165_4005_DHDH_A_20251212T034230_20251212T034252_X05010_N_P_J_001",
+        "role": "earliest compatible observation in this series",
+        "layer": "timeline_20251212",
+        "water_area_km2": 480.7,
+        "new_vs_reference_km2": 0.0,
+        "receded_vs_reference_km2": 0.0,
+        "net_change_vs_reference_km2": 0.0,
+        "threshold_db": {
+          "HH": -17.85,
+          "HV": -23.65
+        },
+        "valid_coverage_pct": 70.36
+      },
+      {
+        "date": "2025-12-24",
+        "tag": "20251224",
+        "granule": "NISAR_L2_PR_GCOV_008_114_A_165_4005_DHDH_A_20251224T034231_20251224T034253_X05010_N_P_J_001",
+        "role": "additional observation",
+        "layer": "timeline_20251224",
+        "water_area_km2": 504.8,
+        "new_vs_reference_km2": 137.1,
+        "receded_vs_reference_km2": 113.0,
+        "net_change_vs_reference_km2": 24.1,
+        "threshold_db": {
+          "HH": -16.6,
+          "HV": -23.4
+        },
+        "valid_coverage_pct": 69.78
+      },
+      {
+        "date": "2026-01-05",
+        "tag": "20260105",
+        "granule": "NISAR_L2_PR_GCOV_009_114_A_165_4005_DHDH_A_20260105T034232_20260105T034253_X05010_N_P_J_001",
+        "role": "primary-analysis reference observation",
+        "layer": "timeline_20260105",
+        "water_area_km2": 538.5,
+        "new_vs_reference_km2": 169.9,
+        "receded_vs_reference_km2": 112.1,
+        "net_change_vs_reference_km2": 57.8,
+        "threshold_db": {
+          "HH": -17.6,
+          "HV": -23.65
+        },
+        "valid_coverage_pct": 67.27
+      },
+      {
+        "date": "2026-01-17",
+        "tag": "20260117",
+        "granule": "NISAR_L2_PR_GCOV_010_114_A_165_4005_DHDH_A_20260117T034232_20260117T034254_X05010_N_P_J_001",
+        "role": "primary-analysis during-event observation",
+        "layer": "timeline_20260117",
+        "water_area_km2": 1679.4,
+        "new_vs_reference_km2": 1243.2,
+        "receded_vs_reference_km2": 44.5,
+        "net_change_vs_reference_km2": 1198.7,
+        "threshold_db": {
+          "HH": -14.6,
+          "HV": -21.4
+        },
+        "valid_coverage_pct": 70.18
+      }
+    ],
+    "method": "Strict HH/HV water threshold anchored to the Jan 17 histogram; each date's thresholds are shifted by its land-mode difference to compensate for scene-wide radiometric offsets. Area is counted only on pixels with valid HH/HV data in all four acquisitions; isolated blobs under 8 pixels are removed. This exploratory series is separate from the primary Jan 5–17 flooded_area_km2 result and does not apply the loosened sensitivity variant.",
+    "visual_encoding": {
+      "persistent": "water in both the Dec 12 reference and selected acquisition",
+      "new": "water in selected acquisition but not the Dec 12 reference",
+      "receded": "water in the Dec 12 reference but not the selected acquisition"
+    },
+    "limitation": "The compatible same-track series ends on Jan 17, 2026 in the ASF search used for this build. It shows observed changes up to that date only; it does not show post-event recession or interpolate between acquisitions.",
+    "bounds": [
+      [
+        -26.00341,
+        31.98362
+      ],
+      [
+        -23.99668,
+        33.508
+      ]
+    ]
   }
 }

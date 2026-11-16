@@ -21,16 +21,16 @@ justamente quando as equipes de resgate mais precisam dessa informação. O
 radar SAR produz o próprio sinal, funciona de dia e de noite e atravessa
 nuvens. Este projeto transforma duas cenas de radar em duas coisas:
 
-1. **Rotas de resgate:** como chegar a um ponto alagado combinando carro,
-   barco e caminhada, evitando as vias que o radar mostra debaixo d'água.
-2. **O mapa da cheia:** uma narrativa curta que explica o que o radar vê,
-   com a água antes, a água durante e a água nova estimada.
+1. **O mapa da cheia:** uma narrativa curta que explica o que o radar vê,
+   com água aberta detectável antes e durante a cheia e a mudança estimada.
+2. **Impact & routes:** uma ferramenta separada para explorar exposição
+   potencial e testar rotas experimentais no mapa.
 
 ## Rotas de resgate (funcionalidade principal)
 
 ### Como usar
 
-1. Abra o app e vá ao passo **5, "Plan a rescue route"**.
+1. Abra **Impact & routes** e selecione **Explore routes**.
 2. Clique no mapa para marcar a **base da equipe** e depois o **destino**. A
    rota é calculada no segundo clique. Também dá para digitar `lon, lat`.
 3. Escolha o que a equipe tem: **"Car and boat"** (padrão) ou **"Car only"**.
@@ -47,7 +47,7 @@ próximo clique define, e o botão de inverter troca base e destino.
 | Opção | Quando aparece |
 |---|---|
 | **Car and boat** | O destino está na água, ou o barco chega mais rápido que qualquer rota seca. Mostra o ponto de lançamento, os metros de carro, barco e caminhada, e os trechos em que o barco é arrastado por faixas secas. |
-| **Dry roads only** | Existe caminho de carro sem passar por água nova. |
+| **Dry roads only** | Existe caminho de carro sem cruzar água aberta detectável. |
 | **Other dry road** | Até duas alternativas secas diferentes da principal. |
 | **Least water by road** | Nenhuma rota de carro escapa da água; mostra a que cruza menos. |
 | **Fastest road** | Referência: o caminho mais rápido ignorando a cheia, com os trechos alagados em vermelho. Marcado como não transitável quando cruza água. |
@@ -84,7 +84,7 @@ só lê o resultado.
    pela classe da via, `maxspeed` e piso não pavimentado) e o sentido
    (`oneway`, rotatórias, autoestradas).
 2. **Água nas vias.** Cada segmento é amostrado a cada 10 m contra a máscara
-   de água nova do radar, na grade original de 40 m. O resultado são os
+   de água aberta detectável pelo radar, na grade original de 40 m. O resultado são os
    metros alagados de cada trecho e onde a água começa e termina. Pontes
    ficam de fora, porque o radar mede a água por baixo delas.
 3. **Água para o barco.** Toda a água da data da cheia (rios, lagoas e água
@@ -113,35 +113,44 @@ só lê o resultado.
    caros e a busca se repete. Ficam só rotas até 50% mais lentas que a
    melhor e que repetem no máximo 70% do caminho.
 
-## O mapa da cheia (narrativa)
+## A história e a ferramenta
 
-Os passos 1 a 4 explicam os dados que alimentam as rotas:
+A história mantém três passos narrativos:
 
 1. **Clouds:** nuvens cobrem o mapa, como o satélite óptico viu a cheia.
 2. **Radar:** as nuvens somem e aparece a água que o radar encontrou em
    5 de janeiro.
-3. **New water:** cortina antes/depois e a área de água nova (982,5 km²,
-   intervalo de 709,5 a 1.455,6 km²).
-4. **Impact and validation:** mapa de impacto acionável (abaixo), comparação
-   espacial com a referência Copernicus EMSR857 e limitações. A comparação
-   mostra IoU e polígonos exclusivos de cada produto; é concordância espacial,
-   não verdade-terreno.
+3. **Água aberta detectável:** timeline navegável de quatro aquisições NISAR
+   entre 12/12 e 17/01, além da cortina antes/depois e da estimativa principal
+   de água aberta detectável (982,5 km²). A estimativa principal usa
+   `--loosen 3`; a faixa de 709,5–1.455,6 km² reúne cenários de sensibilidade
+   do limiar, não um intervalo de confiança estatístico.
+Ao final, **Impact & routes** abre uma página própria com duas abas e um mapa
+compartilhado:
 
-### Mapa de impacto (passo 4)
+- **Potential impacts:** exposição potencial em OSM, comparação espacial com
+  Copernicus EMSR857 e limitações. O IoU mede concordância espacial, não
+  verdade-terreno.
+- **Explore routes:** planejador experimental servido pelo Flask; no GitHub
+  Pages, a interface explica que não há backend para calcular rotas.
+
+### Aba Potential impacts
 
 Escolas, saúde, comunidades (lugares nomeados e aglomerados de 10+
-edificações) e pontes do OpenStreetMap, cada um com um estado exclusivo: na
-água nova; isolado por estrada (sem via seca alcançável a pé, até 500 m sem
+edificações) e pontes do OpenStreetMap, cada um com um estado exclusivo:
+sobre água aberta detectável; com impacto potencial de isolamento pela rede
+viária (sem via mapeada sem água detectada alcançável a pé, até 500 m sem
 atravessar água, que leve à rede principal); perto da água (até 250 m, a
 mesma distância em que o planejador de rotas considera um ponto alcançável
 por barco); acessível; sem via mapeada; fora da cobertura do radar (só 67% do
 bbox tem dado nas duas datas; Maputo fica fora). Clicar num elemento abre o
 estado explicado e o botão **Rescue route to here** (e, para comunidades
 isoladas, a rota a partir da unidade de saúde acessível mais próxima). No
-site estático o mapa funciona, sem os botões de rota. "Afetado" é potencial,
-segundo a água de 17/01/2026, não dano confirmado.
+site estático o mapa funciona, sem os botões de rota. Os estados indicam
+impacto potencial segundo a água aberta detectável em 17/01/2026, não dano
+ou isolamento confirmados.
 
-| Categoria | Total | Na água | Isolado | Perto | Acessível | Sem via | Fora do radar |
+| Categoria | Total | Água detectável | Possível isolamento | Perto | Acessível | Sem via | Fora do radar |
 |---|---|---|---|---|---|---|---|
 | Escolas | 479 | 0 | 130 | 3 | 8 | 10 | 328 |
 | Saúde | 170 | 0 | 35 | 2 | 16 | 1 | 116 |
@@ -149,14 +158,23 @@ segundo a água de 17/01/2026, não dano confirmado.
 | Pontes | 244 | 33 | 56 | 1 | 8 | 0 | 146 |
 
 Edificações (footprints, não população): 707.967 no bbox; 2.345 sobre água
-nova, 137.948 isoladas por estrada, 3.937 perto da água. Vias sobre água
-nova: 370,6 km (13,6 primárias/troncais, 8,2 secundárias, 8,9 terciárias,
+aberta detectável, 137.948 com impacto potencial de isolamento segundo a
+rede mapeada, 3.937 perto da água. Vias sobre água aberta detectável: 370,6
+km (13,6 primárias/troncais, 8,2 secundárias, 8,9 terciárias,
 168,2 locais, 171,6 trilhas). O isolamento não vem de ruído do radar: tolerar
 40 m de água por trecho muda só 161 cruzamentos; a cheia parte a rede em
 ilhas secas (Chókwè, região de Magude) separadas da rede ligada a Maputo.
 
-A detecção é explicável: um pixel é água quando HH e HV ficam abaixo dos
-limiares; água nova é `water(during) AND NOT water(before)`.
+A detecção é explicável: um pixel é classificado como água aberta detectável
+quando HH e HV ficam abaixo dos limiares; a mudança detectada é
+`water(during) AND NOT water(before)`.
+
+A timeline usa observações reais do mesmo track/frame, compara cada data a
+12/12/2025 e avança somente entre aquisições; não interpola cenas. Sua máscara
+usa limiar estrito e a cobertura válida comum às quatro datas (67,17%), então
+seus valores são distintos da estimativa principal. A série termina em
+17/01/2026; não há uma observação compatível posterior para mostrar o recuo da
+água. Veja os detalhes em [Dados e métodos](docs/technical/data_and_methods.md).
 
 ## Instalação
 
@@ -197,7 +215,8 @@ python pipeline\prepare_network.py --download
 ```
 
 1. `detect_flood.py --loosen 3` reproduz o resultado publicado e grava, além
-   dos overlays, `outputs/flood_new_water.tif` (água nova, usada para saber
+   dos overlays, `outputs/flood_new_water.tif` (água aberta detectável na
+   segunda cena e ausente na referência, usada para saber
    quais vias estão alagadas) e `outputs/water_during.tif` (toda a água na
    data da cheia, usada pelo barco).
 2. `prepare_network.py --download` baixa o extrato OpenStreetMap de
@@ -282,7 +301,7 @@ Todo processamento pesado é offline. As requisições web não abrem HDF5, não
 baixam dados e não usam bibliotecas de geometria: o motor de rotas roda só
 com NumPy e SciPy sobre a rede compilada.
 
-Opcionais do pipeline: `osm_impact.py` (mapa de impacto do passo 4, lido do
+Opcionais do pipeline: `osm_impact.py` (mapa de impacto da ferramenta, lido do
 mesmo extrato OSM local, sem internet) e `validate_reference.py` (comparação
 com o vetor Copernicus EMSR857 AOI02).
 
@@ -302,8 +321,8 @@ com o vetor Copernicus EMSR857 AOI02).
   máscaras GeoTIFF.
 - `pipeline/gcov_reader.py`, `make_db.py`, `water.py`: leitura do HDF5,
   recorte e operações em dB.
-- `pipeline/osm_impact.py`: mapa de impacto (escolas, saúde, comunidades,
-  pontes e vias sobre água nova) a partir do extrato OSM local.
+- `pipeline/osm_impact.py`: mapa de impacto potencial (escolas, saúde,
+  comunidades, pontes e vias sobre água aberta detectável) a partir do extrato OSM local.
 - `pipeline/validate_reference.py`, `preview.py`: comparação EMSR857 e QA.
 - `pipeline/download_gcov.py`, `inspect_h5.py`, `build_static.py`: download,
   inspeção do HDF5 e cópia estática.
@@ -370,9 +389,10 @@ python pipeline\build_static.py
 python -m http.server 8000 --directory docs
 ```
 
-A cópia estática mostra a narrativa da cheia (passos 1 a 4). **As rotas de
-resgate precisam do servidor**, então o passo 5 é retirado automaticamente
-nessa versão. Gere a cópia só com `outputs/stats.json` real (`mock: false`).
+A cópia estática mostra a história e os overlays pré-gerados. **O cálculo
+de rotas precisa do servidor Flask**: no Pages, a aba Explore routes informa
+essa limitação e não oferece cálculo. Gere a cópia só com `outputs/stats.json`
+real (`mock: false`).
 Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
 
 ## Ligar satélite, híbrido e NDVI em produção
@@ -464,6 +484,10 @@ atribuição e a mesma licença. A atribuição também está em
 - **Detecção:** limiares heurísticos; água com vegetação, vento, sombras de
   relevo e solo úmido geram erros. A cena de 5 de janeiro pode já ter áreas
   alagadas. A comparação EMSR857 (IoU 0,46) não é verdade-terreno.
+- **Timeline:** quatro aquisições co-registradas mostram a evolução observada
+  até 17/01. A série não tem uma cena posterior compatível para medir o recuo;
+  não interpola datas e usa um indicador estrito distinto da estimativa
+  principal.
 - Mapa de impacto: o OSM rural é incompleto (só 53 lugares nomeados de
   vilarejo para cima no bbox); ausência no mapa não é ausência de gente. As
   rotas e o mapa tratam como secas as vias fora da cobertura do radar. O
@@ -491,3 +515,15 @@ que será modificado. Não versione credenciais, tokens, HDF5 nem o extrato OSM
 (`data/osm/`). A rede compilada é versionada de propósito; ao recompilá-la,
 confira o tamanho (deve ficar bem abaixo de 50 MB). Registre usos de IA em
 [`AI_USAGE_LOG.md`](AI_USAGE_LOG.md).
+
+## Documentação especializada
+
+Este README é a visão principal do projeto e reúne instalação, uso,
+funcionamento, resultados e limitações. Para aprofundar por público e nível
+técnico, consulte:
+
+- [Índice da documentação](docs/README.md)
+- [Visão do projeto](docs/project_overview.md) e [conceitos](docs/concepts.md)
+- [Guia de uso](docs/user_guide.md)
+- [Documentação técnica](docs/technical/README.md)
+- [Revisão de prontidão para avaliação](docs/project_review.md)

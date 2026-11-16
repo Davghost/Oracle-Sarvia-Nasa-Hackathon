@@ -1,11 +1,7 @@
 import json
 import shutil
 import sys
-import threading
-from functools import partial
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.request import urlopen
 
 import pytest
 
@@ -15,52 +11,38 @@ sys.path.insert(0, str(ROOT / "pipeline"))
 import build_static  # noqa: E402
 
 
-class QuietHandler(SimpleHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass
-
-
 def test_static_site_serves_pages_stats_and_prebuilt_layers():
-    handler = partial(QuietHandler, directory=str(DOCS))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever)
-    thread.start()
-    base_url = f"http://127.0.0.1:{server.server_port}"
+    page = (DOCS / "index.html").read_text(encoding="utf-8")
+    workspace = (DOCS / "workspace.html").read_text(encoding="utf-8")
+    assert 'window.STATS_URL = "stats.json"' in page
+    assert "static/app.js" in page
+    assert "Comparação com mapa independente" in page
+    assert "O que a inundação pode alcançar" in page
+    assert "OpenStreetMap contributors" in page
+    assert 'lang="pt"' in workspace
+    assert "Explore impactos e rotas" in workspace
+    assert 'id="route-osm-date"' in workspace
+    assert 'id="validation-note"' in workspace
 
-    try:
-        with urlopen(f"{base_url}/") as response:
-            page = response.read().decode("utf-8")
-            assert response.status == 200
-            assert 'window.STATS_URL = "stats.json"' in page
-            assert "static/app.js" in page
-            assert "Independent map comparison" in page
-            assert "What the flood may reach" in page
-            assert "OpenStreetMap contributors" in page
+    stats = json.loads((DOCS / "stats.json").read_text(encoding="utf-8"))
+    assert stats["mock"] is False
+    assert stats["validation"]["iou"] == 0.4616
+    assert stats["impact"]["categories"]["school"]["total"] > 0
+    assert {"impact_features", "impact_roads", "validation_difference"} <= set(stats["layers"])
+    for layer in stats["layers"].values():
+        asset = DOCS / layer["url"]
+        assert asset.is_file()
+        if layer["type"] == "geojson":
+            assert json.loads(asset.read_text(encoding="utf-8"))["type"] == "FeatureCollection"
+        elif layer["type"] != "image":
+            pytest.fail(f"unsupported static layer type: {layer['type']}")
+    assert (DOCS / "how-to-read-radar.html").is_file()
 
-        with urlopen(f"{base_url}/stats.json") as response:
-            stats = json.load(response)
-            assert response.status == 200
-            assert stats["mock"] is False
-            assert stats["validation"]["iou"] == 0.4616
-            assert stats["impact"]["categories"]["school"]["total"] > 0
-            assert {"impact_features", "impact_roads", "validation_difference"} <= set(stats["layers"])
-
-        for layer in stats["layers"].values():
-            with urlopen(f"{base_url}/{layer['url']}") as response:
-                assert response.status == 200
-                if layer["type"] == "image":
-                    assert response.headers["Content-Type"] == "image/png"
-                elif layer["type"] == "geojson":
-                    assert json.loads(response.read())["type"] == "FeatureCollection"
-                else:
-                    pytest.fail(f"unsupported static layer type: {layer['type']}")
-
-        with urlopen(f"{base_url}/how-to-read-radar.html") as response:
-            assert response.status == 200
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join()
+    # Exercise the Flask workspace route without binding a local TCP socket.
+    response = build_static.app.test_client().get("/workspace")
+    assert response.status_code == 200
+    assert b"Explore impactos e rotas" in response.data
+    assert b'id="route-osm-date"' in response.data
 
 
 def test_static_build_copies_optional_geojson_layer(tmp_path, monkeypatch):

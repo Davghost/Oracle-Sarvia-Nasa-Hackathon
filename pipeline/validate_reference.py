@@ -109,10 +109,10 @@ def compare_geometries(mask, reference, aoi, feature_count, geometry_repairs=0):
     def difference_feature(geometry, classification, source):
         if geometry.is_empty or geometry.area <= 0:
             return None
-        geographic = gpd.GeoSeries([geometry], crs=f"EPSG:{epsg}").to_crs(
+        simplified = geometry.simplify(10, preserve_topology=True)
+        geographic = gpd.GeoSeries([simplified], crs=f"EPSG:{epsg}").to_crs(
             epsg=4326
         ).iloc[0]
-        geographic = geographic.simplify(20, preserve_topology=True)
         if geographic.is_empty:
             return None
         return {
@@ -146,8 +146,9 @@ def compare_geometries(mask, reference, aoi, feature_count, geometry_repairs=0):
         "overlap_fraction_ems": round(intersection_area / reference_area, 4),
         "difference_features": difference_features,
         "interpretation": (
-            "Spatial agreement only, not ground truth: NISAR new water is relative "
-            "to 2026-01-05; EMS maps semi-automatically extracted flooded area."
+            "Concordância espacial, não verdade-terreno: a mudança em água aberta "
+            "detectável pelo NISAR é relativa a 05/01/2026; o EMS mapeia área "
+            "inundada por extração semiautomática. São estimativas de impacto potencial."
         ),
     }
 

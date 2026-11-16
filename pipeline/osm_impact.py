@@ -6,17 +6,18 @@ Run after ``detect_flood.py`` and ``prepare_network.py``:
 
 It reads schools, health facilities, named places, building footprints and road
 bridges from the Geofabrik ``.osm.pbf`` already used for the route network (no
-Overpass, no internet) and gives every element one state, from the water the
-radar saw on the flood date:
+Overpass, no internet) and gives every element one potential-impact state,
+based on open water detectable by radar on the flood date:
 
-  in_water      the point, or part of the mapped area, is on new flood water
-                (for bridges: every road leaving one end is flooded within
+  in_water      the point, or part of the mapped area, overlaps detectable
+                open water (for bridges: every road leaving one end intersects
                 BRIDGE_APPROACH_M of the bridge; the bridge deck itself is not
                 tested because the radar sees the water under it)
-  isolated      out of the water, but no car can reach it from the main road
-                network on dry roads: every way in crosses new water
-  near_water    within NEAR_WATER_M of new water and still reachable on dry roads
-  accessible    a dry road links it to the main road network
+  isolated      no mapped route from the main road network avoids detectable
+                open water
+  near_water    within NEAR_WATER_M of detectable open water and still
+                reachable by mapped roads without detected water
+  accessible    a mapped road without detected water links it to the main road network
   no_road       no mapped drivable road within ROAD_SNAP_M, or its roads are not
                 linked to the main network in OpenStreetMap (a gap in the map,
                 not something the flood did)
@@ -31,9 +32,9 @@ touching CLUSTER_CELL_M grid cells. Building counts come straight from the
 footprints; nothing here estimates population.
 
 Outputs (small, versioned): ``outputs/impact_features.geojson`` (one point per
-element), ``outputs/impact_roads.geojson`` (road stretches on new water) and
-the ``impact`` block of ``outputs/stats.json``. "Affected" means *potentially*
-affected according to the radar water of the flood date, not confirmed damage.
+element), ``outputs/impact_roads.geojson`` (mapped road stretches intersecting
+detectable open water) and the ``impact`` block of ``outputs/stats.json``.
+These are potential impacts estimated from radar data, not confirmed damage.
 """
 import argparse
 import json
@@ -822,10 +823,11 @@ def main(argv=None):
         "license": OSM_LICENSE,
         "radar_date": stats["scenes"]["during"]["date"],
         "estimated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "method": ("Each mapped element gets one state from the new water the radar saw on the flood date: "
-                   "on new water; cut off (no dry road from the main road network); within "
-                   f"{NEAR_WATER_M:.0f} m of new water; dry road access; no mapped road link; or outside the "
-                   "radar footprint. Potentially affected, not confirmed damage."),
+        "method": ("Each mapped element gets one potential-impact state from open water detectable by radar "
+                   "on the flood date: overlaps detectable open water; potentially isolated by mapped roads; "
+                   f"within {NEAR_WATER_M:.0f} m of detectable open water; mapped road access without detected "
+                   "water; no mapped road link; or outside the radar footprint. These are estimates, not "
+                   "confirmed damage or isolation."),
     })
 
     args.out.mkdir(parents=True, exist_ok=True)

@@ -24,8 +24,8 @@ def write(path, arr):
 def test_detect_flood_end_to_end(tmp_path):
     rng = np.random.default_rng(2)
     n = 400
-    for tag, shift, boxes in (("a", 0.0, [(50, 100, 50, 100)]),                       # permanent water
-                              ("b", 3.0, [(50, 100, 50, 100), (200, 300, 150, 250)])):  # + new flood, land +3 dB
+    for tag, shift, boxes in (("20260105", 0.0, [(50, 100, 50, 100)]),                       # permanent water
+                              ("20260117", 3.0, [(50, 100, 50, 100), (200, 300, 150, 250)])):  # + new flood, land +3 dB
         for pol, land in (("HH", -9.0), ("HV", -16.0)):
             arr = land + shift + rng.normal(0, 1.2, (n, n))
             for r0, r1, c0, c1 in boxes:
@@ -33,16 +33,16 @@ def test_detect_flood_end_to_end(tmp_path):
             arr[:6] = np.nan
             write(tmp_path / f"{tag}_{pol}_db.tif", arr)
     out, qa = tmp_path / "out", tmp_path / "qa"
-    r = subprocess.run([sys.executable, str(SCRIPT), "--before", "a", "--during", "b", "--dir", str(tmp_path),
+    r = subprocess.run([sys.executable, str(SCRIPT), "--before", "20260105", "--during", "20260117", "--dir", str(tmp_path),
                         "--out", str(out), "--qa", str(qa)], capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
-    s = json.loads((out / "stats.json").read_text())
+    s = json.loads((out / "stats.json").read_text(encoding="utf-8"))
     px = 40 * 40 / 1e6
     assert abs(s["flooded_area_km2"] - 100 * 100 * px) < 0.1 * 100 * 100 * px      # new box, within 10%
     assert abs(s["permanent_water_km2"] - 50 * 50 * px) < 0.1 * 50 * 50 * px
     assert s["layers"]["during"]["type"] == "image" and len(s["layers"]["during"]["bounds"]) == 2
     assert (out / "water_during.png").exists() and (qa / "flood_qa.png").exists()
-    extent = json.loads((out / "flood_extent.geojson").read_text())
+    extent = json.loads((out / "flood_extent.geojson").read_text(encoding="utf-8"))
     assert extent["features"][0]["properties"]["classification"] == "new_water"
     assert extent["features"][0]["geometry"]["type"] in ("Polygon", "MultiPolygon")
 
@@ -51,10 +51,10 @@ def test_loosen_adds_darker_pixels(tmp_path):
     rng = np.random.default_rng(4)
     n = 400
     boxes = {"strict": (50, 100, 50, 100), "soft": (200, 260, 150, 210)}
-    for tag, shift in (("a", 0.0), ("b", 3.0)):
+    for tag, shift in (("20260105", 0.0), ("20260117", 3.0)):
         for pol, land in (("HH", -9.0), ("HV", -16.0)):
             arr = land + shift + rng.normal(0, 1.0, (n, n))
-            if tag == "b":
+            if tag == "20260117":
                 r0, r1, c0, c1 = boxes["strict"]
                 arr[r0:r1, c0:c1] = (-20.0 if pol == "HH" else -27.0) + rng.normal(0, 1.0, (r1 - r0, c1 - c0))
                 r0, r1, c0, c1 = boxes["soft"]       # darker than land, but not below the strict thresholds
@@ -63,11 +63,11 @@ def test_loosen_adds_darker_pixels(tmp_path):
 
     def run(extra):
         out = tmp_path / ("o" + str(len(extra)))
-        r = subprocess.run([sys.executable, str(SCRIPT), "--before", "a", "--during", "b", "--dir", str(tmp_path),
+        r = subprocess.run([sys.executable, str(SCRIPT), "--before", "20260105", "--during", "20260117", "--dir", str(tmp_path),
                             "--out", str(out), "--qa", str(out / "qa"),
                             "--hh-thr", "-15", "--hv-thr", "-22", *extra], capture_output=True, text=True)
         assert r.returncode == 0, r.stdout + r.stderr
-        return json.loads((out / "stats.json").read_text())
+        return json.loads((out / "stats.json").read_text(encoding="utf-8"))
 
     px = 40 * 40 / 1e6
     strict = run([])
