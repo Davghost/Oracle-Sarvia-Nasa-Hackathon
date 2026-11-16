@@ -183,7 +183,7 @@ button:disabled{cursor:default;opacity:.4}
 #clouds.lifted{opacity:0;visibility:hidden;transition:opacity 1.6s cubic-bezier(.4,0,.2,1),visibility 0s 1.6s}
 #clouds.lifted .cloud-caption{opacity:0;transition:opacity .25s}
 #clouds.lifted .cloud-field{transform:scale(1.12)}
-.cloud-caption{position:absolute;right:20px;bottom:24px;margin:0;max-width:21em;font-size:var(--t-meta);
+.cloud-caption{position:absolute;right:20px;bottom:64px;margin:0;max-width:21em;font-size:var(--t-meta);
   line-height:1.35;font-weight:600;color:var(--slate);background:var(--paper);padding:10px 14px;border-radius:3px}
 
 /* before/during curtain */
@@ -439,7 +439,10 @@ button:disabled{cursor:default;opacity:.4}
 .boat-icon span{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:var(--slate);color:#fff;
   box-shadow:0 0 0 3px #fff,0 1px 4px rgba(27,40,48,.4)}
 .boat-icon svg{width:18px;height:18px}
-.route-legend{position:absolute;right:14px;bottom:28px;z-index:900;padding:8px 12px;border-radius:3px;background:var(--paper);
+.flood-btn{display:inline-flex;align-items:center;gap:7px;margin:0 10px 8px 0!important;padding:8px 12px 8px 10px;border:1px solid var(--rule);border-radius:999px;
+  background:var(--paper);color:var(--slate);box-shadow:0 1px 3px rgba(27,40,48,.25);font:650 var(--t-small) var(--sans);cursor:pointer}
+.flood-btn:hover{background:var(--slate);color:var(--paper);border-color:var(--slate)}
+.route-legend{position:absolute;left:14px;bottom:28px;z-index:900;padding:8px 12px;border-radius:3px;background:var(--paper);
   font-size:var(--t-small);line-height:1.3;box-shadow:0 1px 2px rgba(27,40,48,.25)}
 .route-legend div{display:flex;align-items:center;gap:8px;margin:3px 0}
 
@@ -459,7 +462,7 @@ button:disabled{cursor:default;opacity:.4}
   .timeline-map-caption{top:10px;min-width:145px;padding:5px 8px}
   .timeline-map-caption b{font-size:18px}
   #knob{bottom:auto;top:62%}
-  .cloud-caption{left:16px;right:16px;bottom:16px}
+  .cloud-caption{left:16px;right:16px;bottom:58px}
   .tag.left{left:52px}
   .tool-head{flex-direction:row;align-items:center;justify-content:space-between;padding:10px 16px}
   .tool-head .brand{gap:14px}

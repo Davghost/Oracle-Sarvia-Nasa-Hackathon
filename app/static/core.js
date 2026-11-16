@@ -129,11 +129,31 @@ function setLayerOpacity(layer, v) {
   else if (layer.setStyle) layer.setStyle({opacity: v, fillOpacity: v * 0.72});
 }
 
+// Bottom-right button that brings the view back to the study area of the flood.
+function addFloodButton(bounds) {
+  const Button = L.Control.extend({
+    options: {position: 'bottomright'},
+    onAdd() {
+      const btn = L.DomUtil.create('button', 'flood-btn');
+      btn.type = 'button';
+      btn.title = 'Zoom to the flood area';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+        '<circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg><span>Flood area</span>';
+      L.DomEvent.disableClickPropagation(btn);
+      btn.addEventListener('click', () => map.fitBounds(bounds));
+      return btn;
+    },
+  });
+  new Button().addTo(map);
+}
+
 async function loadStats() {
   const stats = await (await fetch(window.STATS_URL || '/api/stats')).json();
   if (stats.mock) $('mock-flag').hidden = false;
   const [w, s, e, n] = stats.bbox;
-  map.fitBounds([[s, w], [n, e]]);
+  const floodArea = L.latLngBounds([[s, w], [n, e]]);
+  map.fitBounds(floodArea);
+  addFloodButton(floodArea);
   return stats;
 }
 
