@@ -1,105 +1,108 @@
-# Pipeline de dados
+# Data pipeline
 
-O pipeline é executado offline; a aplicação web consome os artefatos
-resultantes. Os HDF5 originais e os intermediários de processamento ficam em
-`data/` e não são versionados.
+The pipeline runs offline; the web application reads the resulting artefacts.
+The original HDF5 files and processing intermediates live in `data/` and are
+not versioned.
 
-## Preparar o ambiente
+## Prepare the environment
 
 ```bash
 python -m pip install -r requirements.txt -r requirements-pipeline.txt
 ```
 
-O download NISAR usa autenticação Earthdata. Guarde o token como variável de
-ambiente `EARTHDATA_TOKEN`; não inclua credenciais no Git.
+The NISAR download uses Earthdata authentication. Keep the token in the
+`EARTHDATA_TOKEN` environment variable; do not put credentials in Git.
 
-## Fluxo principal
+## Main flow
 
-1. Baixar cenas GCOV, se elas ainda não estiverem em `data/`:
+1. Download the GCOV scenes, if they are not in `data/` yet:
 
    ```bash
    python pipeline/download_gcov.py
    ```
 
-   O script usa os dois granules configurados no código. Consulte o
-   [guia de download](../download.md) para token Earthdata e alternativa manual.
+   The script uses the two granules configured in the code. See the
+   [download guide](../download.md) for the Earthdata token and a manual
+   alternative.
 
-2. Recortar, fazer multilook e converter HH/HV para dB para cada cena:
+2. Crop, multilook and convert HH/HV to dB for each scene:
 
    ```bash
    python pipeline/make_db.py --file data/SCENE_20260105.h5 --tag 20260105
    python pipeline/make_db.py --file data/SCENE_20260117.h5 --tag 20260117
    ```
 
-   Substitua `SCENE_...` pelo nome real do arquivo baixado.
+   Replace `SCENE_...` with the real name of the downloaded file.
 
-3. Detectar água e gerar overlays/máscaras:
+3. Detect water and build the overlays and masks:
 
    ```bash
    python pipeline/detect_flood.py --loosen 3
    ```
 
-4. Construir a timeline temporal, depois que as duas cenas principais e as
-   aquisições NISAR de 12 e 24/12/2025 estiverem processadas:
+4. Build the timeline, once the two main scenes and the NISAR acquisitions of
+   12 and 24 Dec 2025 are processed:
 
    ```bash
    python pipeline/build_timeline.py --download-missing
    ```
 
-   Esse comando usa `EARTHDATA_TOKEN` para baixar apenas aquisições extras
-   ausentes, processa cada HDF5 sequencialmente e grava snapshots PNG e
-   metadados em `outputs/`. Para regenerar somente a análise a partir dos
-   GeoTIFFs já preparados, execute `python pipeline/build_timeline.py` sem a
-   opção de download. A timeline usa track 114/frame 165 e acaba em 17/01/2026;
-   não representa a fase de recuo.
+   This command uses `EARTHDATA_TOKEN` to download only the missing extra
+   acquisitions, processes each HDF5 in turn and writes PNG snapshots and
+   metadata to `outputs/`. To regenerate only the analysis from the GeoTIFFs
+   already prepared, run `python pipeline/build_timeline.py` without the
+   download option. The timeline uses track 114/frame 165 and ends on
+   17 Jan 2026; it does not represent the recession.
 
-5. Comparar a máscara com EMSR857 AOI02. O padrão espera a máscara
-   `outputs/flood_extent.geojson` (gerada pelo detector) e o pacote
-   `data/reference/EMSR857_products.zip`. Atualiza `outputs/stats.json` e
+5. Compare the mask with EMSR857 AOI02. By default it expects the mask
+   `outputs/flood_extent.geojson` (written by the detector) and the package
+   `data/reference/EMSR857_products.zip`. It updates `outputs/stats.json` and
    `outputs/validation_difference.geojson`:
 
    ```bash
    python pipeline/validate_reference.py
    ```
 
-6. Preparar a rede viária para o planejador:
+6. Prepare the road network for the planner:
 
    ```bash
    python pipeline/prepare_network.py --download
    ```
 
-7. Para regenerar resumo e GeoJSON de impacto OSM:
+7. Regenerate the OSM impact summary and GeoJSON:
 
    ```bash
    python pipeline/osm_impact.py
    ```
 
-8. Reconstruir a cópia estática depois de alterar o app ou os artefatos:
+8. Rebuild the static copy after changing the app or the artefacts:
 
    ```bash
    python pipeline/build_static.py
    ```
 
-## Saídas importantes
+## Important outputs
 
-| Artefato | Origem / consumidor |
+| Artefact | Source / consumer |
 |---|---|
-| `outputs/stats.json` | Contrato de dados usado por Flask e frontend. |
-| `outputs/water_before.png`, `water_during.png` | Overlays de água pré-gerados. |
-| `outputs/water_timeline_*.png` | Snapshots NISAR contra a referência temporal de 12/12/2025. |
-| `outputs/flood_new_water.tif` | Máscara de mudança em água aberta detectável usada na análise e rotas. |
-| `outputs/validation_difference.geojson` | Áreas exclusivas NISAR e EMS dentro do recorte comparado. |
-| `outputs/impact_features.geojson`, `impact_roads.geojson` | Feições e vias OSM cruzadas com a estimativa de inundação. |
-| `outputs/routing_network.npz` | Rede compilada carregada pelo servidor para o motor de rotas. |
-| `docs/` | HTML, JavaScript, dados e overlays usados pelo GitHub Pages. |
+| `outputs/stats.json` | Data contract used by Flask and the frontend. |
+| `outputs/water_before.png`, `water_during.png` | Pre-generated water overlays. |
+| `outputs/water_timeline_*.png` | NISAR snapshots against the 12 Dec 2025 reference. |
+| `outputs/flood_new_water.tif` | Mask of change in detectable open water, used by the analysis and routes. |
+| `outputs/water_during.tif` | All the water on the flood date, used by the boat grid. |
+| `outputs/radar_coverage.tif` | Pixels with valid radar data on both dates. |
+| `outputs/validation_difference.geojson` | Areas exclusive to NISAR and EMS within the compared area. |
+| `outputs/impact_features.geojson`, `impact_roads.geojson` | OSM features and roads crossed with the flood estimate. |
+| `outputs/routing_network.npz` | Compiled network loaded by the server for the route engine. |
+| `docs/` | HTML, JavaScript, data and overlays used by GitHub Pages. |
 
-## Reprodutibilidade e proveniência
+## Reproducibility and provenance
 
-- Guarde as cenas e produtos de terceiros junto dos metadados de origem
-  localmente; não suponha que arquivos ignorados pelo Git estarão no clone.
-- Confira `mock: false` antes de publicar uma saída analítica. O construtor
-  estático recusa explicitamente estatísticas marcadas como mock.
-- Não misture resultados de datas diferentes sem atualizar os metadados e
-  registrar a janela temporal.
-- Registre alterações de método e de dados no `stats.json`, neste manual e no
-  log de uso de IA quando aplicável.
+- Keep third-party scenes and products locally together with their source
+  metadata; do not assume files ignored by Git will be in a clone.
+- Check `mock: false` before publishing an analytical output. The static
+  builder explicitly refuses statistics marked as mock.
+- Do not mix results from different dates without updating the metadata and
+  recording the time window.
+- Record changes of method and data in `stats.json`, in this manual and in the
+  AI usage log when relevant.

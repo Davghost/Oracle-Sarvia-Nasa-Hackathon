@@ -1,8 +1,8 @@
-# Execução e publicação
+# Running and publishing
 
-## Desenvolvimento local
+## Local development
 
-Dependências do servidor:
+Server dependencies:
 
 ```bash
 python -m venv .venv
@@ -10,70 +10,86 @@ python -m pip install -r requirements.txt
 python app/app.py
 ```
 
-Abra `http://localhost:5000`. Para executar o pipeline offline, instale
-também `requirements-pipeline.txt`. A rede compilada versionada permite que
-o planejador carregue sem baixar o extrato OSM novamente.
+Open `http://localhost:5000`. To run the offline pipeline, also install
+`requirements-pipeline.txt`. The versioned compiled network lets the planner
+load without downloading the OSM extract again.
 
-O modo debug do Flask fica desligado por padrão. Para ativá-lo durante
-desenvolvimento local, defina `FLASK_DEBUG=1`; não habilite o depurador em
-implantação pública. O repositório não fixa um provedor WSGI/infraestrutura de
-produção; uma implantação pública deve usar um servidor de aplicação
-apropriado, HTTPS, monitoramento e limites operacionais.
+Flask debug mode is off by default. To turn it on during local development,
+set `FLASK_DEBUG=1`; do not enable the debugger on a public deployment.
+
+## The live server
+
+The public app at <https://sarvia.duckdns.org> runs on an Oracle Cloud
+Always Free VM (Ubuntu 24.04):
+
+- the app in `/opt/sarvia` with its own virtual environment;
+- a systemd service, `sarvia.service`, running Gunicorn with one worker and
+  four threads (`--preload`, bound to `127.0.0.1:8000`), so the route network
+  is loaded once;
+- Nginx as the public reverse proxy, with gzip;
+- a Let's Encrypt certificate from certbot, with HTTP redirected to HTTPS and
+  automatic renewal;
+- the `sarvia.duckdns.org` name from DuckDNS.
+
+To update it after pushing to `main` (the SSH key stays on the maintainer's
+machine and is never committed):
+
+```bash
+ssh -i <path-to-key> ubuntu@<server> "cd /opt/sarvia && git pull && .venv/bin/pip install -q -r requirements.txt && sudo systemctl restart sarvia"
+```
 
 ## GitHub Pages
 
-O diretório `docs/` é publicado como site estático. Para regenerá-lo:
+The `docs/` folder is published as a static site. To rebuild it:
 
 ```bash
 python pipeline/build_static.py
 ```
 
-No repositório GitHub, configure Pages para publicar `main` e `/docs` (ou a
-branch/pasta escolhida pelo mantenedor). A atualização só aparece depois que
-o commit com os arquivos gerados chega à origem de publicação e o workflow de
-Pages conclui.
+In the GitHub repository, set Pages to publish `main` and `/docs` (or the
+branch and folder the maintainer chooses). Changes only appear after the
+commit with the generated files reaches the publishing source and the Pages
+workflow finishes.
 
-O Pages não executa Flask, não expõe `/api/route`, não carrega uma rede de
-rotas pelo servidor e não pode guardar secrets de provedor atrás de um proxy.
-Por isso a aba **Explore routes** fica visível com aviso, mas seus controles de
-cálculo são ocultados. Para usar cálculo de rotas, publique o Flask em um serviço de
-aplicação e aponte a interface para esse backend por HTTPS; essa integração
-cross-origin ainda precisa ser configurada se os domínios forem diferentes.
+Pages does not run Flask, does not expose `/api/route`, does not load a route
+network on a server and cannot keep provider secrets behind a proxy. So the
+route tool's planner is replaced by a note and a link to the live tool; the
+layers, places and filters still work.
 
-## Mapas-base e proxy de tiles
+## Basemaps and the tile proxy
 
-O frontend oferece OpenStreetMap claro/escuro e opções de satélite/híbrido.
-URLs padrão podem usar Esri; serviços externos podem variar em cobertura,
-termos, atribuição e disponibilidade.
+The frontend offers light and dark maps plus satellite and hybrid options.
+The default satellite and hybrid URLs use Esri; external services can vary in
+coverage, terms, attribution and availability.
 
-No Flask, estas variáveis opcionais configuram URLs XYZ e créditos:
+In Flask, these optional variables set XYZ URLs and credits:
 
-| Variável | Uso |
+| Variable | Use |
 |---|---|
-| `SARVIA_SATELLITE_TILE_URL` | URL XYZ privada para o mapa de satélite. |
-| `SARVIA_HYBRID_TILE_URL` | URL XYZ privada para a camada raster híbrida. |
-| `SARVIA_SATELLITE_ATTRIBUTION` | Atribuição exigida para satélite. |
-| `SARVIA_HYBRID_ATTRIBUTION` | Atribuição exigida para híbrido. |
+| `SARVIA_SATELLITE_TILE_URL` | Private XYZ URL for the satellite map. |
+| `SARVIA_HYBRID_TILE_URL` | Private XYZ URL for the hybrid raster layer. |
+| `SARVIA_SATELLITE_ATTRIBUTION` | Attribution required for satellite. |
+| `SARVIA_HYBRID_ATTRIBUTION` | Attribution required for hybrid. |
 
-Quando URL privada é configurada, Flask a consulta em `/map-tiles/...` para
-evitar publicar segredo no browser. Guarde tokens no gestor de secrets do
-serviço de hosting; nunca os escreva em HTML, JavaScript, `stats.json` ou Git.
-O proxy não é usado pela cópia estática.
+When a private URL is set, Flask fetches it under `/map-tiles/...` so the
+secret is not published in the browser. Keep tokens in the hosting service's
+secret manager; never write them in HTML, JavaScript, `stats.json` or Git. The
+static copy does not use the proxy.
 
-## Parâmetros de rota
+## Route parameters
 
-Todas são opcionais. Os valores abaixo são os defaults do servidor atual:
+All optional. The values below are the current server defaults:
 
-| Variável | Padrão | Efeito |
+| Variable | Default | Effect |
 |---|---:|---|
-| `SARVIA_ROUTING_NETWORK` | `outputs/routing_network.npz` | Caminho da rede compilada. |
-| `SARVIA_ROUTE_WORKERS` | `2` | Cálculos de rota simultâneos no pool. |
-| `SARVIA_ROUTE_MAX_PENDING` | `16` | Limite de pedidos ocupando a fila; excedentes recebem `busy`. |
-| `SARVIA_ROUTE_TIMEOUT` | `12` s | Tempo máximo de espera da API por cálculo. |
-| `SARVIA_ROUTE_MAX_SNAP_M` | `1500` m | Distância máxima para associar ponto à rede viária. |
-| `SARVIA_ROUTE_BLOCK_FLOOD_M` | `0` m | Água tolerada por segmento em rota classificada como seca. |
-| `SARVIA_BOAT_SPEED_KMH` | `12` | Velocidade assumida para barco em água aberta. |
-| `SARVIA_BOAT_LAUNCH_MIN` | `10` min | Tempo assumido para lançar o barco. |
+| `SARVIA_ROUTING_NETWORK` | `outputs/routing_network.npz` | Path to the compiled network. |
+| `SARVIA_ROUTE_WORKERS` | `2` | Simultaneous route computations in the pool. |
+| `SARVIA_ROUTE_MAX_PENDING` | `16` | Limit of requests in the queue; the rest get `busy`. |
+| `SARVIA_ROUTE_TIMEOUT` | `12` s | Maximum time the API waits for a computation. |
+| `SARVIA_ROUTE_MAX_SNAP_M` | `1500` m | Maximum distance to attach a point to the road network. |
+| `SARVIA_ROUTE_BLOCK_FLOOD_M` | `0` m | Water tolerated per segment on a route classed as dry. |
+| `SARVIA_BOAT_SPEED_KMH` | `12` | Assumed boat speed on open water. |
+| `SARVIA_BOAT_LAUNCH_MIN` | `10` min | Assumed time to launch the boat. |
 
-Consulte [contrato da API](../stats_contract.md) antes de alterar o formato
-das respostas.
+See the [API contract](../stats_contract.md) before changing the response
+format.

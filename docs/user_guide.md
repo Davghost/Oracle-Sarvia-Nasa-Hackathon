@@ -1,137 +1,138 @@
-# Guia de uso
+# User guide
 
-## Abrir a aplicação
+## Open the application
 
-O planejador completo precisa do servidor Flask:
+The live app is at <https://sarvia.duckdns.org>. To run it locally, the full
+route planner needs the Flask server:
 
 ```bash
 python app/app.py
 ```
 
-Abra `http://localhost:5000`. O repositório inclui a rede compilada de rotas;
-com os artefatos presentes, não é preciso baixar OSM para a primeira execução.
-Veja [Execução e publicação](technical/deployment.md) para ambiente e
-configuração.
+Open `http://localhost:5000`. The repository includes the compiled route
+network; with the artefacts present, there is no need to download OSM for the
+first run. See [Running and publishing](technical/deployment.md) for the
+environment and configuration.
 
-O site do GitHub Pages é uma versão estática: mostra a história completa e a
-ferramenta com camadas, lugares e filtros; o cálculo de rotas requer o
-servidor Flask, e a página estática leva ao site ao vivo
+The GitHub Pages site is a static version: it shows the full story and the
+tool with layers, places and filters; route calculation needs the Flask
+server, and the static page links to the live site
 (`https://sarvia.duckdns.org/routes`).
 
-O projeto tem duas páginas, com a mesma navegação no topo (**Story** e
+The project has two pages, with the same navigation at the top (**Story** and
 **Route tool**):
 
-- `/`: a história em cinco telas, para apresentar o projeto;
-- `/routes`: a ferramenta de rotas, para uso prático.
+- `/`: the five-screen story, to present the project;
+- `/routes`: the route tool, for practical use.
 
-## Navegar pela história
+## Go through the story
 
-1. **Clouds:** contexto da cheia e limitações de imagens ópticas sob nuvens.
-2. **Radar:** introdução ao NISAR e à água na primeira data.
-3. **Water:** as quatro aquisições NISAR com slider e reprodução, a
-   comparação antes/durante entre 5 e 17 de janeiro e o resultado principal.
-   "How it was measured" e "Checked against an independent map" ficam
-   recolhidos; abrir o segundo mostra no mapa a diferença com o Copernicus.
-4. **Impact:** o mapa de impacto potencial OSM, com categorias e estados que
-   filtram o mapa. Um marcador abre o cartão do lugar, com links para traçar
-   uma rota até ele na ferramenta.
-5. **Rescue:** como a rota funciona, o botão **Open the route tool**, as
-   limitações e os detalhes dos dados.
+1. **Clouds:** the flood context and the limits of optical images under
+   clouds.
+2. **Radar:** an introduction to NISAR and the water on the first date.
+3. **Water:** the four NISAR acquisitions with a slider and playback, the
+   before/during comparison between 5 and 17 January and the main result.
+   "How it was measured" and "Checked against an independent map" are folded;
+   opening the second one shows the differences with Copernicus on the map.
+4. **Impact:** the OSM potential-impact map, with categories and states that
+   filter the map. A marker opens the place card, with links to plan a route
+   to it in the tool.
+5. **Rescue:** how the route works, the **Open the route tool** button, the
+   limitations and the data details.
 
-Use **Back**, **Next**, a barra de passos no topo ou as setas do teclado; o
-mapa acompanha cada passo.
+Use **Back**, **Next**, the step bar at the top or the arrow keys; the map
+follows each step.
 
-### Explorar a linha do tempo
+### Explore the timeline
 
-No passo **Water**, use o slider para selecionar uma das quatro aquisições
-reais ou pressione **Play** para percorrê-las em sequência. A breve dissolução
-entre imagens é só uma transição visual: não representa água observada em
-datas intermediárias. **Before and during** retorna ao swipe entre 5 e 17 de
-janeiro e ao resultado principal de 982,5 km².
+On the **Water** screen, use the slider to pick one of the four real
+acquisitions or press **Play** to go through them in order. The short fade
+between images is only a visual transition: it does not represent water
+observed on dates in between. **Before and during** returns to the swipe
+between 5 and 17 January and the main result of 982.5 km².
 
-Na visão temporal, azul marca água mapeada tanto em 12/12 como na data
-selecionada; vermelho, água mapeada só na data selecionada; ocre, água
-mapeada em 12/12 que não aparece na data selecionada. Os valores temporais
-consideram a interseção de pixels válidos nas quatro aquisições, cerca de
-67,17% do recorte, e usam um limiar estrito com ajuste do deslocamento da moda
-terrestre. São uma análise independente do resultado principal.
+In the timeline view, blue marks water mapped both on 12 Dec and on the
+selected date; red, water mapped only on the selected date; ochre, water
+mapped on 12 Dec that does not appear on the selected date. The timeline
+values use the intersection of valid pixels in the four acquisitions, about
+67.17% of the area, and a strict threshold adjusted by the land-mode shift.
+They are an analysis independent of the main result.
 
-A série compatível atual termina em 17/01/2026. Ela mostra o aumento observado
-até essa data, mas não contém uma cena posterior para medir o recuo da água.
-O controle não inventa uma fase de recuperação.
+The current compatible series ends on 17 Jan 2026. It shows the observed rise
+up to that date but has no later scene to measure the water receding. The
+control does not invent a recovery phase.
 
-## Usar a ferramenta de rotas
+## Use the route tool
 
-A página `/routes` dá quase toda a tela ao mapa. Os controles ficam no painel
-à esquerda (no celular, abaixo do mapa; **Hide panel** recolhe o painel), em
-seções que abrem e fecham:
+The `/routes` page gives almost the whole screen to the map. The controls are
+in the left panel (below the map on phones; **Hide panel** collapses it):
 
-- **Route:** base da equipe, destino, carro e barco ou só carro, opções e
-  instruções passo a passo.
-- **Places:** busca por nome (escola, posto de saúde, comunidade, ponte) e
-  filtro por estado (na água, possivelmente isolado, perto da água, acesso
-  seco, sem ligação viária, fora do radar). A busca abre o cartão do lugar
-  mesmo quando o filtro o esconde.
-- **Layers:** árvore de camadas. Cada grupo (água NISAR; lugares e vias OSM;
-  contexto, quando existir) liga ou desliga tudo de uma vez e pode ser
-  recolhido; cada camada tem o seu interruptor, a contagem do que está no mapa
-  e, nas camadas de água, a opacidade.
-- **Map style:** mapa claro, escuro, satélite ou híbrido.
+- **Route:** team base, destination, car and boat or car only, options and
+  step-by-step directions.
+- **Map style:** light, dark, satellite or hybrid (the default), always
+  visible below Route.
+- **Places:** search by name (school, health post, community, bridge) and
+  filter by state (on water, possibly cut off, near water, dry access, no road
+  link, outside radar). A search result opens the place card even when the
+  filter hides it.
+- **Layers:** a layer tree. Each group (NISAR water; OSM places and roads;
+  context, when present) switches everything at once and can be collapsed;
+  each layer has its own switch, a count of what is on the map and, for water
+  layers, opacity.
 
-A história pode abrir a ferramenta já com o destino (e a origem) preenchidos,
-pelo endereço `/routes?to=lon,lat&from=lon,lat`.
+The story can open the tool with the destination (and the start) already
+filled in, through `/routes?to=lon,lat&from=lon,lat`.
 
-## Camadas do mapa
+## Map layers
 
-OSM é o mapa-base padrão; a ferramenta também inclui base escura, satélite e
-híbrida. A disponibilidade de tiles externos exige conectividade e está
-sujeita às condições do provedor.
+The tool opens on the hybrid basemap (satellite imagery with place names); it
+also has light and dark maps. External tiles need connectivity and follow the
+provider's terms.
 
-Os overlays contam uma história diferente dos mapas-base:
+The overlays tell a different story from the basemaps:
 
-- água aberta detectável na referência e na cena durante: classificações do
-  processo NISAR;
-- diferença Copernicus: polígonos exclusivos de cada produto na AOI02;
-- vias com impacto potencial: vias OSM que intersectam a água aberta
-  detectável na máscara NISAR;
-- possíveis camadas futuras, como NDVI: só aparecem se estiverem presentes no
-  `stats.json` com metadados válidos.
+- detectable open water on the reference and the "during" scene: NISAR
+  processing classes;
+- Copernicus difference: polygons exclusive to each product in AOI02;
+- roads with potential impact: OSM roads that intersect the detectable open
+  water in the NISAR mask;
+- possible future layers, such as NDVI: they only appear if present in
+  `stats.json` with valid metadata.
 
-## Interpretar impacto e validação
+## Read impact and validation
 
-No passo **Impact** ou na ferramenta, selecione categorias e estados para filtrar elementos. Selecione
-um marcador para ler seus atributos OSM e a estimativa de exposição. A camada
-de estradas destaca interseções com a máscara de água aberta detectável; não confirma
-interdição.
+On the **Impact** screen or in the tool, select categories and states to
+filter the elements. Select a marker to read its OSM attributes and the
+exposure estimate. The road layer highlights intersections with the mask of
+detectable open water; it does not confirm closures.
 
-Leia IoU junto com as áreas NISAR-only e EMS-only. A comparação é restrita à
-AOI02 e usa produtos diferentes; IoU não deve ser apresentada como exatidão
-geral nem como validação contra verdade-terreno. Consulte o
-[relatório da referência](validation_reference_report_2026-11-15.md).
+Read the IoU together with the NISAR-only and EMS-only areas. The comparison
+is limited to AOI02 and uses different products; do not present the IoU as
+overall accuracy or as validation against ground truth. See the
+[reference report](validation_report.md).
 
-## Calcular uma rota
+## Plan a route
 
-No app servido pelo Flask:
+In the app served by Flask:
 
-1. Abra **Route tool** (ou **Open the route tool** no fim da história).
-2. Clique no mapa para marcar a base da equipe e depois o destino, digite
-   cada ponto como `longitude, latitude`, ou use os botões do cartão de um
-   lugar (**Route to here**, **Route from that facility**, **Set as team
-   base**).
-3. Escolha **Car and boat** ou **Car only**; trocar o modo recalcula.
-4. Use a opção recomendada e compare alternativas no mapa e no itinerário.
-   Arraste a base ou o destino no mapa para recalcular.
+1. Open **Route tool** (or **Open the route tool** at the end of the story).
+2. Click the map to set the team base and then the destination, type each
+   point as `longitude, latitude`, or use the buttons on a place card
+   (**Route to here**, **Route from that facility**, **Set as team base**).
+3. Choose **Car and boat** or **Car only**; switching recalculates.
+4. Use the recommended option and compare alternatives on the map and in the
+   directions. Drag the base or the destination on the map to recalculate.
 
-O resultado é experimental. Água nas vias é estimada a partir da data da
-análise, as condições atuais não são consultadas e profundidade de navegação
-não é medida. Não use a rota como instrução de emergência.
+The result is experimental. Water on the roads is estimated from the analysis
+date, current conditions are not checked and navigable depth is not measured.
+Do not use the route as an emergency instruction.
 
-## Notas de dados
+## Data notes
 
-- A cena de 5 de janeiro é a referência “antes”; a mudança em água aberta
-  detectável é relativa a essa data.
-- O produto NISAR é provisório e pode ser reprocessado.
-- Parte do recorte não tem cobertura válida nas duas datas.
-- OSM pode ter lacunas, geometria desatualizada ou classificação incompleta.
-- A interface não publica NDVI porque não há camada Sentinel-2 validada no
-  contrato de dados atual.
+- The 5 January scene is the "before" reference; the change in detectable
+  open water is relative to that date.
+- The NISAR product is provisional and may be reprocessed.
+- Part of the area has no valid coverage on both dates.
+- OSM may have gaps, outdated geometry or incomplete classification.
+- The interface does not publish NDVI because there is no validated
+  Sentinel-2 layer in the current data contract.

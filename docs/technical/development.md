@@ -1,51 +1,52 @@
-# Desenvolvimento e manutenção
+# Development and maintenance
 
-## Organização do repositório
+## Repository layout
 
-- `app/`: aplicação Flask, templates e frontend Leaflet.
-- `pipeline/`: download e processamento de dados, validação, compilação OSM e
-  benchmark de rotas.
-- `outputs/`: contrato e artefatos que alimentam a aplicação.
-- `docs/`: site estático, manuais e registros de trabalho.
-- `tests/`: testes unitários, de integração e de contrato.
-- `data/`: cenas e dados de trabalho locais, ignorados pelo Git.
+- `app/`: Flask application, templates and Leaflet frontend.
+- `pipeline/`: data download and processing, validation, OSM compilation and
+  the route benchmark.
+- `outputs/`: the contract and artefacts that feed the application.
+- `docs/`: static site, manuals and work records.
+- `tests/`: unit, integration and contract tests.
+- `data/`: local scenes and working data, ignored by Git.
 
-## Dependências
+## Dependencies
 
-- `requirements.txt`: servidor e motor de rotas.
-- `requirements-pipeline.txt`: processamento geoespacial, dados e ferramentas
-  de QA.
+- `requirements.txt`: server and route engine.
+- `requirements-pipeline.txt`: geospatial processing, data and QA tools.
 
-Use o ambiente virtual do projeto. Instale dependências do pipeline somente
-quando precisar baixar/processar fontes ou executar rotinas offline.
+Use the project's virtual environment. Install the pipeline dependencies only
+when you need to download or process sources or run offline routines.
 
-## Verificações
+## Checks
 
-Para executar a suíte completa:
+To run the full suite:
 
 ```bash
 python -m pytest
 ```
 
-Alguns testes de artefatos reais podem ser ignorados quando HDF5, extrato OSM
-ou outros dados locais não estiverem presentes. O motivo de cada skip deve
-ser lido no resultado; um teste ignorado não comprova o pipeline com dados
-reais.
+Some tests on real artefacts may be skipped when HDF5 files, the OSM extract
+or other local data are missing. Read the reason for each skip in the output;
+a skipped test does not prove the pipeline on real data.
 
-## Ao alterar o projeto
+## When changing the project
 
-1. Preserve o contrato JSON entre pipeline, Flask e frontend.
-2. Atualize `docs/stats_contract.md` quando mudar campos, camadas ou endpoints.
-3. Regenere `docs/` depois de alterar templates, JavaScript, CSS ou saídas
-   consumidas pelo site estático.
-4. Atualize as páginas de visão, conceitos ou uso se mudar uma definição que
-   afete a interpretação do usuário.
-5. Mantenha limitações junto dos resultados: estimativas não são dano
-   confirmado, e rotas experimentais não substituem orientação oficial.
-6. Não versione tokens, HDF5 privados ou intermediários descartáveis.
+1. Keep the JSON contract between pipeline, Flask and frontend.
+2. Update `docs/stats_contract.md` when you change fields, layers or
+   endpoints.
+3. Rebuild `docs/` after changing templates, JavaScript, CSS or outputs the
+   static site reads.
+4. Update the overview, concepts or user guide pages if you change a
+   definition that affects how users read the results.
+5. Keep the limitations next to the results: estimates are not confirmed
+   damage, and experimental routes do not replace official guidance.
+6. Do not commit tokens, private HDF5 files or disposable intermediates.
+7. Record AI tool use in `AI_USAGE_LOG.md`, and credit any new data, code or
+   asset with its licence in the README.
 
-## Fontes canônicas
+## Canonical sources
 
-Para comportamento atual, prefira o código e os arquivos `outputs/stats.json`
-e `docs/stats_contract.md`. Relatórios datados são snapshots históricos; não
-os use como estado atual sem comparar com os artefatos presentes.
+For current behaviour, prefer the code and the files `outputs/stats.json` and
+`docs/stats_contract.md`. Dated reports are historical snapshots; do not use
+them as the current state without comparing them with the artefacts present.

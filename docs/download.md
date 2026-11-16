@@ -1,35 +1,34 @@
-# Download das cenas NISAR GCOV
+# Downloading the NISAR GCOV scenes
 
-Cada arquivo GCOV tem aproximadamente 3,8 GB. O download deve ser feito em
-um ambiente com conexão adequada, como um Codespace.
+Each GCOV file is about 3.8 GB. Download them in an environment with a good
+connection, such as a Codespace.
 
-## Usando o script do projeto
+## With the project script
 
-1. Configure um secret do Codespaces chamado EARTHDATA_TOKEN. Não salve o
-   token no repositório nem em histórico de shell.
-2. Instale os requisitos do pipeline:
+1. Set a Codespaces secret called EARTHDATA_TOKEN. Do not save the token in
+   the repository or in the shell history.
+2. Install the pipeline requirements:
 
        python -m pip install -r requirements-pipeline.txt
 
-3. Execute o downloader:
+3. Run the downloader:
 
        python pipeline/download_gcov.py
 
-O script busca os dois granules configurados para 5 e 17 de janeiro de 2026
-e salva os HDF5 em data/, ignorado pelo Git. O registro de execução disponível
-foi feito com asf_search 14.1.0; mudanças futuras na API ASF podem exigir
-ajustes.
+The script fetches the two granules configured for 5 and 17 January 2026 and
+saves the HDF5 files in data/, which Git ignores. The recorded run used
+asf_search 14.1.0; future changes to the ASF API may need adjustments.
 
-## Alternativa manual com wget
+## Manual alternative with wget
 
-Copie a URL de cada cena no ASF Vertex e baixe-a com o token Earthdata
-configurado no ambiente:
+Copy the URL of each scene from ASF Vertex and download it with the Earthdata
+token set in the environment:
 
     wget --header="Authorization: Bearer $EARTHDATA_TOKEN" -P data/ "<URL_FROM_VERTEX>"
 
-Se o servidor devolver 401/403, siga o fluxo de autenticação oficial da ASF
-ou use o mecanismo Earthdata recomendado para o seu ambiente. Não publique
-token, senha ou arquivo de credenciais.
+If the server answers 401/403, follow ASF's official authentication flow or
+use the Earthdata mechanism recommended for your environment. Never publish a
+token, password or credentials file.
 
-Para continuar com conversão, detecção e validação, siga o
-[pipeline de dados](technical/pipeline.md).
+To continue with conversion, detection and validation, follow the
+[data pipeline](technical/pipeline.md).

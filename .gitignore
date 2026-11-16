@@ -240,3 +240,6 @@ outputs/flood_mask.geojson
 # video production (script, prompts, logo, renders) stays local
 /video/
 /docs/video_script.md
+
+# local editor and agent settings
+/.claude/

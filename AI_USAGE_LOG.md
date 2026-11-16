@@ -1,10 +1,31 @@
 # AI Usage Log
 
-Space Apps requires AI use to be declared. Add one row per use (code, text, images, video, audio).
+NASA Space Apps 2026 allows AI tools (called "Super Intelligence", SI, in the
+2026 guides) and requires their use to be declared. This file is that
+declaration: one row per use, with what each tool produced and where it is
+used.
+
+- **The idea is the team's.** The problem (routes into a flood hidden by
+  clouds), the approach (NISAR change detection, then car-and-boat routing and
+  an impact map) and every product decision came from the team. AI tools were
+  used to write and review code, documentation and media for that approach.
+- **Code and text** produced with AI are listed below; every change was
+  reviewed and tested by the team before it was kept (168 automated tests).
+- **Images and video:** AI-generated shots in the demo video carry a visible
+  "AI-generated" watermark. The SARVIA logo was designed by the team; an AI
+  tool only cut it out and resized it for the site and the browser tab icon.
+  The website shows no AI-generated imagery: the maps are real NISAR, OSM and
+  basemap data.
+- **Audio:** any AI-generated voice in the demo video is declared in the video
+  description and metadata.
+- No AI-generated content uses or imitates NASA branding.
+
+Some files named in older rows were later renamed or removed when the
+repository was cleaned up for judging; the rows are kept as the record.
 
 | Date | Who | Tool | What was generated | Where it is used | Reviewed by |
 |---|---|---|---|---|---|
-| 2026-11-14 | Flau | Claude (Anthropic) | Project planning, task list, project documentation, Flask app skeleton and mock data | PROJECT_CONTEXT.md, TASKS.xlsx, app/, docs/ | Flau |
+| 2026-11-14 | Flau | Claude (Anthropic) | Breakdown of the team's approach into tasks, task list, project documentation, Flask app skeleton and mock data | PROJECT_CONTEXT.md (removed), TASKS.xlsx (removed), app/, docs/ | Flau |
 | 2026-11-14 | Flau | Claude (Anthropic) | Water detection code with tests (pipeline/water.py), download script, "How to read the radar" page text, video script draft | pipeline/, tests/, app/templates/radar.html, docs/video_script.md | Flau |
 | 2026-11-14 | Flau | Copilot SDK in VS Code | Experimental OSM road-cache routing API, flood-mask export, route UI, tests and documentation | pipeline/, app/, tests/, README.md, PROJECT_CONTEXT.md, docs/ | Flau |
 | 2026-11-15 | Flau | Copilot SDK in VS Code | OSM impact pipeline, affected-road GeoJSON layer integration, estimated building counts, tests and documentation; live Overpass query was unavailable | pipeline/osm_impact.py, pipeline/detect_flood.py, app/, docs/, tests/, README.md, PROJECT_CONTEXT.md | Flau |
@@ -25,4 +46,9 @@ Space Apps requires AI use to be declared. Add one row per use (code, text, imag
 | 2026-11-15 | OpenAI Codex | OpenAI Codex | Reorganized the current documentation into project overview, user guide, concepts, architecture, data/methods, pipeline, deployment, development, and API contract; clarified the Copernicus comparison, OSM exposure, static Pages route limitation, and absence of a published NDVI layer | README.md, PROJECT_CONTEXT.md, docs/, PROMPT_REAVALIACAO_ROTAS.md | Pending review |
 | 2026-11-15 | OpenAI Codex | OpenAI Codex | Added a temporal NISAR map for four same-track/frame acquisitions, generated common-footprint water overlays and measurements, added discrete slider/playback controls, and documented that compatible post-event scenes are unavailable | pipeline/build_timeline.py, outputs/stats.json, outputs/water_timeline_*.png, app/, docs/, README.md, PROJECT_CONTEXT.md | Pending review |
 | 2026-11-15 | OpenAI Codex | OpenAI Codex | Separated the three-step flood story from an impact-and-route workspace, added shared-map tabs and a static Pages route limitation state, and updated user/technical documentation | app/, pipeline/build_static.py, docs/, README.md, PROJECT_CONTEXT.md | Pending review |
+| 2026-11-15 | Flau | Claude Code | 30-second video production by code: style direction, storyboard and animatic; low-poly 3D shots 1 and 3 written in Three.js and rendered frame by frame (watermarked "AI-generated"; terrain from the real NISAR HH water of 17 Jan); real app footage captured frame by frame from the running app with Playwright; grey NISAR HH image for the radar shot; subtitles, number callouts and end card compositing; offline guide voice; mix and delivery scripts. Final voice (ElevenLabs) and music are added by the team | video/ (local, not in Git): render/, etapa3_animatic.md, etapa4_producao.md | Flau |
 | 2026-11-15 | Flau | Claude Code | Split the interface into a five-screen story (clouds, radar, water, impact, rescue) ending in a button to a separate route tool page (/routes) with a full-size map and a side panel: route planner with draggable markers and links from the story, place search and state filter, a hierarchical layer tree with group switches and opacity, and map styles; shared map code in core.js; /workspace redirects; static build, tests and docs updated | app/, pipeline/build_static.py, docs/, tests/test_static_site.py, README.md, PROJECT_CONTEXT.md | Flau |
+| 2026-11-15 | Flau | Claude Code | Visual redesign of the interface (pictogram markers, category rows with state bars, calmer hierarchy) and a clearer, interactive layer panel; merge of Davi's fork (Copernicus difference layer, NISAR timeline) with Windows fixes; interface switched back to English | app/, docs/, tests/, pipeline/build_static.py | Flau |
+| 2026-11-15 | Flau | Claude Code | Production deployment set-up on an Oracle Cloud VM (Gunicorn, Nginx, systemd, Let's Encrypt via certbot, DuckDNS) and its documentation | live server, docs/technical/deployment.md | Flau |
+| 2026-11-15 | Flau | Claude Code | Cut-out and resized versions of the team's SARVIA logo for the side panel and the browser tab icon (white circle background) | app/static/brand/ | Flau |
+| 2026-11-15 | Flau | Claude Code | Check of the site against the official Space Apps 2026 rules; Apache 2.0 LICENSE and a full credits/licences section; English translation of the README and documentation; removal of internal working documents | LICENSE, README.md, docs/, AI_USAGE_LOG.md | Flau |

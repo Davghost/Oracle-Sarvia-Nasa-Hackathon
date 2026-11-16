@@ -1,112 +1,114 @@
-# Contrato técnico: `stats.json`, camadas e API
+# Technical contract: `stats.json`, layers and API
 
-Este documento é a referência do contrato entre o pipeline, o servidor Flask
-e o frontend. `outputs/stats.json` contém dados e referências às camadas;
-Flask entrega esse contrato em `GET /api/stats`. O site estático usa uma cópia
-em `docs/stats.json`. A API de rotas exige Flask e não existe no GitHub Pages.
+This document is the reference for the contract between the pipeline, the
+Flask server and the frontend. `outputs/stats.json` holds the data and the
+references to the layers; Flask serves this contract at `GET /api/stats`. The
+static site uses a copy in `docs/stats.json`. The route API needs Flask and
+does not exist on GitHub Pages.
 
-Quando `outputs/stats.json` não existe, Flask recorre a
-`outputs/mock/stats.json`; esse arquivo contém dados artificiais e a interface
-deve exibir o aviso de mock. O construtor do site estático recusa contratos
-marcados como mock.
+When `outputs/stats.json` does not exist, Flask falls back to
+`outputs/mock/stats.json`; that file holds artificial data and the interface
+must show the mock warning. The static site builder refuses contracts marked
+as mock.
 
 | Field | Type | Notes |
 |---|---|---|
-| `mock` | boolean | `true` identifica dados artificiais; a interface exibe um aviso. Saídas reais usam `false`. |
-| `area_name` | string | Nome da região exibido no produto. |
-| `bbox` | `[west, south, east, north]` | Limites em graus, WGS84/EPSG:4326. |
-| `maturity` | string | Estado do produto de origem; o valor atual indica release de pré-validação e versão do produto GCOV. Não o interprete como validação científica concluída. |
-| `collection` | string ou `null` | Short name da coleção; é `null` no resultado atual. |
-| `product` | string | Produto de origem, atualmente NISAR GCOV L-band/gamma0. |
-| `scenes.before` / `scenes.during` | object | Metadados da cena: `date`, `granule`, `track`, `frame`, `direction` e `polarizations`. |
-| `timeline` | object, opcional | Série de observações NISAR em uma órbita/quadro co-registrados; contém referência, resolução, cobertura comum, método, limitação e `observations`. Cada observação informa data, granule, chave da camada, áreas relativas à referência e limiares usados. |
-| `layers.timeline_<YYYYMMDD>` | object, opcional | Overlay PNG de uma observação temporal. `timeline.observations[].layer` aponta para a chave correspondente em `layers`. Azul indica água na referência e na data selecionada; vermelho, somente na data selecionada; ocre, somente na referência. |
-| `flooded_area_km2` | number | Área estimada da mudança em água aberta detectável: `water(during) AND NOT water(before)`. |
-| `flooded_area_range_km2` | `[min, max]` | Limites dos cenários de sensibilidade; não é intervalo de confiança estatístico. O nome da chave é mantido por compatibilidade. |
-| `permanent_water_km2` | number | Área já classificada como água na cena de referência. |
-| `method` | object | `threshold_db`, `speckle_filter`, `loosen_db`, `min_drop_db`, `sensitivity_scenarios_km2` (cenário estrito, selecionado e referência ajustada) e notas metodológicas. A estimativa publicada usa `--loosen 3`; a faixa é o mínimo/máximo desses cenários, não um intervalo de confiança. |
-| `layers.before` / `layers.during` | object | Overlays `geojson`, `image` ou `tile`. Uma imagem usa `bounds` como `[[south,west],[north,east]]`. URLs são absolutas no Flask e relativas após geração estática. |
-| `layers.radar_rgb` | object, opcional | Overlay composto de radar em falsa cor, mostrado no passo de radar quando presente. |
-| `layers.impact_features` | object, opcional | GeoJSON de feições OSM usado pelo painel de impacto; atribuição OSM/ODbL deve permanecer visível. |
-| `layers.impact_roads` | object, opcional | GeoJSON de trechos de estrada OSM que intersectam a máscara de água aberta detectável; não confirma interdição. |
-| `layers.vegetation` | object, opcional | Raster ou tile pré-processado com `url`, `source`, `date`, `index` e `legend`; `image` também requer `bounds`. Ausente no resultado atual: não há raster Sentinel-2 validado publicado. |
-| `impact` | object, opcional | Resumo OSM produzido por `pipeline/osm_impact.py`; a aba Potential impacts depende de `impact.categories`. |
-| `validation` | object, opcional | Comparação EMSR857 AOI02: áreas, interseção, união, IoU, frações de sobreposição, referência, CRS métrico e interpretação. É concordância espacial, não verdade-terreno. |
-| `layers.validation_difference` | object, opcional | GeoJSON com áreas `system_only` e `reference_only`, exibido na aba Potential impacts. |
-| `context_figures` | object | `source` e lista `items` (`label`, `value`) com números de contexto e fonte. |
-| `limitations` | list of strings | Ressalvas que a interface apresenta ao usuário. |
-| `routing` | object, opcional | Referências a raster de água e rede compilada usados pelo motor de rotas. |
+| `mock` | boolean | `true` marks artificial data; the interface shows a warning. Real outputs use `false`. |
+| `area_name` | string | Region name shown in the product. |
+| `bbox` | `[west, south, east, north]` | Bounds in degrees, WGS84/EPSG:4326. |
+| `maturity` | string | Status of the source product; the current value names a pre-validation release and the GCOV product version. Do not read it as completed scientific validation. |
+| `collection` | string or `null` | Collection short name; `null` in the current result. |
+| `product` | string | Source product, currently NISAR GCOV L-band/gamma0. |
+| `scenes.before` / `scenes.during` | object | Scene metadata: `date`, `granule`, `track`, `frame`, `direction` and `polarizations`. |
+| `timeline` | object, optional | Series of NISAR observations on one co-registered orbit/frame; holds the reference, resolution, common coverage, method, limitation and `observations`. Each observation gives its date, granule, layer key, areas relative to the reference and the thresholds used. |
+| `layers.timeline_<YYYYMMDD>` | object, optional | PNG overlay of one timeline observation. `timeline.observations[].layer` points to the matching key in `layers`. Blue is water on the reference and on the selected date; red, only on the selected date; ochre, only on the reference. |
+| `flooded_area_km2` | number | Estimated area of the change in detectable open water: `water(during) AND NOT water(before)`. |
+| `flooded_area_range_km2` | `[min, max]` | Bounds of the sensitivity scenarios; not a statistical confidence interval. The key name is kept for compatibility. |
+| `permanent_water_km2` | number | Area already classed as water in the reference scene. |
+| `method` | object | `threshold_db`, `speckle_filter`, `loosen_db`, `min_drop_db`, `sensitivity_scenarios_km2` (strict scenario, selected scenario and adjusted reference) and method notes. The published estimate uses `--loosen 3`; the range is the minimum/maximum of these scenarios, not a confidence interval. |
+| `layers.before` / `layers.during` | object | `geojson`, `image` or `tile` overlays. An image uses `bounds` as `[[south,west],[north,east]]`. URLs are absolute in Flask and relative after the static build. |
+| `layers.radar_rgb` | object, optional | False-colour radar composite overlay, shown on the radar screen when present. |
+| `layers.impact_features` | object, optional | GeoJSON of OSM features used by the impact map; the OSM/ODbL attribution must stay visible. |
+| `layers.impact_roads` | object, optional | GeoJSON of OSM road stretches that intersect the mask of detectable open water; does not confirm closures. |
+| `layers.vegetation` | object, optional | Pre-processed raster or tiles with `url`, `source`, `date`, `index` and `legend`; `image` also needs `bounds`. Absent from the current result: no validated Sentinel-2 raster has been published. |
+| `impact` | object, optional | OSM summary produced by `pipeline/osm_impact.py`; the impact map (story screen 4 and the route tool) depends on `impact.categories`. |
+| `validation` | object, optional | EMSR857 AOI02 comparison: areas, intersection, union, IoU, overlap fractions, reference, metric CRS and interpretation. It is spatial agreement, not ground truth. |
+| `layers.validation_difference` | object, optional | GeoJSON with `system_only` and `reference_only` areas, shown on story screen 3 (when "Checked against an independent map" is open) and as a layer in the route tool. |
+| `context_figures` | object | `source` and an `items` list (`label`, `value`) with context figures and their source. |
+| `limitations` | list of strings | Caveats the interface shows to the user. |
+| `routing` | object, optional | References to the water raster and the compiled network used by the route engine. |
 
-### Mapa de impacto (`impact` e `layers.impact_*`)
+### Impact map (`impact` and `layers.impact_*`)
 
-Gerado offline por `python pipeline/osm_impact.py` a partir do extrato OSM local
-(`data/osm/*.osm.pbf`), da água aberta detectável
-(`outputs/flood_new_water.tif`), da cobertura do radar
-(`outputs/radar_coverage.tif`) e da rede de rotas
-(`outputs/routing_network.npz`). Os estados representam *impacto potencial*
-segundo a água aberta detectável pelo radar na data da cheia; não significam
-dano confirmado.
+Built offline by `python pipeline/osm_impact.py` from the local OSM extract
+(`data/osm/*.osm.pbf`), the detectable open water
+(`outputs/flood_new_water.tif`), the radar coverage
+(`outputs/radar_coverage.tif`) and the route network
+(`outputs/routing_network.npz`). The states represent *potential impact* from
+the open water the radar detected on the flood date; they do not mean
+confirmed damage.
 
-Estados (exclusivos, testados nesta ordem):
+States (exclusive, tested in this order):
 
-| `state` | Significado |
+| `state` | Meaning |
 |---|---|
-| `not_observed` | Fora da área com dado de radar nas duas datas: nada se sabe sobre a água ali. |
-| `in_water` | O ponto, ou parte da área mapeada, intersecta água aberta detectável adicional. Para pontes: as vias de acesso mapeadas intersectam água aberta detectável dentro de `bridge_approach_m` (o tabuleiro não é testado). |
-| `isolated` | Impacto potencial de isolamento: fora da água aberta detectável, mas sem via mapeada sem água detectada alcançável a pé (até `road_snap_m`) que leve à rede viária principal. |
-| `near_water` | A até `near_water_m` de água aberta detectável, com acesso por via mapeada sem água detectada. |
-| `accessible` | Via seca liga o elemento à rede principal. |
-| `no_road` | Nenhuma via de carro mapeada a até `road_snap_m`, ou as vias próximas não se ligam à rede principal no OSM (lacuna do mapa, não efeito da cheia). |
+| `not_observed` | Outside the area with radar data on both dates: nothing is known about the water there. |
+| `in_water` | The point, or part of the mapped area, intersects new detectable open water. For bridges: the mapped approach roads intersect detectable open water within `bridge_approach_m` (the deck is not tested). |
+| `isolated` | Potentially cut off: outside the detectable open water, but with no mapped road without detected water, reachable on foot (up to `road_snap_m`), that leads to the main road network. |
+| `near_water` | Within `near_water_m` of detectable open water, with access by a mapped road without detected water. |
+| `accessible` | A dry road links the element to the main network. |
+| `no_road` | No mapped car road within `road_snap_m`, or the nearby roads do not join the main network in OSM (a gap in the map, not an effect of the flood). |
 
-"Rede principal" é o maior componente fortemente conexo do grafo de vias; a
-versão sem água detectada usa o grafo `dry` de `routing.py` (trechos que
-intersectam água aberta detectável são removidos, pontes não testadas).
+The "main network" is the largest strongly connected component of the road
+graph; the version without detected water uses the `dry` graph of
+`routing.py` (stretches that intersect detectable open water are removed;
+bridges are not tested).
 
-Propriedades de cada ponto em `impact_features.geojson`: `id`, `category`
-(`school`, `health`, `community`, `bridge`), `kind` (valor da tag OSM:
-`school`, `clinic`, `village`…, `building_cluster` para aglomerados, a classe
-da via para pontes), `name` (só do OSM, senão `null`), `state`, `water_m`
-(metros até o centro do pixel de água aberta detectável mais próximo, múltiplos de 10;
-`0` sobre a água; `null` acima de 5 km), `road_m` (via mapeada mais próxima,
-`null` se não há via a até `road_snap_m`), `geom` (`point` ou `area`), `osm`
-(`node/123`, `way/…`, `relation/…` ou `null`). Aglomerados têm `buildings` e
-`extent_m`; pontes têm `length_m`, `ends`, `ends_cut`, `approaches` e
-`approaches_flooded`; comunidades `in_water`/`isolated` têm `nearest_health`
-(`id`, `name`, `kind`, `lon`, `lat`, `km` em linha reta até a unidade de saúde
-mais próxima com acesso seco).
+Properties of each point in `impact_features.geojson`: `id`, `category`
+(`school`, `health`, `community`, `bridge`), `kind` (OSM tag value: `school`,
+`clinic`, `village`…, `building_cluster` for clusters, the road class for
+bridges), `name` (from OSM only, otherwise `null`), `state`, `water_m`
+(metres to the centre of the nearest pixel of detectable open water, multiples
+of 10; `0` on the water; `null` beyond 5 km), `road_m` (nearest mapped road,
+`null` if there is no road within `road_snap_m`), `geom` (`point` or `area`),
+`osm` (`node/123`, `way/…`, `relation/…` or `null`). Clusters have `buildings`
+and `extent_m`; bridges have `length_m`, `ends`, `ends_cut`, `approaches` and
+`approaches_flooded`; `in_water`/`isolated` communities have `nearest_health`
+(`id`, `name`, `kind`, `lon`, `lat`, `km` in a straight line to the nearest
+health facility with dry access).
 
-Campos de `impact`:
+`impact` fields:
 
-| Campo | Notas |
+| Field | Notes |
 |---|---|
-| `categories.<cat>` | `total`, `by_state` (soma igual a `total`), `by_kind`; para escolas, saúde e comunidades também `mapped` e `named` (objetos OSM). `community` traz `places` e `clusters` (`total`, `by_state`, `buildings_in_clusters`). |
-| `buildings` | `total` de footprints `building=*` no bbox e `by_state` (estado do centróide de cada um). Não é população. |
-| `roads` | `flooded_km` e `by_class.<classe>`: `flooded_km`, `observed_km` (dentro da cobertura do radar) e `total_km`. |
+| `categories.<cat>` | `total`, `by_state` (adds up to `total`), `by_kind`; for schools, health and communities also `mapped` and `named` (OSM objects). `community` has `places` and `clusters` (`total`, `by_state`, `buildings_in_clusters`). |
+| `buildings` | `total` of `building=*` footprints in the bounding box and `by_state` (state of each one's centroid). Not population. |
+| `roads` | `flooded_km` and `by_class.<class>`: `flooded_km`, `observed_km` (inside radar coverage) and `total_km`. |
 | `parameters` | `near_water_m` (250), `road_snap_m` (500), `bridge_approach_m` (250), `cluster_cell_m` (100), `min_cluster_buildings` (10), `water_pixel_m` (40). |
-| `coverage` | `radar_observed_fraction` do bbox e o tamanho, em cruzamentos, da rede principal e da sua parte seca. |
-| `states`, `source`, `osm_source`, `osm_timestamp`, `license`, `radar_date`, `estimated_at_utc`, `method` | Ordem dos estados, procedência, licença ODbL, data do radar e descrição curta do método. |
+| `coverage` | `radar_observed_fraction` of the bounding box and the size, in junctions, of the main network and of its dry part. |
+| `states`, `source`, `osm_source`, `osm_timestamp`, `license`, `radar_date`, `estimated_at_utc`, `method` | State order, provenance, ODbL licence, radar date and a short description of the method. |
 
-## API de rotas de resgate
+## Rescue route API
 
-`POST /api/route` recebe JSON com `origin` e `destination`, cada um como
-`{"lon": number, "lat": number}` ou `[longitude, latitude]` (WGS84),
-`alternatives` opcional (inteiro de 0 a 3, padrão 2) e `boats` opcional
-(booleano, padrão `true`: a equipe tem barco). As respostas usam
-`[longitude, latitude]`, distâncias em metros e tempos em segundos.
+`POST /api/route` takes JSON with `origin` and `destination`, each as
+`{"lon": number, "lat": number}` or `[longitude, latitude]` (WGS84), an
+optional `alternatives` (integer from 0 to 3, default 2) and an optional
+`boats` (boolean, default `true`: the team has a boat). Responses use
+`[longitude, latitude]`, distances in metres and times in seconds.
 
-| HTTP | `status` | Quando |
+| HTTP | `status` | When |
 |---|---|---|
-| 200 | `ok` | Existe rota seca ou rota de resgate (carro + barco). `recommended` diz qual mostrar primeiro: `rescue`, `safe` ou `least_flooded`. |
-| 200 | `no_safe_route` | Toda rota cruza água; `reason` é `origin_flooded`, `destination_flooded` ou `cut_off`, e `least_flooded` traz a rota que cruza menos água. |
-| 400 | `invalid_input` | JSON ausente, coordenada não numérica, fora de WGS84 (com dica se lon/lat parecem trocadas), origem igual ao destino ou `alternatives` inválido. |
-| 422 | `out_of_coverage` | Ponto fora da área com dados, ou longe de qualquer via (`SARVIA_ROUTE_MAX_SNAP_M`) e, com barcos, a mais de 250 m da água. |
-| 422 | `no_route` | Os pontos estão em partes da rede OSM que não se conectam (ou mãos únicas impedem). |
-| 503 | `routing_unavailable` | `outputs/routing_network.npz` não existe ou está ilegível (`missing_artifacts` lista o arquivo). |
-| 503 | `busy` | Fila cheia (`SARVIA_ROUTE_MAX_PENDING`); cabeçalho `Retry-After`. |
-| 504 | `routing_timeout` | A busca passou de `SARVIA_ROUTE_TIMEOUT` segundos. |
-| 500 | `routing_error` | Falha inesperada do motor, sempre em JSON. |
+| 200 | `ok` | A dry route or a rescue route (car + boat) exists. `recommended` says which to show first: `rescue`, `safe` or `least_flooded`. |
+| 200 | `no_safe_route` | Every route crosses water; `reason` is `origin_flooded`, `destination_flooded` or `cut_off`, and `least_flooded` has the route that crosses the least water. |
+| 400 | `invalid_input` | Missing JSON, non-numeric coordinate, outside WGS84 (with a hint if lon/lat look swapped), origin equal to destination or invalid `alternatives`. |
+| 422 | `out_of_coverage` | Point outside the area with data, or far from any road (`SARVIA_ROUTE_MAX_SNAP_M`) and, with boats, more than 250 m from the water. |
+| 422 | `no_route` | The points are in parts of the OSM network that do not connect (or one-way streets prevent it). |
+| 503 | `routing_unavailable` | `outputs/routing_network.npz` is missing or unreadable (`missing_artifacts` lists the file). |
+| 503 | `busy` | Full queue (`SARVIA_ROUTE_MAX_PENDING`); `Retry-After` header. |
+| 504 | `routing_timeout` | The search took longer than `SARVIA_ROUTE_TIMEOUT` seconds. |
+| 500 | `routing_error` | Unexpected engine failure, always as JSON. |
 
-Exemplo de pedido (de Chókwè a um ponto dentro da água):
+Example request (from Chókwè to a point inside the water):
 
 ```json
 {"origin": {"lon": 33.004, "lat": -24.530},
@@ -114,7 +116,7 @@ Exemplo de pedido (de Chókwè a um ponto dentro da água):
  "alternatives": 2, "boats": true}
 ```
 
-Resposta, resumida:
+Response, shortened:
 
 ```json
 {"status": "ok", "recommended": "rescue",
@@ -132,119 +134,123 @@ Resposta, resumida:
                       "walk_speed_kmh": 4.0, "boat_cell_m": 80.0}}
 ```
 
-Valores reais da rede de 15/11/2026; as listas de coordenadas e alguns
-campos foram encurtados.
+Real values from the network of 15 Nov 2026; the coordinate lists and some
+fields were shortened.
 
-Resposta 200:
+200 response:
 
-- `rescue`: rota multimodal com `legs` (cada uma com `mode` `drive`, `boat`
-  ou `walk`, `coordinates`, `distance_m`, `duration_s`, `via`), totais
+- `rescue`: multimodal route with `legs` (each with `mode` `drive`, `boat` or
+  `walk`, `coordinates`, `distance_m`, `duration_s`, `via`), totals
   `distance_m`, `duration_s`, `drive_m`, `boat_m`, `walk_m`, `portage_m`
-  (metros arrastando o barco), `uses_boat`, `launch` e `landing`
-  (`[lon, lat]` ou `null`). Só aparece quando usa barco e é mais rápida que
-  a rota seca, ou quando não há rota seca. `boat_assumptions` traz as
-  velocidades e o tempo de lançamento usados (`null` com `boats: false`).
-- `normal`: rota mais rápida ignorando a inundação; `safe`: rota mais rápida
-  que evita todo trecho com água aberta detectável (`null` se não existir);
-  `alternatives`: até N rotas secas diferentes; `least_flooded`: só quando
-  `safe` é `null`. Cada rota tem `coordinates`, `distance_m`, `duration_s`,
-  `flooded_m` (metros sobre água aberta detectável) e `via` (vias principais).
-- `origin` / `destination`: `input`, `snapped` (ponto na via ou `null`),
-  `snap_distance_m`, `road` e `in_water`. `normal`, `safe` e as
-  alternativas são `null`/vazias quando o destino não é alcançável por via.
-- `blocked_segments`: trechos da rota mais rápida que estão sobre água
-  (até 500, com `blocked_segments_truncated`); `blocked_edges`: quantos
-  segmentos viários da rota mais rápida estão alagados.
+  (metres dragging the boat), `uses_boat`, `launch` and `landing` (`[lon, lat]`
+  or `null`). It only appears when it uses the boat and is faster than the dry
+  route, or when there is no dry route. `boat_assumptions` gives the speeds and
+  the launch time used (`null` with `boats: false`).
+- `normal`: fastest route ignoring the flood; `safe`: fastest route that
+  avoids every stretch with detectable open water (`null` if none exists);
+  `alternatives`: up to N different dry routes; `least_flooded`: only when
+  `safe` is `null`. Each route has `coordinates`, `distance_m`, `duration_s`,
+  `flooded_m` (metres on detectable open water) and `via` (main roads).
+- `origin` / `destination`: `input`, `snapped` (point on the road or `null`),
+  `snap_distance_m`, `road` and `in_water`. `normal`, `safe` and the
+  alternatives are `null`/empty when the destination cannot be reached by
+  road.
+- `blocked_segments`: stretches of the fastest route that are on water (up to
+  500, with `blocked_segments_truncated`); `blocked_edges`: how many road
+  segments of the fastest route are flooded.
 - `detour_ratio`, `detour_percent`, `extra_duration_s`, `message`,
   `compute_ms`, `cached`, `experimental_warning`, `units: "m"`,
   `crs: "EPSG:4326"`.
 
-`GET /api/route/status` informa se a rede está carregada e devolve seus
-metadados: data do extrato OSM, fontes das máscaras, cruzamentos, arestas,
-km de vias e de vias alagadas, células de barco, pontos de lançamento,
-ligações de arrasto, se há barco (`boats`) e as velocidades em uso.
+`GET /api/route/status` says whether the network is loaded and returns its
+metadata: OSM extract date, mask sources, junctions, edges, km of road and of
+flooded road, boat cells, launch points, portage links, whether boats are on
+(`boats`) and the speeds in use.
 
-Uma rota "seca" significa apenas que a via não cruza água aberta detectável
-pelo radar na data da análise; pontes são excluídas do teste porque o radar
-mede a água sob elas. Trechos de barco supõem água aberta e funda o
-bastante, o que o radar não mede. É experimental e não é orientação
-operacional.
+A "dry" route only means that the road does not cross detectable open water
+seen by the radar on the analysis date; bridges are left out of the test
+because the radar measures the water under them. Boat legs assume open water
+deep enough to navigate, which the radar does not measure. It is experimental
+and not operational guidance.
 
-Não invente valores. Use `null` ou omita campos opcionais quando algo não
-estiver confirmado. Os números de impacto só são atualizados depois da etapa
-offline `osm_impact.py`; dados mock nunca devem ser apresentados como reais.
+Do not invent values. Use `null` or omit optional fields when something is not
+confirmed. Impact figures are only updated after the offline `osm_impact.py`
+step; mock data must never be presented as real.
 
-## Camadas-base e fontes externas
+## Basemaps and external sources
 
-O mapa abre com o OpenStreetMap claro (`tile.openstreetmap.de`) e oferece
-também o mapa escuro do Esri World Dark Gray Canvas, ambos com atribuição no
-controle Leaflet. Essa base escura não exige API key no cliente.
-Satélite e híbrido usam por padrão os tiles públicos do Esri World Imagery
-(o híbrido acrescenta a referência de lugares/limites). O servidor pode
-substituí-los com `SARVIA_SATELLITE_TILE_URL` e
-`SARVIA_HYBRID_TILE_URL`, além das respectivas variáveis `*_ATTRIBUTION`.
-Quando um URL privado é configurado, o navegador recebe somente
-`/map-tiles/<provider>/{z}/{x}/{y}`, portanto chaves não são expostas em
-JavaScript, HTML ou Git. Se um provedor falhar, OSM continua funcionando.
+The story opens on the light OpenStreetMap map (`tile.openstreetmap.de`) and
+the route tool on the hybrid map. The dark map is Esri World Dark Gray Canvas,
+which needs no API key in the client. Satellite and hybrid use the public Esri
+World Imagery tiles by default (hybrid adds the places/boundaries reference).
+Every basemap keeps its attribution on the map. The server can replace
+satellite and hybrid with `SARVIA_SATELLITE_TILE_URL` and
+`SARVIA_HYBRID_TILE_URL`, plus the matching `*_ATTRIBUTION` variables. When a
+private URL is set, the browser only receives
+`/map-tiles/<provider>/{z}/{x}/{y}`, so keys are not exposed in JavaScript,
+HTML or Git. If a provider fails, the other basemaps keep working.
 
-O Google Maps Platform Map Tiles API não é usado por padrão: sua sessão,
-autenticação, billing e termos não são equivalentes a um XYZ público para o
-Leaflet atual. Se for adotado no futuro, deve ser por integração oficial e
-proxy autenticado, nunca por scraping. Esri, Mapbox ou outro fornecedor
-licenciado podem ser configurados pelo mesmo proxy, respeitando custo,
-limites, API key no servidor e a atribuição exigida pelo fornecedor.
+The Google Maps Platform Map Tiles API is not used by default: its session,
+authentication, billing and terms are not equivalent to a public XYZ layer for
+the current Leaflet setup. If adopted in the future, it must be through the
+official integration and an authenticated proxy, never by scraping. Esri,
+Mapbox or another licensed provider can be configured through the same proxy,
+respecting cost, limits, a server-side API key and the attribution the
+provider requires.
 
-### NDVI em janeiro de 2026
+### NDVI for January 2026
 
-Uma camada Sentinel-2 só pode ser publicada quando o pré-processamento offline
-gerar um raster real e a licença/fonte estiver registrada no campo `source`.
-Para este caso, a janela deve ser informada explicitamente em `date` (por
-exemplo, uma composição de janeiro de 2026), incluindo no texto da legenda se
-houve máscara de nuvens. As classes visuais esperadas são água, vegetação
-baixa, moderada e densa, solo exposto, área urbana e sem dados/nuvem; elas são
-apenas uma convenção de visualização dos pixels fornecidos pelo produtor.
-Atualmente `outputs/stats.json` não contém `layers.vegetation`, pois não há
-um raster Sentinel-2 licenciado e validado publicado neste repositório.
+A Sentinel-2 layer can only be published once offline pre-processing produces
+a real raster and its licence/source is recorded in the `source` field. For
+this case, the window must be stated explicitly in `date` (for example, a
+January 2026 composite), saying in the legend text whether a cloud mask was
+applied. The expected visual classes are water, low, moderate and dense
+vegetation, bare soil, urban and no data/cloud; they are only a display
+convention for the pixels the producer provides. At present
+`outputs/stats.json` has no `layers.vegetation`, because no licensed and
+validated Sentinel-2 raster has been published in this repository.
 
-## Outros endpoints e configuração de mapas
+## Other endpoints and map configuration
 
-| Método e caminho | Finalidade | Observações |
+| Method and path | Purpose | Notes |
 |---|---|---|
-| `GET /` | Página principal interativa. | Renderizada por Flask; a cópia estática em `docs/index.html` não tem backend. |
-| `GET /how-to-read-radar` | Explicação de leitura do radar. | No site estático, o caminho vira `how-to-read-radar.html`. |
-| `GET /api/stats` | Contrato de dados para o frontend. | Responde JSON de `outputs/stats.json` ou do fallback mock quando o primeiro não existe. |
-| `GET /api/route/status` | Estado e metadados da rede de rotas. | Exige Flask e `outputs/routing_network.npz` legível. |
-| `POST /api/route` | Calcula opções de rota. | Exige Flask; não está disponível em GitHub Pages. |
-| `GET /outputs/<path>` | Entrega artefatos produzidos. | Limitado à pasta `outputs/` pelo `send_from_directory` do Flask. |
-| `GET /map-tiles/<provider>/<z>/<x>/<y>` | Proxy de tiles de satélite/híbrido. | Flask usa URL de servidor configurada e devolve imagem com cache. Não é usado pelo site estático. |
+| `GET /` | The five-screen story. | Rendered by Flask; the static copy in `docs/index.html` has no backend. |
+| `GET /routes` | The route tool. | Rendered by Flask; the static copy `docs/routes.html` has layers and places but no route calculation. |
+| `GET /workspace` | Old address of the tool. | Redirects (301) to `/routes`; `docs/workspace.html` redirects to `routes.html`. |
+| `GET /how-to-read-radar` | How to read the radar. | On the static site the path becomes `how-to-read-radar.html`. |
+| `GET /api/stats` | Data contract for the frontend. | Returns the JSON of `outputs/stats.json`, or the mock fallback when the first is missing. |
+| `GET /api/route/status` | Status and metadata of the route network. | Needs Flask and a readable `outputs/routing_network.npz`. |
+| `POST /api/route` | Computes route options. | Needs Flask; not available on GitHub Pages. |
+| `GET /outputs/<path>` | Serves produced artefacts. | Limited to the `outputs/` folder by Flask's `send_from_directory`. |
+| `GET /map-tiles/<provider>/<z>/<x>/<y>` | Satellite/hybrid tile proxy. | Flask uses the configured server URL and returns the image with caching. Not used by the static site. |
 
-O painel de mapas-base usa OSM claro e mapa escuro Esri; satélite e híbrido
-usam por padrão tiles públicos do Esri. No Flask, estas variáveis podem
-sobrescrever URLs e atribuição:
+In Flask, these variables can override the satellite and hybrid URLs and
+attribution:
 
 - `SARVIA_SATELLITE_TILE_URL`
 - `SARVIA_HYBRID_TILE_URL`
 - `SARVIA_SATELLITE_ATTRIBUTION`
 - `SARVIA_HYBRID_ATTRIBUTION`
 
-O template XYZ recebe `{z}`, `{x}`, `{y}` e, quando necessário, `{s}`. Guarde
-tokens do provedor em secrets do servidor; não os inclua em `stats.json`,
-JavaScript, HTML ou nos artefatos do Pages. No build estático, o frontend usa
-os mapas-base públicos padrão diretamente e não pode fazer proxy autenticado.
+The XYZ template receives `{z}`, `{x}`, `{y}` and, when needed, `{s}`. Keep
+provider tokens in server secrets; do not put them in `stats.json`,
+JavaScript, HTML or the Pages artefacts. In the static build, the frontend
+uses the default public basemaps directly and cannot use an authenticated
+proxy.
 
-### Série temporal NISAR (`timeline`)
+### NISAR timeline (`timeline`)
 
-`pipeline/build_timeline.py` gera snapshots discretos para 12/12/2025,
-24/12/2025, 05/01/2026 e 17/01/2026. Todos usam track 114, frame 165,
-passagem ascendente e grade comum de 40 m. A contagem de área usa somente os
-pixels com HH/HV válidos nas quatro datas. Os limiares estritos partem da
-referência de 17/01 e são ajustados pelo deslocamento da moda terrestre de
-cada cena, como compensação radiométrica global. A série não usa o fator de
-sensibilidade `--loosen 3` da estimativa primária de 982,5 km²; portanto, seus
-valores são uma leitura temporal independente e não devem ser comparados como
-se fossem o mesmo indicador.
+`pipeline/build_timeline.py` produces discrete snapshots for 12 Dec 2025,
+24 Dec 2025, 5 Jan 2026 and 17 Jan 2026. All use track 114, frame 165,
+ascending pass and a common 40 m grid. The area count uses only the pixels
+with valid HH/HV on all four dates. The strict thresholds start from the
+17 Jan reference and are adjusted by each scene's land-mode shift, as a global
+radiometric compensation. The series does not use the `--loosen 3`
+sensitivity factor of the primary estimate of 982.5 km²; its values are an
+independent temporal reading and must not be compared as if they were the
+same indicator.
 
-Cada quadro é uma aquisição real: o controle avança entre datas observadas e
-nunca sintetiza dias intermediários. A série disponível termina em 17/01/2026;
-o contrato registra que não há quadro compatível posterior para mostrar o
-recuo da água.
+Each frame is a real acquisition: the control steps between observed dates
+and never synthesises days in between. The available series ends on
+17 Jan 2026; the contract records that there is no later compatible frame to
+show the water receding.

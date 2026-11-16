@@ -1,104 +1,103 @@
-# Dados e métodos
+# Data and methods
 
-## Fontes
+## Sources
 
-| Fonte | Uso | Limite principal |
+| Source | Use | Main limit |
 |---|---|---|
-| NISAR L2 GCOV, HH/HV, 05/01/2026 | Cena de referência e água aberta detectável nessa data | Dados provisórios; a primeira cena pode já incluir partes da cheia. |
-| NISAR L2 GCOV, HH/HV, 17/01/2026 | Cena durante a cheia e detecção de mudança em água aberta detectável | Limiares heurísticos; vegetação inundada e efeitos de vento/relevo podem ser classificados incorretamente. |
-| Copernicus EMSR857 AOI02, produto Sentinel-1 de 17/01/2026 | Comparação espacial independente | Área, sensor e método diferem do resultado NISAR; não é verdade-terreno. |
-| OpenStreetMap via Geofabrik | Rede viária, serviços e elementos de contexto | Cobertura e qualidade variam; OSM não mede água nem condição atual da via. |
-| Esri e OpenStreetMap.de | Mapas-base de contexto | Tiles externos dependem de conexão, termos e disponibilidade do provedor. |
+| NISAR L2 GCOV, HH/HV, 5 Jan 2026 | Reference scene and detectable open water on that date | Provisional data; the first scene may already include parts of the flood. |
+| NISAR L2 GCOV, HH/HV, 17 Jan 2026 | Scene during the flood and detection of change in detectable open water | Heuristic thresholds; flooded vegetation and wind/relief effects may be misclassified. |
+| Copernicus EMSR857 AOI02, Sentinel-1 product of 17 Jan 2026 | Independent spatial comparison | Area, sensor and method differ from the NISAR result; not ground truth. |
+| OpenStreetMap via Geofabrik | Road network, services and context features | Coverage and quality vary; OSM measures neither water nor the current road condition. |
+| Esri and OpenStreetMap.de | Context basemaps | External tiles depend on connection, the provider's terms and availability. |
 
-## Detecção NISAR
+## NISAR detection
 
-As cenas são recortadas para o bbox de estudo, multilook 4×4 em potência
-linear (pixels nominais de 40 m) e convertidas para dB. No contrato publicado,
-um pixel é classificado como água aberta detectável quando HH e HV estão
-abaixo dos limiares informados em `method.threshold_db`; a mudança em água
-aberta detectável é a máscara de 17/01 menos a máscara de 05/01. Os pixels só
-entram na contagem de área onde há dados nas duas datas.
+The scenes are cropped to the study bounding box, multilooked 4×4 in linear
+power (nominal 40 m pixels) and converted to dB. In the published contract, a
+pixel counts as detectable open water when HH and HV are below the thresholds
+in `method.threshold_db`; the change in detectable open water is the 17 Jan
+mask minus the 5 Jan mask. Pixels only count towards the area where both dates
+have data.
 
-No `outputs/stats.json` atual:
+In the current `outputs/stats.json`:
 
-- água aberta detectável adicional: **982,5 km²**, estimativa principal com
-  `--loosen 3`;
-- cenários de sensibilidade: **709,5–1.455,6 km²**, mínimo e máximo entre os
-  limiares estritos, o `--loosen` selecionado e o ajuste da referência pela
-  moda terrestre. Essa faixa não é um intervalo de confiança estatístico;
-- água já presente na cena de referência: **972,0 km²**;
-- bbox: aproximadamente `[31,9836, -26,0034, 33,508, -23,9967]` em
+- new detectable open water: **982.5 km²**, main estimate with `--loosen 3`;
+- sensitivity scenarios: **709.5–1,455.6 km²**, minimum and maximum across
+  the strict thresholds, the selected `--loosen` and the reference adjusted by
+  the land mode. This range is not a statistical confidence interval;
+- water already present in the reference scene: **972.0 km²**;
+- bounding box: about `[31.9836, -26.0034, 33.508, -23.9967]` in
   longitude/latitude.
 
-Use as saídas do contrato como valores atuais: um reprocessamento pode mudar
-limiares, pixels válidos, overlays e métricas.
+Use the contract outputs as the current values: reprocessing can change
+thresholds, valid pixels, overlays and metrics.
 
-### Série observada
+### Observed series
 
-A interface também apresenta quatro aquisições do mesmo track/frame (114/165,
-ascendente), de 12/12/2025 a 17/01/2026. Para cada data, o limiar base é o
-limiar do histograma de 17/01 deslocado pela diferença da moda terrestre
-daquela cena. A máscara é contada apenas sobre pixels HH/HV válidos nas quatro
-datas (67,17% do recorte) e remove componentes menores que 8 pixels. O
-overlay compara cada máscara com a referência temporal de 12/12: água comum,
-água somente na data selecionada e água somente na referência.
+The interface also shows four acquisitions from the same track and frame
+(114/165, ascending), from 12 Dec 2025 to 17 Jan 2026. For each date, the base
+threshold is the 17 Jan histogram threshold shifted by the difference in that
+scene's land mode. The mask is counted only over pixels with valid HH/HV on
+all four dates (67.17% of the area) and drops components smaller than
+8 pixels. The overlay compares each mask with the 12 Dec reference: shared
+water, water only on the selected date and water only on the reference.
 
-Esse indicador estrito não aplica `--loosen 3` e usa outra referência
-temporal; não é uma reestimativa dos 982,5 km² de mudança em água aberta
-detectável da estimativa principal. A série
-termina na observação de 17/01 e não sustenta uma curva pós-cheia.
+This strict indicator does not apply `--loosen 3` and uses another reference
+date; it is not a re-estimate of the main 982.5 km² change in detectable open
+water. The series ends with the 17 Jan observation and does not support a
+post-flood curve.
 
-## Comparação EMSR857
+## EMSR857 comparison
 
-O cálculo recorta máscara NISAR e polígonos EMS à AOI02, projeta as geometrias
-para EPSG:32736, repara geometrias inválidas e mede interseção, união e
-diferenças.
+The calculation crops the NISAR mask and the EMS polygons to AOI02, projects
+the geometries to EPSG:32736, repairs invalid geometries and measures
+intersection, union and differences.
 
-| Métrica na AOI02 | Resultado atual |
+| Metric in AOI02 | Current result |
 |---|---:|
-| Área NISAR de água aberta detectável adicional | 66,798 km² |
-| Área mapeada pelo EMS | 93,048 km² |
-| Interseção | 50,483 km² |
-| União | 109,364 km² |
-| IoU | 0,4616 |
-| Interseção / área NISAR | 0,7557 |
-| Interseção / área EMS | 0,5425 |
-| Só NISAR | 16,316 km² |
-| Só EMS | 42,565 km² |
+| NISAR area of new detectable open water | 66.798 km² |
+| Area mapped by EMS | 93.048 km² |
+| Intersection | 50.483 km² |
+| Union | 109.364 km² |
+| IoU | 0.4616 |
+| Intersection / NISAR area | 0.7557 |
+| Intersection / EMS area | 0.5425 |
+| Only NISAR | 16.316 km² |
+| Only EMS | 42.565 km² |
 
-As duas máscaras têm definições diferentes: NISAR mede mudança na água aberta
-detectável em relação a 05/01; EMS produz uma área de inundação. Portanto IoU é um resumo da
-concordância espacial naquele recorte e período, não uma acurácia universal.
-Consulte o [relatório detalhado](../validation_reference_report_2026-11-15.md)
-para proveniência e parâmetros.
+The two masks have different definitions: NISAR measures the change in
+detectable open water relative to 5 January; EMS produces a flooded area. So
+the IoU summarises spatial agreement in that area and period, not a universal
+accuracy. See the [detailed report](../validation_report.md)
+for provenance and parameters.
 
-## Impacto OSM
+## OSM impact
 
-`pipeline/osm_impact.py` cruza água aberta detectável/cobertura do radar e
-geometrias OSM para estimar impacto potencial.
-Estados mutuamente exclusivos incluem `in_water`, `isolated`, `near_water`,
-`accessible`, `no_road` e `not_observed`. As regras e as propriedades estão
-descritas em [`../stats_contract.md`](../stats_contract.md).
+`pipeline/osm_impact.py` crosses the detectable open water and radar coverage
+with OSM geometries to estimate potential impact. The mutually exclusive
+states are `in_water`, `isolated`, `near_water`, `accessible`, `no_road` and
+`not_observed`. The rules and properties are described in
+[`../stats_contract.md`](../stats_contract.md).
 
-O número de quilômetros de estrada indica trechos OSM que intersectam a
-máscara de água aberta detectável. Não informa se a via está fechada, se a água é profunda ou se a
-classificação OSM é completa. Contagens de edifícios, escolas, saúde,
-comunidades e pontes são estimativas de exposição potencial, não danos nem
-população afetada. “Impacto potencial” não significa dano ou interrupção
-confirmados.
+The kilometres of road are OSM stretches that intersect the mask of
+detectable open water. They do not say whether the road is closed, whether the
+water is deep or whether the OSM classification is complete. Counts of
+buildings, schools, health facilities, communities and bridges are estimates
+of potential exposure, not damage or affected population. "Potential impact"
+does not mean confirmed damage or disruption.
 
-## Rotas
+## Routes
 
-`pipeline/prepare_network.py` compila rede viária e relaciona vias à máscara
-de água. `pipeline/routing.py` oferece opções de rota seca, mais rápida,
-alternativas e uma rota multimodal carro/barco/caminhada. As velocidades e o
-tempo de lançamento são parâmetros configuráveis. O motor só conhece as
-condições representadas no snapshot de dados preparado.
+`pipeline/prepare_network.py` compiles the road network and relates roads to
+the water mask. `pipeline/routing.py` offers dry, fastest and alternative
+routes and a multimodal car/boat/walking route. Speeds and launch time are
+configurable parameters. The engine only knows the conditions represented in
+the prepared data snapshot.
 
-## Vegetação / NDVI
+## Vegetation / NDVI
 
-O frontend e o contrato aceitam a camada opcional `layers.vegetation` em
-formato raster ou tiles com fonte, data, índice e legenda. No estado atual,
-nenhum raster Sentinel-2 licenciado e validado foi publicado, então essa
-camada está ausente. Não a descreva como uma função ativa até que os dados e
-metadados sejam produzidos.
+The frontend and the contract accept the optional `layers.vegetation` layer,
+as a raster or tiles with source, date, index and legend. At present no
+licensed and validated Sentinel-2 raster has been published, so the layer is
+absent. Do not describe it as an active feature until the data and metadata
+exist.

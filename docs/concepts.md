@@ -1,99 +1,100 @@
-# Conceitos e interpretação
+# Concepts and interpretation
 
-## SAR e NISAR
+## SAR and NISAR
 
-**SAR** (*Synthetic Aperture Radar*, radar de abertura sintética) envia um
-sinal de micro-ondas e mede o retorno. Ao contrário de imagens ópticas, pode
-observar a superfície de dia ou de noite e não depende de céu sem nuvens.
-Uma superfície de água calma costuma refletir o sinal para longe do sensor e
-aparecer escura, mas vegetação inundada, vento, relevo e geometria de
-observação podem produzir outras respostas.
+**SAR** (*Synthetic Aperture Radar*) sends a microwave signal and measures the
+return. Unlike optical images, it can observe the surface day or night and
+does not need a cloud-free sky. Calm water usually reflects the signal away
+from the sensor and looks dark, but flooded vegetation, wind, relief and the
+viewing geometry can produce other responses.
 
-**NISAR** é a missão conjunta NASA–ISRO que fornece os dados SAR usados neste
-projeto. As cenas estudadas são GCOV de banda L. NISAR é a fonte da detecção
-que o sistema calcula; “água detectada” significa resultado do método e dos
-limiares do projeto, não uma classificação oficial do satélite.
+**NISAR** is the joint NASA–ISRO mission that provides the SAR data used in
+this project. The scenes studied are L-band GCOV. NISAR is the source of the
+detection the system computes; "detected water" means the result of the
+project's method and thresholds, not an official classification from the
+satellite.
 
-## Água permanente e água aberta detectável
+## Permanent water and detectable open water
 
-O sistema classifica água nas cenas de 5 e 17 de janeiro de 2026. A estimativa
-de **mudança em água aberta detectável** é:
+The system classifies water in the scenes of 5 and 17 January 2026. The
+estimate of **change in detectable open water** is:
 
 ```text
-água detectável em 17/01 AND NOT água detectável em 05/01
+water detectable on 17 Jan AND NOT water detectable on 5 Jan
 ```
 
-Assim, “adicional” quer dizer detectável em relação à cena de 5 de janeiro.
-Se a cheia já tinha começado antes dessa data, a estimativa não inclui toda a
-inundação do evento. A estimativa principal usa `--loosen 3`; a faixa exibida
-representa cenários de sensibilidade, não intervalo de confiança. O método
-atual usa a resposta de HH e HV após multilook 4×4 e limiares heurísticos; não
-é um classificador universal.
+So "new" means detectable relative to the 5 January scene. If the flood had
+already started before that date, the estimate does not include the whole
+flooded area of the event. The main estimate uses `--loosen 3`; the range
+shown represents sensitivity scenarios, not a confidence interval. The current
+method uses the HH and HV response after 4×4 multilooking and heuristic
+thresholds; it is not a universal classifier.
 
-## Copernicus EMS e a comparação
+## Copernicus EMS and the comparison
 
-**Copernicus** é o programa europeu de observação da Terra. Neste repositório,
-Copernicus EMS Rapid Mapping EMSR857 AOI02 é uma referência independente para
-comparar a área estimada pelo NISAR. O produto utilizado é baseado em
-Sentinel-1 e tem aquisição próxima à cena NISAR de 17 de janeiro.
+**Copernicus** is the European Earth observation programme. In this
+repository, Copernicus EMS Rapid Mapping EMSR857 AOI02 is an independent
+reference to compare with the area estimated from NISAR. The product is based
+on Sentinel-1, acquired close to the NISAR scene of 17 January.
 
-Essa comparação não mede “verdade” absoluta: os produtos têm sensores,
-métodos e definições diferentes. A camada Copernicus representa uma área
-classificada pelo produto EMS; a camada NISAR representa mudança em água
-aberta detectável em relação a 5 de janeiro.
+This comparison does not measure absolute "truth": the products have
+different sensors, methods and definitions. The Copernicus layer is an area
+classified by the EMS product; the NISAR layer is the change in detectable
+open water relative to 5 January.
 
 ### IoU
 
-**IoU** (*Intersection over Union*, interseção sobre união) é a área comum aos
-dois polígonos dividida pela área coberta por pelo menos um deles:
+**IoU** (*Intersection over Union*) is the area common to both polygons
+divided by the area covered by at least one of them:
 
 ```text
-IoU = área(interseção) / área(união)
+IoU = area(intersection) / area(union)
 ```
 
-O `outputs/stats.json` atual registra IoU **0,4616** para a AOI02. No mesmo
-recorte, 50,483 km² são compartilhados, 16,316 km² estão apenas no resultado
-NISAR e 42,565 km² apenas no produto EMS. O valor descreve concordância
-espacial naquele recorte, não precisão geral do sensor.
+The current `outputs/stats.json` records an IoU of **0.4616** for AOI02. In
+the same area, 50.483 km² are shared, 16.316 km² are only in the NISAR result
+and 42.565 km² only in the EMS product. The value describes spatial agreement
+in that area, not the overall accuracy of the sensor.
 
-## OpenStreetMap e exposição potencial
+## OpenStreetMap and potential exposure
 
-**OpenStreetMap (OSM)** fornece a geometria e os atributos das vias. OSM não é
-o sensor de inundação e não decide se uma estrada está alagada. O projeto
-cruza as vias mapeadas com a estimativa de água aberta detectável do NISAR.
-O trecho resultante quer dizer “via OSM que intersecta a máscara”, não
-“via confirmada como alagada ou fechada”.
+**OpenStreetMap (OSM)** provides the geometry and attributes of the roads. OSM
+is not the flood sensor and does not decide whether a road is flooded. The
+project crosses the mapped roads with the NISAR estimate of detectable open
+water. The resulting stretch means "an OSM road that intersects the mask", not
+"a road confirmed as flooded or closed".
 
-O mapa de impacto usa ainda pontos, polígonos e dados de rede do OSM para
-estimar estados como acessível, perto da água, potencialmente isolado, sem via
-mapeada ou fora da cobertura de radar. “Impacto potencial” não significa dano
-confirmado; as contagens dependem da cobertura do radar e da qualidade do OSM.
+The impact map also uses OSM points, polygons and network data to estimate
+states such as dry road access, near the water, possibly cut off, no mapped
+road link or outside radar coverage. "Potential impact" does not mean
+confirmed damage; the counts depend on radar coverage and on OSM quality.
 
-Dados OSM são distribuídos sob ODbL e exigem atribuição aos colaboradores.
+OSM data are distributed under the ODbL and require attribution to the
+contributors.
 
-## Rotas
+## Routes
 
-O planejador usa uma rede viária OSM compilada e as máscaras NISAR para gerar
-opções de carro e, quando habilitado, trechos de barco e caminhada. “Rota
-seca” significa que a via não intersecta a máscara de água aberta detectável
-considerada pelo motor. Isso não confirma que a estrada esteja aberta, segura ou
-transitável. O radar também não mede profundidade navegável para o barco.
+The planner uses a compiled OSM road network and the NISAR masks to produce
+car options and, when enabled, boat and walking legs. A "dry route" means the
+road does not intersect the mask of detectable open water used by the engine.
+It does not confirm that the road is open, safe or passable. The radar does
+not measure navigable depth for the boat either.
 
-## Imagem de satélite, mapa híbrido e NDVI
+## Satellite imagery, hybrid map and NDVI
 
-Mapas-base de satélite/híbrido são contexto visual fornecido por serviços de
-tiles; não são a detecção usada nos cálculos. **NDVI** é um índice calculado a
-partir de bandas ópticas de vegetação, normalmente Sentinel-2. O contrato da
-interface permite adicionar uma camada NDVI pré-processada, com fonte, data e
-legenda, mas os resultados atuais não incluem um raster NDVI validado.
+Satellite and hybrid basemaps are visual context from tile services; they are
+not the detection used in the calculations. **NDVI** is an index computed from
+optical vegetation bands, usually Sentinel-2. The interface contract allows a
+pre-processed NDVI layer with source, date and legend, but the current results
+include no validated NDVI raster.
 
-## Termos úteis
+## Useful terms
 
-| Termo | Significado no projeto |
+| Term | Meaning in the project |
 |---|---|
-| AOI | Área de interesse delimitada pelo produto EMSR857. |
-| GCOV | Produto NISAR de covariância geocodificada usado nas cenas. |
-| GeoJSON | Formato vetorial usado para polígonos e feições OSM. |
-| GeoTIFF | Formato raster usado em intermediários de processamento. |
-| EPSG:4326 | Coordenadas geográficas longitude/latitude usadas pela interface. |
-| EPSG:32736 | CRS métrico usado na comparação espacial da AOI02. |
+| AOI | Area of interest delimited by the EMSR857 product. |
+| GCOV | NISAR geocoded covariance product used for the scenes. |
+| GeoJSON | Vector format used for polygons and OSM features. |
+| GeoTIFF | Raster format used for processing intermediates. |
+| EPSG:4326 | Geographic longitude/latitude coordinates used by the interface. |
+| EPSG:32736 | Metric CRS used for the AOI02 spatial comparison. |

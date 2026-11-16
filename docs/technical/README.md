@@ -1,29 +1,30 @@
-# Documentação técnica
+# Technical documentation
 
-Este conjunto é destinado a quem instala, mantém ou modifica o sistema. O
-[README principal](../../README.md) continua sendo a descrição completa do
-projeto; este arquivo organiza a referência técnica especializada.
+This set is for whoever installs, maintains or changes the system. The
+[main README](../../README.md) remains the full description of the project;
+this file organises the specialised technical reference.
 
-## Componentes e contratos
+## Components and contracts
 
-- [Arquitetura](architecture.md): frontend, Flask, pipeline e publicação.
-- [Dados e métodos](data_and_methods.md): fontes, métricas e interpretação.
-- [Contrato da API e `stats.json`](../stats_contract.md): endpoints e formato
-  compartilhado entre backend, frontend e artefatos.
+- [Architecture](architecture.md): frontend, Flask, pipeline and publication.
+- [Data and methods](data_and_methods.md): sources, metrics and
+  interpretation.
+- [API and `stats.json` contract](../stats_contract.md): endpoints and the
+  format shared by backend, frontend and artefacts.
 
-## Operação e desenvolvimento
+## Operation and development
 
-- [Pipeline de dados](pipeline.md): download, processamento e geração de
-  resultados.
-- [Download NISAR](../download.md): autenticação Earthdata e aquisição.
-- [Execução e publicação](deployment.md): Flask local, Pages e parâmetros.
-- [Desenvolvimento e manutenção](development.md): dependências, verificações
-  e práticas para alterações.
+- [Data pipeline](pipeline.md): download, processing and generation of
+  results.
+- [NISAR download](../download.md): Earthdata authentication and acquisition.
+- [Running and publishing](deployment.md): local Flask, Pages, the live server
+  and parameters.
+- [Development and maintenance](development.md): dependencies, checks and
+  practices for changes.
 
-## Orientação para mudanças
+## Guidance for changes
 
-Leia o contrato e a arquitetura antes de mudar formatos consumidos pelo
-frontend. Depois de alterar templates, JavaScript, CSS ou dados publicados,
-regenere `docs/` com `python pipeline/build_static.py`. A página estática não
-executa a API Flask. Consulte o [parecer de prontidão](../project_review.md)
-para riscos e prioridades conhecidos.
+Read the contract and the architecture before changing formats the frontend
+reads. After changing templates, JavaScript, CSS or published data, rebuild
+`docs/` with `python pipeline/build_static.py`. The static page does not run
+the Flask API.

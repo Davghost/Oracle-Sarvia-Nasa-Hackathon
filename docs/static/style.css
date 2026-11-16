@@ -326,6 +326,10 @@ button:disabled{cursor:default;opacity:.4}
 .sub-title{margin:14px 0 0;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--echo)}
 .tool .state-key{margin-top:6px}
 .tool-foot{padding:6px 2px 0}
+.credits{margin:0;padding-left:16px;font-size:var(--t-small);line-height:1.45;color:var(--echo)}
+.credits li{margin-bottom:5px}
+.credits b{color:var(--slate);font-weight:650}
+.credits-fold:first-of-type{margin-top:8px}
 .tool-foot .source{margin:0 0 6px}
 
 /* route planner */

@@ -14,7 +14,7 @@ import numpy as np
 
 import gcov_reader as gr
 
-BBOX = (32.0, -26.0, 33.5, -24.0)  # west, south, east, north (from PROJECT_CONTEXT.md)
+BBOX = (32.0, -26.0, 33.5, -24.0)  # west, south, east, north (the study area)
 TERMS = {"HH": "HHHH", "HV": "HVHV"}
 
 

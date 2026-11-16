@@ -1,182 +1,200 @@
-# The Algorithm's Oracle
+# SARVIA: from radar to rescue
 
-Planejador de rotas de resgate para áreas alagadas, feito com radar de
-satélite. Criado para o NASA Space Apps Challenge 2026, desafio
-**Dancing with the SARs**, com a cheia de janeiro de 2026 no sul de
-Moçambique (bacias do Limpopo e do Incomati) e cenas NISAR L2 GCOV (radar
-L-band).
+**Team:** The Algorithm's Oracle · **NASA Space Apps Challenge 2026** ·
+challenge **Dancing with the SARs**
 
-A equipe de resgate marca a base e o destino no mapa. O destino quase sempre
-está dentro da água. O app calcula como chegar lá: de carro pelas vias que o
-radar viu secas até a borda da água, e de barco até o destino, com o ponto de
-lançamento, os tempos e o passo a passo.
+**Live app:** <https://sarvia.duckdns.org> (story) and
+<https://sarvia.duckdns.org/routes> (route tool)
 
-> Os dados NISAR usados são provisórios e podem ser reprocessados. As rotas e
-> os números são estimativas do método implementado, não orientação oficial.
+SARVIA is a rescue route planner for flooded areas, built on satellite radar.
+It uses the January 2026 flood in southern Mozambique (Limpopo and Incomati
+basins) and NISAR L2 GCOV scenes (L-band radar).
 
-## O problema
+A rescue team marks its base and a destination on the map. The destination is
+usually inside the water. The app works out how to get there: by car on the
+roads the radar saw dry, up to the water's edge, and then by boat, with the
+launch point, the times and step-by-step directions.
 
-Durante uma cheia, nuvens impedem satélites ópticos de ver onde está a água,
-justamente quando as equipes de resgate mais precisam dessa informação. O
-radar SAR produz o próprio sinal, funciona de dia e de noite e atravessa
-nuvens. Este projeto transforma duas cenas de radar em duas coisas:
+> The NISAR data used here are provisional and may be reprocessed. Routes and
+> figures are estimates from the method implemented here, not official
+> guidance.
 
-1. **O mapa da cheia:** uma narrativa curta que explica o que o radar vê,
-   com água aberta detectável antes e durante a cheia e a mudança estimada.
-2. **Impact & routes:** uma ferramenta separada para explorar exposição
-   potencial e testar rotas experimentais no mapa.
+## The problem
 
-## Rotas de resgate (funcionalidade principal)
+During a flood, clouds stop optical satellites from seeing where the water is,
+exactly when rescue teams need that information most. Synthetic aperture
+radar (SAR) sends its own signal, works day and night and sees through clouds.
+This project turns radar scenes into two things:
 
-### Como usar
+1. **The story (`/`):** five short screens that explain what the radar sees,
+   where the water rose, what the flood may reach and how a team can get there.
+2. **The route tool (`/routes`):** a separate page for practical use, with a
+   full-size map and a side panel for routes, places, layers and map styles.
 
-1. Abra **Impact & routes** e selecione **Explore routes**.
-2. Clique no mapa para marcar a **base da equipe** e depois o **destino**. A
-   rota é calculada no segundo clique. Também dá para digitar `lon, lat`.
-3. Escolha o que a equipe tem: **"Car and boat"** (padrão) ou **"Car only"**.
-4. Compare as opções. A recomendada aparece primeiro na lista; as outras
-   ficam como linhas cinza no mapa e podem ser clicadas.
-5. Siga o passo a passo da opção escolhida: dirigir, lançar o barco (com
-   coordenadas), navegar, desembarcar e chegar.
+## The story: five screens
 
-Cliques seguintes movem o destino. Clicar num campo escolhe qual ponto o
-próximo clique define, e o botão de inverter troca base e destino.
+1. **Clouds:** clouds cover the map, as optical satellites saw the flood.
+2. **Radar:** the clouds lift and the water the radar found on 5 January
+   appears.
+3. **Water:** four NISAR acquisitions between 12 December and 17 January
+   (slider and playback), the before/during curtain and the main estimate of
+   new detectable open water (982.5 km²). The main estimate uses `--loosen 3`;
+   the range 709.5–1,455.6 km² gathers threshold sensitivity scenarios, not a
+   statistical confidence interval. "Checked against an independent map" shows
+   the comparison with Copernicus EMSR857; the IoU measures spatial agreement,
+   not ground truth.
+4. **Impact:** the potential-impact map from OpenStreetMap (schools, health
+   facilities, communities, bridges and flooded roads), with categories and
+   states that filter the map. Each place opens a card with links to plan a
+   route to it in the route tool.
+5. **Rescue:** how the routes work and the **Open the route tool** button,
+   plus limitations and data details.
 
-### O que o app responde
+## The route tool (main feature)
 
-| Opção | Quando aparece |
+The `/routes` page gives almost the whole screen to the map. The controls sit
+in a side panel (below the map on phones; **Hide panel** collapses it):
+
+- **Route:** team base, destination, **Car and boat** or **Car only**, route
+  options and step-by-step directions. Drag the base or the destination on
+  the map to recalculate.
+- **Map style:** light, dark, satellite or hybrid (the default), always
+  visible.
+- **Places:** search by name (school, clinic, village, bridge) and filter by
+  state. A search result opens the place card even if the filter hides it.
+- **Layers:** a tree of layers. Each group (NISAR flood water; OSM places and
+  roads; context when present) switches all its layers at once and can be
+  collapsed; each layer has its own switch, a count of what is on the map and,
+  for water layers, an opacity slider.
+
+The story can open the tool with the destination (and the start) filled in:
+`/routes?to=lon,lat&from=lon,lat`.
+
+### How to plan a route
+
+1. Open **Route tool** (or **Open the route tool** at the end of the story).
+2. Click the map to set the **team base**, then the **destination**. The
+   route is calculated on the second click. You can also type `lon, lat`, or
+   use a place card: **Route to here**, **Route from that facility**, **Set as
+   team base**.
+3. Choose what the team has: **Car and boat** (default) or **Car only**.
+   Switching recalculates.
+4. Compare the options. The recommended one comes first; the others are grey
+   lines on the map and can be clicked.
+5. Follow the directions of the chosen option: drive, launch the boat (with
+   coordinates), navigate, land and arrive.
+
+### What the app answers
+
+| Option | When it appears |
 |---|---|
-| **Car and boat** | O destino está na água, ou o barco chega mais rápido que qualquer rota seca. Mostra o ponto de lançamento, os metros de carro, barco e caminhada, e os trechos em que o barco é arrastado por faixas secas. |
-| **Dry roads only** | Existe caminho de carro sem cruzar água aberta detectável. |
-| **Other dry road** | Até duas alternativas secas diferentes da principal. |
-| **Least water by road** | Nenhuma rota de carro escapa da água; mostra a que cruza menos. |
-| **Fastest road** | Referência: o caminho mais rápido ignorando a cheia, com os trechos alagados em vermelho. Marcado como não transitável quando cruza água. |
+| **Car and boat** | The destination is in the water, or the boat gets there faster than any dry route. Shows the launch point, the metres by car, boat and on foot, and the stretches where the boat is dragged over dry strips. |
+| **Dry roads only** | A car route exists that does not cross detectable open water. |
+| **Other dry road** | Up to two dry alternatives different from the main one. |
+| **Least water by road** | No car route avoids the water; shows the one that crosses the least. |
+| **Fastest road** | Reference: the fastest route ignoring the flood, with flooded stretches in red. Marked as not passable when it crosses water. |
 
-No mapa, a rota escolhida tem contorno branco: linha cheia de carro,
-tracejada de barco e pontilhada a pé. Um ícone de barco marca o lançamento.
+On the map the chosen route has a white casing: solid line by car, dashed by
+boat and dotted on foot. A boat icon marks the launch point.
 
-### Resultados medidos
+### Measured results
 
-Na rede real (OpenStreetMap de 14/11/2026 e a máscara publicada de
-982,5 km²), com `pipeline/route_benchmark.py`:
+On the real network (OpenStreetMap extract of 14 Nov 2026 and the published
+982.5 km² mask), with `pipeline/route_benchmark.py`:
 
-| Medida | Resultado |
+| Measure | Result |
 |---|---|
-| Destinos aleatórios dentro da água que recebem rota | 87% (os demais ficam em manchas de água isoladas, sem acesso) |
-| Formas dessas rotas | 62% carro + barco, 13% carro + barco + caminhada |
-| Tempo de cálculo, destino na água | mediana 122 ms, p95 222 ms |
-| Tempo de cálculo, rota de carro sem água no caminho | mediana 30 ms |
-| Distância comparada ao OSRM (10 rotas reais) | diferença mediana de 1,1% |
-| Pedidos simultâneos pela API (8 threads) | 8,2 pedidos/s, todos HTTP 200 |
-| Testes automatizados | 166 passando |
+| Random destinations inside the water that get a route | 87% (the rest are in isolated patches of water with no access) |
+| Shape of those routes | 62% car + boat, 13% car + boat + walk |
+| Computation time, destination in the water | median 122 ms, p95 222 ms |
+| Computation time, car route with no water on the way | median 30 ms |
+| Distance compared with OSRM (10 real routes) | median difference 1.1% |
+| Simultaneous API requests (8 threads) | 8.2 requests/s, all HTTP 200 |
+| Automated tests | 168 passing |
 
-A diferença para o OSRM vem quase toda de trilhas: o app aceita `track`
-(útil para viaturas 4x4) e o perfil de carro do OSRM não.
+The difference from OSRM comes almost entirely from tracks: the app accepts
+`track` roads (useful for 4x4 vehicles) and the OSRM car profile does not.
 
-### Como o motor funciona
+### How the engine works
 
-A rede é compilada uma vez, offline, por `pipeline/prepare_network.py`. A API
-só lê o resultado.
+The network is compiled once, offline, by `pipeline/prepare_network.py`. The
+API only reads the result.
 
-1. **Vias.** As vias que aceitam carros são lidas do extrato `.osm.pbf` da
-   Geofabrik com `pyosmium` e divididas em segmentos entre cruzamentos. Cada
-   segmento guarda a geometria, o comprimento, o tempo de viagem (velocidade
-   pela classe da via, `maxspeed` e piso não pavimentado) e o sentido
-   (`oneway`, rotatórias, autoestradas).
-2. **Água nas vias.** Cada segmento é amostrado a cada 10 m contra a máscara
-   de água aberta detectável pelo radar, na grade original de 40 m. O resultado são os
-   metros alagados de cada trecho e onde a água começa e termina. Pontes
-   ficam de fora, porque o radar mede a água por baixo delas.
-3. **Água para o barco.** Toda a água da data da cheia (rios, lagoas e água
-   nova) vira uma grade de células de cerca de 80 m. Uma célula é navegável
-   quando metade dos pixels de radar é água.
-4. **Pontos de lançamento.** Onde cada via alagada encontra a água (o ponto
-   exato em que a água começa) e em cruzamentos a até 100 m dela.
-5. **Arrasto.** O radar quebra a cheia em milhares de manchas separadas por
-   faixas "secas" estreitas (ruído e vegetação alagada). Manchas a até 250 m
-   umas das outras são ligadas, com custo de arrastar o barco a 2 km/h mais
-   2 min. Esses metros aparecem separados na rota.
-6. **Busca.** A rota de resgate usa um grafo de três camadas: carro nas vias
-   secas, barco nas células de água e caminhada nas vias secas, com trocas de
-   lançamento (10 min), desembarque (3 min) e estacionamento (1 min). A busca
-   é Dijkstra do SciPy (em C) sobre matrizes CSR. Uma verificação de
-   componentes conectados descarta buscas impossíveis, e um limite de custo
-   evita explorar a rede toda.
-7. **Quando o barco entra.** A busca por barco só roda quando há água no
-   caminho. Se existe rota seca, ela é limitada ao tempo dessa rota: o barco
-   só aparece quando chega antes.
-8. **Pontos clicados.** Cada clique vai para o ponto mais próximo *ao longo*
-   da via (até 1,5 km), respeitando mão única e partes desconectadas da
-   rede, ou para a água mais próxima (até 250 m). Se o destino não está na
-   água, o barco encosta e o último trecho é a pé.
-9. **Alternativas.** Método de penalidade: os trechos já usados ficam mais
-   caros e a busca se repete. Ficam só rotas até 50% mais lentas que a
-   melhor e que repetem no máximo 70% do caminho.
+1. **Roads.** Roads open to cars are read from the Geofabrik `.osm.pbf`
+   extract with `pyosmium` and split into segments between junctions. Each
+   segment keeps its geometry, length, travel time (speed from road class,
+   `maxspeed` and unpaved surface) and direction (`oneway`, roundabouts,
+   motorways).
+2. **Water on the roads.** Each segment is sampled every 10 m against the
+   radar mask of detectable open water, on the original 40 m grid. The result
+   is the flooded metres of each stretch and where the water starts and ends.
+   Bridges are left out, because the radar measures the water under them.
+3. **Water for the boat.** All the water on the flood date (rivers, lakes and
+   new water) becomes a grid of cells of about 80 m. A cell is navigable when
+   half of its radar pixels are water.
+4. **Launch points.** Where each flooded road meets the water (the exact point
+   where the water starts) and at junctions up to 100 m from it.
+5. **Portage.** The radar breaks the flood into thousands of patches separated
+   by narrow "dry" strips (noise and flooded vegetation). Patches up to 250 m
+   apart are linked, at the cost of dragging the boat at 2 km/h plus 2 min.
+   Those metres are shown separately in the route.
+6. **Search.** The rescue route uses a three-layer graph: car on dry roads,
+   boat on water cells and walking on dry roads, with switches for launching
+   (10 min), landing (3 min) and parking (1 min). The search is SciPy's
+   Dijkstra (in C) over CSR matrices. A connected-components check discards
+   impossible searches, and a cost limit avoids exploring the whole network.
+7. **When the boat comes in.** The boat search only runs when there is water
+   on the way. If a dry route exists, the search is limited to that route's
+   time: the boat only appears when it arrives sooner.
+8. **Clicked points.** Each click snaps to the nearest point *along* a road
+   (up to 1.5 km), respecting one-way streets and disconnected parts of the
+   network, or to the nearest water (up to 250 m). If the destination is not
+   in the water, the boat lands and the last stretch is on foot.
+9. **Alternatives.** Penalty method: stretches already used get more
+   expensive and the search repeats. Only routes up to 50% slower than the
+   best one and sharing at most 70% of its path are kept.
 
-## A história e a ferramenta
+## The impact map
 
-A história mantém três passos narrativos:
+Schools, health facilities, communities (named places and clusters of 10+
+buildings) and bridges from OpenStreetMap, each with one exclusive state: on
+detectable open water; possibly cut off on the mapped road network (no mapped
+road without detected water, reachable on foot up to 500 m without crossing
+water, that leads to the main network); near the water (up to 250 m, the same
+distance at which the route planner treats a point as reachable by boat); dry
+road access; no mapped road link; outside radar coverage (only 67% of the
+bounding box has data on both dates; Maputo is outside). The states show
+potential impact from the detectable open water of 17 Jan 2026, not confirmed
+damage or isolation.
 
-1. **Clouds:** nuvens cobrem o mapa, como o satélite óptico viu a cheia.
-2. **Radar:** as nuvens somem e aparece a água que o radar encontrou em
-   5 de janeiro.
-3. **Água aberta detectável:** timeline navegável de quatro aquisições NISAR
-   entre 12/12 e 17/01, além da cortina antes/depois e da estimativa principal
-   de água aberta detectável (982,5 km²). A estimativa principal usa
-   `--loosen 3`; a faixa de 709,5–1.455,6 km² reúne cenários de sensibilidade
-   do limiar, não um intervalo de confiança estatístico.
-Ao final, **Impact & routes** abre uma página própria com duas abas e um mapa
-compartilhado:
-
-- **Potential impacts:** exposição potencial em OSM, comparação espacial com
-  Copernicus EMSR857 e limitações. O IoU mede concordância espacial, não
-  verdade-terreno.
-- **Explore routes:** planejador experimental servido pelo Flask; no GitHub
-  Pages, a interface explica que não há backend para calcular rotas.
-
-### Aba Potential impacts
-
-Escolas, saúde, comunidades (lugares nomeados e aglomerados de 10+
-edificações) e pontes do OpenStreetMap, cada um com um estado exclusivo:
-sobre água aberta detectável; com impacto potencial de isolamento pela rede
-viária (sem via mapeada sem água detectada alcançável a pé, até 500 m sem
-atravessar água, que leve à rede principal); perto da água (até 250 m, a
-mesma distância em que o planejador de rotas considera um ponto alcançável
-por barco); acessível; sem via mapeada; fora da cobertura do radar (só 67% do
-bbox tem dado nas duas datas; Maputo fica fora). Clicar num elemento abre o
-estado explicado e o botão **Rescue route to here** (e, para comunidades
-isoladas, a rota a partir da unidade de saúde acessível mais próxima). No
-site estático o mapa funciona, sem os botões de rota. Os estados indicam
-impacto potencial segundo a água aberta detectável em 17/01/2026, não dano
-ou isolamento confirmados.
-
-| Categoria | Total | Água detectável | Possível isolamento | Perto | Acessível | Sem via | Fora do radar |
+| Category | Total | On open water | Possibly cut off | Near | Dry access | No road | Outside radar |
 |---|---|---|---|---|---|---|---|
-| Escolas | 479 | 0 | 130 | 3 | 8 | 10 | 328 |
-| Saúde | 170 | 0 | 35 | 2 | 16 | 1 | 116 |
-| Comunidades | 851 | 34 | 160 | 63 | 139 | 68 | 387 |
-| Pontes | 244 | 33 | 56 | 1 | 8 | 0 | 146 |
+| Schools | 479 | 0 | 130 | 3 | 8 | 10 | 328 |
+| Health | 170 | 0 | 35 | 2 | 16 | 1 | 116 |
+| Communities | 851 | 34 | 160 | 63 | 139 | 68 | 387 |
+| Bridges | 244 | 33 | 56 | 1 | 8 | 0 | 146 |
 
-Edificações (footprints, não população): 707.967 no bbox; 2.345 sobre água
-aberta detectável, 137.948 com impacto potencial de isolamento segundo a
-rede mapeada, 3.937 perto da água. Vias sobre água aberta detectável: 370,6
-km (13,6 primárias/troncais, 8,2 secundárias, 8,9 terciárias,
-168,2 locais, 171,6 trilhas). O isolamento não vem de ruído do radar: tolerar
-40 m de água por trecho muda só 161 cruzamentos; a cheia parte a rede em
-ilhas secas (Chókwè, região de Magude) separadas da rede ligada a Maputo.
+Buildings (footprints, not population): 707,967 in the bounding box; 2,345 on
+detectable open water, 137,948 possibly cut off on the mapped network, 3,937
+near the water. Roads on detectable open water: 370.6 km (13.6 primary/trunk,
+8.2 secondary, 8.9 tertiary, 168.2 local, 171.6 tracks). The isolation is not
+radar noise: tolerating 40 m of water per stretch changes only 161 junctions;
+the flood splits the network into dry islands (Chókwè, the Magude area)
+separated from the network linked to Maputo.
 
-A detecção é explicável: um pixel é classificado como água aberta detectável
-quando HH e HV ficam abaixo dos limiares; a mudança detectada é
+The detection is explainable: a pixel counts as detectable open water when HH
+and HV are below the thresholds; the detected change is
 `water(during) AND NOT water(before)`.
 
-A timeline usa observações reais do mesmo track/frame, compara cada data a
-12/12/2025 e avança somente entre aquisições; não interpola cenas. Sua máscara
-usa limiar estrito e a cobertura válida comum às quatro datas (67,17%), então
-seus valores são distintos da estimativa principal. A série termina em
-17/01/2026; não há uma observação compatível posterior para mostrar o recuo da
-água. Veja os detalhes em [Dados e métodos](docs/technical/data_and_methods.md).
+The timeline uses real observations from the same track and frame, compares
+each date with 12 Dec 2025 and only steps between acquisitions; it does not
+interpolate scenes. Its mask uses a strict threshold and the valid coverage
+common to the four dates (67.17%), so its values differ from the main
+estimate. The series ends on 17 Jan 2026; there is no later compatible
+observation to show the water receding. Details in
+[Data and methods](docs/technical/data_and_methods.md).
 
-## Instalação
+## Installation
 
 ```powershell
 python -m venv .venv
@@ -184,76 +202,75 @@ python -m venv .venv
 python -m pip install -r requirements.txt -r requirements-pipeline.txt
 ```
 
-`requirements.txt` basta para o servidor web (Flask, NumPy, SciPy).
-`requirements-pipeline.txt` traz o processamento de radar, a preparação da
-rede (`osmium`, `rasterio`, `pyproj`, `shapely`), QA, validação e testes.
+`requirements.txt` is enough for the web server (Flask, NumPy, SciPy).
+`requirements-pipeline.txt` adds radar processing, network preparation
+(`osmium`, `rasterio`, `pyproj`, `shapely`), QA, validation and tests.
 
-Não há `.env` nem variável obrigatória para usar o app com os resultados
-existentes. O download das cenas exige `EARTHDATA_TOKEN`; nunca salve esse
-token no repositório.
+No `.env` or required variable is needed to run the app with the existing
+results. Downloading the scenes needs `EARTHDATA_TOKEN`; never save that token
+in the repository.
 
-## Executar
+## Run
 
 ```powershell
 python app\app.py
 ```
 
-Abra <http://localhost:5000>. As rotas funcionam direto depois de clonar: a
-rede compilada (`outputs/routing_network.npz`, cerca de 18 MB) vem no
-repositório e o servidor a carrega em segundo plano ao iniciar (cerca de
-5 s). Não é preciso baixar o OpenStreetMap nem rodar nenhum script.
+Open <http://localhost:5000>. Routes work right after cloning: the compiled
+network (`outputs/routing_network.npz`, about 18 MB) is in the repository and
+the server loads it in the background at start-up (about 5 s). There is no
+need to download OpenStreetMap or run any script.
 
-### Atualizar a rede de rotas
+### Update the route network
 
-Só é preciso recompilar a rede para usar dados mais novos do OpenStreetMap
-ou depois de uma nova detecção. A ordem completa, a partir das cenas de
-radar:
+The network only needs recompiling to use newer OpenStreetMap data or after a
+new detection. The full order, starting from the radar scenes:
 
 ```powershell
 python pipeline\detect_flood.py --loosen 3
 python pipeline\prepare_network.py --download
 ```
 
-1. `detect_flood.py --loosen 3` reproduz o resultado publicado e grava, além
-   dos overlays, `outputs/flood_new_water.tif` (água aberta detectável na
-   segunda cena e ausente na referência, usada para saber
-   quais vias estão alagadas) e `outputs/water_during.tif` (toda a água na
-   data da cheia, usada pelo barco).
-2. `prepare_network.py --download` baixa o extrato OpenStreetMap de
-   Moçambique da Geofabrik (cerca de 256 MB, com retomada, novas tentativas e
-   verificação de MD5) para `data/osm/` e compila a rede em cerca de 2 min.
+1. `detect_flood.py --loosen 3` reproduces the published result and writes,
+   besides the overlays, `outputs/flood_new_water.tif` (detectable open water
+   on the second scene and absent from the reference, used to know which roads
+   are flooded) and `outputs/water_during.tif` (all the water on the flood
+   date, used by the boat).
+2. `prepare_network.py --download` downloads the Geofabrik OpenStreetMap
+   extract of Mozambique (about 256 MB, with resume, retries and MD5 check) to
+   `data/osm/` and compiles the network in about 2 min.
 
-O resultado é `outputs/routing_network.npz` (comprimido, versionado) e
-`outputs/routing_network.json`, com a data do extrato, as fontes das máscaras,
-a licença e as contagens: 150.853 cruzamentos, 33.532 km de vias, 370,6 km de vias
-alagadas, 332.870 células de barco, 6.131 pontos de lançamento e 16.045
-ligações de arrasto.
+The result is `outputs/routing_network.npz` (compressed, versioned) and
+`outputs/routing_network.json`, with the extract date, the mask sources, the
+licence and the counts: 150,853 junctions, 33,532 km of road, 370.6 km of
+flooded road, 332,870 boat cells, 6,131 launch points and 16,045 portage
+links.
 
-Opções de `prepare_network.py`: `--pbf` para um extrato local, `--bbox OESTE
-SUL LESTE NORTE` (padrão: o `bbox` de `outputs/stats.json`), `--flood` e
-`--water` para outras máscaras, `--no-flood`, `--no-boats` e `--sample-step`
-(metros entre amostras de água ao longo das vias, padrão 10).
+`prepare_network.py` options: `--pbf` for a local extract, `--bbox WEST SOUTH
+EAST NORTH` (default: the `bbox` in `outputs/stats.json`), `--flood` and
+`--water` for other masks, `--no-flood`, `--no-boats` and `--sample-step`
+(metres between water samples along the roads, default 10).
 
-Para medir o desempenho e comparar distâncias com o OSRM público:
+To measure performance and compare distances with the public OSRM:
 
 ```powershell
 python pipeline\route_benchmark.py --osrm 10
 ```
 
-### Configuração
+### Configuration
 
-Variáveis de ambiente, todas opcionais:
+Environment variables, all optional:
 
-| Variável | Padrão | Efeito |
+| Variable | Default | Effect |
 |---|---|---|
-| `SARVIA_BOAT_SPEED_KMH` | `12` | Velocidade do barco em água aberta. |
-| `SARVIA_BOAT_LAUNCH_MIN` | `10` | Minutos para descarregar e lançar o barco. |
-| `SARVIA_ROUTING_NETWORK` | `outputs/routing_network.npz` | Rede usada pela API. |
-| `SARVIA_ROUTE_WORKERS` | `2` | Threads de cálculo de rota. |
-| `SARVIA_ROUTE_MAX_PENDING` | `16` | Pedidos simultâneos antes de responder `busy`. |
-| `SARVIA_ROUTE_TIMEOUT` | `12` | Segundos antes de `routing_timeout`. |
-| `SARVIA_ROUTE_MAX_SNAP_M` | `1500` | Distância máxima entre o clique e a via. |
-| `SARVIA_ROUTE_BLOCK_FLOOD_M` | `0` | Metros de água tolerados por trecho numa rota "seca". |
+| `SARVIA_BOAT_SPEED_KMH` | `12` | Boat speed on open water. |
+| `SARVIA_BOAT_LAUNCH_MIN` | `10` | Minutes to unload and launch the boat. |
+| `SARVIA_ROUTING_NETWORK` | `outputs/routing_network.npz` | Network used by the API. |
+| `SARVIA_ROUTE_WORKERS` | `2` | Route computation threads. |
+| `SARVIA_ROUTE_MAX_PENDING` | `16` | Simultaneous requests before answering `busy`. |
+| `SARVIA_ROUTE_TIMEOUT` | `12` | Seconds before `routing_timeout`. |
+| `SARVIA_ROUTE_MAX_SNAP_M` | `1500` | Maximum distance between the click and the road. |
+| `SARVIA_ROUTE_BLOCK_FLOOD_M` | `0` | Metres of water tolerated per stretch on a "dry" route. |
 
 ## API
 
@@ -262,268 +279,334 @@ curl -X POST http://localhost:5000/api/route -H "Content-Type: application/json"
   -d '{"origin": {"lon": 33.004, "lat": -24.530}, "destination": {"lon": 33.0206, "lat": -24.707}}'
 ```
 
-Esse pedido sai de Chókwè para um ponto no meio da água. A resposta traz
-`recommended: "rescue"` e uma rota `rescue` com duas pernas: 29,3 km de carro
-pela R412 e N101 (58 min) e 2,8 km de barco (35 min, com 274 m de arrasto),
-lançado em 24,686° S, 33,016° E.
+This request goes from Chókwè to a point in the middle of the water. The
+answer has `recommended: "rescue"` and a `rescue` route with two legs: 29.3 km
+by car on the R412 and N101 (58 min) and 2.8 km by boat (35 min, with 274 m of
+portage), launched at 24.686° S, 33.016° E.
 
-- `POST /api/route`: origem, destino, `alternatives` (0 a 3) e `boats`
+- `POST /api/route`: origin, destination, `alternatives` (0 to 3) and `boats`
   (`true`/`false`).
-- `GET /api/route/status`: se a rede está carregada e seus metadados.
-- `GET /api/stats`: o contrato com os resultados do radar.
+- `GET /api/route/status`: whether the network is loaded, and its metadata.
+- `GET /api/stats`: the contract with the radar results.
 
-Campos, estados de erro e códigos HTTP estão em
+Fields, error states and HTTP codes are in
 [`docs/stats_contract.md`](docs/stats_contract.md).
 
-## Arquitetura
+## Architecture
 
 ```text
-HDF5 NISAR GCOV
-   |  download_gcov.py (opcional), make_db.py + gcov_reader.py
+NISAR GCOV HDF5
+   |  download_gcov.py (optional), make_db.py + gcov_reader.py
    v
-GeoTIFF HH/HV em dB
+HH/HV GeoTIFF in dB
    |  detect_flood.py
    v
-stats.json, overlays PNG, flood_new_water.tif, water_during.tif
+stats.json, PNG overlays, flood_new_water.tif, water_during.tif
    |                                   |
-   |                 extrato OSM ----> prepare_network.py
-   |                 (Geofabrik)        |  vias + água nas vias + grade de barco
-   |                                    v  + lançamentos + arrastos
+   |                 OSM extract ----> prepare_network.py
+   |                 (Geofabrik)        |  roads + water on roads + boat grid
+   |                                    v  + launch points + portages
    |                              routing_network.npz
    v                                    v
 app/app.py  /api/stats            app/app.py  /api/route  (routing.py)
    \___________________   ______________/
                        v v
-   Leaflet + app/static/core.js (story.js em /, routes.js em /routes)
+   Leaflet + app/static/core.js (story.js on /, routes.js on /routes)
 ```
 
-Todo processamento pesado é offline. As requisições web não abrem HDF5, não
-baixam dados e não usam bibliotecas de geometria: o motor de rotas roda só
-com NumPy e SciPy sobre a rede compilada.
+All heavy processing is offline. Web requests do not open HDF5, do not
+download data and do not use geometry libraries: the route engine runs on
+NumPy and SciPy over the compiled network.
 
-Opcionais do pipeline: `osm_impact.py` (mapa de impacto da ferramenta, lido do
-mesmo extrato OSM local, sem internet) e `validate_reference.py` (comparação
-com o vetor Copernicus EMSR857 AOI02).
+Optional pipeline steps: `osm_impact.py` (the impact map, read from the same
+local OSM extract, no internet) and `validate_reference.py` (comparison with
+the Copernicus EMSR857 AOI02 vector).
 
-## Estrutura de pastas
+## Folder structure
 
-- `app/app.py`: Flask (`/`, `/how-to-read-radar`, `/api/stats`,
-  `POST /api/route`, `/api/route/status`, `/outputs/<path:name>`) e a fila de
-  cálculo de rotas.
-- `app/templates/` e `app/static/`: páginas, painel de rotas, JavaScript, CSS
-  e Leaflet local.
-- `pipeline/prepare_network.py`: compila a rede de rotas (vias, água nas
-  vias, grade de barco, lançamentos e arrastos).
-- `pipeline/routing.py`: motor de rotas usado pela API.
-- `pipeline/route_benchmark.py`: latência, concorrência e comparação com o
-  OSRM.
-- `pipeline/detect_flood.py`: detecção, áreas, reprojeção, contrato JSON e
-  máscaras GeoTIFF.
-- `pipeline/gcov_reader.py`, `make_db.py`, `water.py`: leitura do HDF5,
-  recorte e operações em dB.
-- `pipeline/osm_impact.py`: mapa de impacto potencial (escolas, saúde,
-  comunidades, pontes e vias sobre água aberta detectável) a partir do extrato OSM local.
-- `pipeline/validate_reference.py`, `preview.py`: comparação EMSR857 e QA.
+- `app/app.py`: Flask (`/`, `/routes`, `/how-to-read-radar`, `/api/stats`,
+  `POST /api/route`, `/api/route/status`, `/outputs/<path:name>`) and the
+  route computation queue. `/workspace` redirects to `/routes`.
+- `app/templates/`: `base.html` (shared head, banner and scripts), `index.html`
+  (story), `routes.html` (route tool), `radar.html` and partials.
+- `app/static/`: `core.js` (map, basemaps, data layers, impact map, helpers),
+  `story.js`, `routes.js`, `style.css`, the logo and icons in `brand/`, and
+  Leaflet served locally.
+- `pipeline/prepare_network.py`: compiles the route network (roads, water on
+  roads, boat grid, launch points and portages).
+- `pipeline/routing.py`: route engine used by the API.
+- `pipeline/route_benchmark.py`: latency, concurrency and comparison with OSRM.
+- `pipeline/detect_flood.py`: detection, areas, reprojection, JSON contract
+  and GeoTIFF masks.
+- `pipeline/build_timeline.py`: the four-acquisition timeline overlays.
+- `pipeline/gcov_reader.py`, `make_db.py`, `water.py`: HDF5 reading, cropping
+  and dB operations.
+- `pipeline/osm_impact.py`: potential-impact map (schools, health,
+  communities, bridges and roads on detectable open water) from the local OSM
+  extract.
+- `pipeline/validate_reference.py`, `preview.py`: EMSR857 comparison and QA.
 - `pipeline/download_gcov.py`, `inspect_h5.py`, `build_static.py`: download,
-  inspeção do HDF5 e cópia estática.
-- `outputs/`: resultados lidos pelo Flask. `outputs/mock/` tem dados falsos
-  para desenvolver a interface.
-- `data/`: HDF5, rasters intermediários e o extrato OSM, fora do Git.
-- `tests/`: testes unitários e de integração.
-- `docs/`: contrato da API, referências, página estática e imagens de QA.
+  HDF5 inspection and the static copy.
+- `outputs/`: results read by Flask. `outputs/mock/` has fake data for
+  interface development.
+- `data/`: HDF5, intermediate rasters and the OSM extract, outside Git.
+- `tests/`: unit and integration tests.
+- `docs/`: API contract, references, the static site and QA images.
 
-## Reprocessar os dados de radar
+## Reprocess the radar data
 
-1. Baixe as cenas (opcional, com rede e token):
+1. Download the scenes (optional, needs network and a token):
 
    ```powershell
-   $env:EARTHDATA_TOKEN = "<token-fora-do-repositorio>"
+   $env:EARTHDATA_TOKEN = "<token-kept-outside-the-repository>"
    python pipeline\download_gcov.py
    ```
 
-2. Gere os rasters de cada cena:
+2. Build the rasters for each scene:
 
    ```powershell
    python pipeline\make_db.py --file data\<scene>.h5 --tag 20260105
    python pipeline\make_db.py --file data\<scene>.h5 --tag 20260117
    ```
 
-3. Detecção, estatísticas, overlays e máscaras:
+3. Detection, statistics, overlays and masks:
 
    ```powershell
    python pipeline\detect_flood.py --loosen 3
    ```
 
-   `--loosen 3` reproduz o resultado publicado. Sem ele, a detecção estrita
-   dá 709,5 km². Os limiares também aceitam `--hh-thr` e `--hv-thr`;
-   `--relative-before` muda a máscara de saída e deve ser usado com cuidado.
+   `--loosen 3` reproduces the published result. Without it, the strict
+   detection gives 709.5 km². The thresholds also accept `--hh-thr` and
+   `--hv-thr`; `--relative-before` changes the output mask and should be used
+   with care.
 
-4. Recompile a rede de rotas: `python pipeline\prepare_network.py`.
+4. Recompile the route network: `python pipeline\prepare_network.py`.
 
-5. (Opcional) Comparação com a referência Copernicus EMSR857:
-   `python pipeline\validate_reference.py`. Requer
-   `data/reference/EMSR857_products.zip` e `outputs/flood_extent.geojson`. É
-   concordância espacial entre produtos diferentes, não verdade-terreno.
-   Calcula IoU, interseção e áreas exclusivas na AOI02 e grava
-   `outputs/validation_difference.geojson`; o mapa distingue áreas mapeadas
-   só pelo NISAR e só pelo Copernicus. Rode `python pipeline\build_static.py`
-   depois para copiar a comparação ao site estático.
+5. (Optional) Comparison with the Copernicus EMSR857 reference:
+   `python pipeline\validate_reference.py`. Needs
+   `data/reference/EMSR857_products.zip` and `outputs/flood_extent.geojson`.
+   This is spatial agreement between different products, not ground truth. It
+   computes IoU, intersection and exclusive areas in AOI02 and writes
+   `outputs/validation_difference.geojson`; the map tells apart areas mapped
+   only by NISAR and only by Copernicus. Run `python pipeline\build_static.py`
+   afterwards to copy the comparison to the static site.
 
-6. (Opcional) QA: `python pipeline\preview.py`.
+6. (Optional) QA: `python pipeline\preview.py`.
 
-7. Mapa de impacto: `python pipeline\osm_impact.py`, depois da rede de
-   rotas. Lê o extrato OSM local (sem Overpass, cerca de 3 min) e grava
-   `outputs/impact_features.geojson`, `outputs/impact_roads.geojson` e o bloco
-   `impact` do `stats.json`. Na primeira vez também grava
-   `outputs/radar_coverage.tif` a partir de `data/processed/`.
+7. Impact map: `python pipeline\osm_impact.py`, after the route network. It
+   reads the local OSM extract (no Overpass, about 3 min) and writes
+   `outputs/impact_features.geojson`, `outputs/impact_roads.geojson` and the
+   `impact` block of `stats.json`. The first time it also writes
+   `outputs/radar_coverage.tif` from `data/processed/`.
 
-O estudo padrão é `[west, south, east, north] = [32.0, -26.0, 33.5, -24.0]`,
-com pixels de 10 m no GCOV e de 40 m após o multilook.
+The default study area is `[west, south, east, north] = [32.0, -26.0, 33.5,
+-24.0]`, with 10 m pixels in the GCOV and 40 m after multilooking.
 
-## Publicação estática
+## Static publication
 
-`docs/` é uma cópia do site que funciona sem Flask, para GitHub Pages:
+`docs/` is a copy of the site that works without Flask, for GitHub Pages:
 
 ```powershell
 python pipeline\build_static.py
 python -m http.server 8000 --directory docs
 ```
 
-A cópia estática mostra a história e os overlays pré-gerados. **O cálculo
-de rotas precisa do servidor Flask**: no Pages, a aba Explore routes informa
-essa limitação e não oferece cálculo. Gere a cópia só com `outputs/stats.json`
-real (`mock: false`).
-Para publicar: **Settings > Pages > Deploy from a branch > main > /docs**.
+The static copy has the full story and the route tool's layers, places and
+filters with the pre-generated overlays. **Route calculation needs the Flask
+server**: on Pages, the planner says so and links to the live tool with the
+chosen destination. Build the copy only from a real `outputs/stats.json`
+(`mock: false`). To publish: **Settings > Pages > Deploy from a branch > main
+> /docs**.
 
-## Ligar satélite, híbrido e NDVI em produção
+## Satellite, hybrid and NDVI in production
 
-Satélite e híbrido já usam Esri sem API key por padrão. Para trocar pelo
-provedor contratado, use o servidor Flask atrás de HTTPS. A versão
-em `docs/` é estática: ela não tem a API de rotas nem o proxy de tiles, então
-não deve receber tokens de provedores.
+Satellite and hybrid use Esri World Imagery without an API key by default. To
+switch to a contracted provider, run the Flask server behind HTTPS. The copy
+in `docs/` is static: it has neither the route API nor the tile proxy, so it
+must not receive provider tokens.
 
-1. Crie uma conta no provedor oficial escolhido (por exemplo, Mapbox
-   Satellite Streets ou Esri), aceite os termos, confirme a cobertura e
-   configure billing/limites. Guarde o token em um secret do serviço de
-   produção; não o coloque em `.js`, HTML, `stats.json` ou Git.
-2. No ambiente do processo Flask, defina os URLs de tiles e atribuições. O
-   exemplo abaixo usa placeholders, não é uma credencial:
+1. Create an account with the chosen provider (for example Mapbox Satellite
+   Streets or Esri), accept the terms, confirm coverage and set billing and
+   limits. Keep the token in a secret of the production service; never put it
+   in `.js`, HTML, `stats.json` or Git.
+2. In the Flask process environment, set the tile URLs and attributions. The
+   example below uses placeholders, not a credential:
 
    ```powershell
    $env:SARVIA_SATELLITE_TILE_URL = "https://provider.example/satellite/{z}/{x}/{y}?token=<SERVER_SECRET>"
    $env:SARVIA_HYBRID_TILE_URL = "https://provider.example/hybrid/{z}/{x}/{y}?token=<SERVER_SECRET>"
-   $env:SARVIA_SATELLITE_ATTRIBUTION = "© Provedor de imagens"
-   $env:SARVIA_HYBRID_ATTRIBUTION = "© Provedor de imagens | © OpenStreetMap contributors"
+   $env:SARVIA_SATELLITE_ATTRIBUTION = "© Imagery provider"
+   $env:SARVIA_HYBRID_ATTRIBUTION = "© Imagery provider | © OpenStreetMap contributors"
    python app\app.py
    ```
 
-   Em Docker, systemd ou no painel do hosting, defina as mesmas variáveis
-   como secrets do serviço, em vez de usar valores no código. O navegador verá
-   somente `/map-tiles/satellite/{z}/{x}/{y}` e
-   `/map-tiles/hybrid/{z}/{x}/{y}`.
-3. Abra o endereço HTTPS, selecione o controle de camadas no canto superior
-   direito e teste OSM claro, escuro, satélite e híbrido. Se as variáveis não
-   existirem ou o provedor falhar, OSM continuará sendo o fallback.
-4. Verifique a implantação:
+   In Docker, systemd or the hosting panel, set the same variables as service
+   secrets instead of values in the code. The browser only sees
+   `/map-tiles/satellite/{z}/{x}/{y}` and `/map-tiles/hybrid/{z}/{x}/{y}`.
+3. Open the HTTPS address, go to **Map style** in the route tool and test
+   light, dark, satellite and hybrid. If the variables are missing or the
+   provider fails, the defaults keep working.
+4. Check the deployment:
 
    ```powershell
-   curl.exe https://SEU_HOST/api/stats
-   curl.exe https://SEU_HOST/api/route/status
-   curl.exe -I https://SEU_HOST/map-tiles/satellite/10/500/500
+   curl.exe https://YOUR_HOST/api/stats
+   curl.exe https://YOUR_HOST/api/route/status
+   curl.exe -I https://YOUR_HOST/map-tiles/satellite/10/500/500
    ```
 
 ### NDVI
 
-O NDVI não é ativado por uma variável de mapa. Primeiro obtenha Sentinel-2 por
-uma fonte licenciada (Sentinel Hub, Copernicus ou Earth Engine), gere offline
-uma composição que cubra a área em uma janela documentada de janeiro de 2026,
-aplique máscara de nuvens e valide a cobertura. Depois publique o raster/tile
-em `outputs/` e adicione `layers.vegetation` a `outputs/stats.json` com
-`type`, `url`, `bounds`, `source`, `date`, `index` e `legend`, conforme
-[`docs/stats_contract.md`](docs/stats_contract.md). A legenda deve registrar
-água, vegetação baixa/moderada/densa, solo exposto, urbano e sem
-dados/nuvem somente quando essas classes existirem nos pixels processados.
+NDVI is not switched on by a map variable. First get Sentinel-2 from a
+licensed source (Sentinel Hub, Copernicus or Earth Engine), build offline a
+composite that covers the area in a documented January 2026 window, apply a
+cloud mask and validate the coverage. Then publish the raster or tiles in
+`outputs/` and add `layers.vegetation` to `outputs/stats.json` with `type`,
+`url`, `bounds`, `source`, `date`, `index` and `legend`, as described in
+[`docs/stats_contract.md`](docs/stats_contract.md). The legend should list
+water, low/moderate/dense vegetation, bare soil, urban and no data/cloud only
+when those classes exist in the processed pixels.
 
-O `outputs/stats.json` atual não possui essa camada porque nenhum raster
-Sentinel-2 licenciado e validado foi publicado. Não preencha o campo com
-valores fictícios; sem ele, o mapa funciona normalmente.
+The current `outputs/stats.json` has no such layer because no licensed and
+validated Sentinel-2 raster has been published. Do not fill the field with
+made-up values; without it, the map works normally.
 
-## Integrações externas
+## External services
 
-- **OpenStreetMap via Geofabrik:** extrato `.osm.pbf` baixado só por
-  `prepare_network.py --download` e lido também por `osm_impact.py`. O app
-  não acessa a internet para calcular rotas nem o impacto.
-- **OpenStreetMap.de:** tiles do mapa-base; exige internet e mantém a
-  atribuição.
-- **ASF DAAC/Earthdata:** download das cenas, só em `download_gcov.py`.
-- **OSRM público:** comparação opcional de `route_benchmark.py --osrm`.
-- **NASA Scientific Visualization Studio #5661:** números de contexto.
-- Leaflet é servido localmente, sem CDN.
+- **OpenStreetMap via Geofabrik:** `.osm.pbf` extract downloaded only by
+  `prepare_network.py --download` and also read by `osm_impact.py`. The app
+  does not use the internet to compute routes or the impact map.
+- **OpenStreetMap.de:** light basemap tiles; needs internet and keeps the
+  attribution.
+- **Esri:** satellite, hybrid labels and dark basemap tiles; need internet and
+  keep the attribution.
+- **ASF DAAC / NASA Earthdata:** scene download, only in `download_gcov.py`.
+- **Public OSRM:** optional comparison in `route_benchmark.py --osrm`.
+- **NASA Scientific Visualization Studio #5661:** context figures.
+- Leaflet and the Archivo font: Leaflet is served locally; Archivo comes from
+  Google Fonts.
 
-## Dados e licenças
+## Credits, data sources and licences
 
-`outputs/routing_network.npz` contém informações do OpenStreetMap
-(© colaboradores do OpenStreetMap), disponibilizadas sob a
-[Open Database License (ODbL) 1.0](https://www.openstreetmap.org/copyright).
-Quem redistribuir a rede ou um banco derivado dela deve manter essa
-atribuição e a mesma licença. A atribuição também está em
-`outputs/routing_network.json` e no mapa do app.
+Our original code and content are released under the
+[Apache License 2.0](LICENSE). Everything below that we did not create is
+listed with its source and licence, as the Space Apps terms require.
 
-## Limitações
+**NASA and space agency data**
 
-- **Profundidade e correnteza:** o radar mostra onde há água aberta, não se
-  é funda o bastante para o barco nem se a correnteza permite navegar.
-- **Resolução:** células de barco de 80 m perdem canais estreitos. Os
-  arrastos por faixas secas são uma inferência, não algo que o radar vê.
-- **Data única:** as rotas usam a água vista em 17/01/2026. A cheia muda, e
-  uma via "seca" não é garantia de que está aberta.
-- **Dados de vias:** vias que faltam no OSM não existem para o app. As
-  velocidades vêm da classe da via, não de tráfego real.
-- **Isolamento:** 13% dos destinos aleatórios na água ficam sem rota, em
-  manchas de água sem lançamento ou arrasto possível.
-- **Detecção:** limiares heurísticos; água com vegetação, vento, sombras de
-  relevo e solo úmido geram erros. A cena de 5 de janeiro pode já ter áreas
-  alagadas. A comparação EMSR857 (IoU 0,46) não é verdade-terreno.
-- **Timeline:** quatro aquisições co-registradas mostram a evolução observada
-  até 17/01. A série não tem uma cena posterior compatível para medir o recuo;
-  não interpola datas e usa um indicador estrito distinto da estimativa
-  principal.
-- Mapa de impacto: o OSM rural é incompleto (só 53 lugares nomeados de
-  vilarejo para cima no bbox); ausência no mapa não é ausência de gente. As
-  rotas e o mapa tratam como secas as vias fora da cobertura do radar. O
-  campo `collection` continua `null`.
-- As rotas são experimentais e não substituem as autoridades locais.
+- **NISAR L2 GCOV** (NASA-ISRO Synthetic Aperture Radar), track 114, frame
+  165, acquisitions of 12 Dec 2025, 24 Dec 2025, 5 Jan 2026 and 17 Jan 2026.
+  Distributed by the [ASF DAAC](https://asf.alaska.edu/) through
+  [NASA Earthdata](https://www.earthdata.nasa.gov/). Pre-validation (Beta or
+  Provisional) release; NASA data are free and open. Used for every water
+  layer, the flood estimate, the routes and the impact states.
+- **NASA Scientific Visualization Studio #5661**, *NISAR Reveals Major
+  Flooding in Mozambique*: source of the context figures on the first screen
+  (people displaced, homes flooded, cropland damaged).
 
-## Testes
+**Other data**
+
+- **OpenStreetMap** (© OpenStreetMap contributors), Mozambique extract from
+  [Geofabrik](https://download.geofabrik.de/), licensed under the
+  [Open Database License (ODbL) 1.0](https://www.openstreetmap.org/copyright).
+  Used for the road network, the impact map and the basemap. Whoever
+  redistributes `outputs/routing_network.npz` or a database derived from it
+  must keep this attribution and the same licence. The attribution is also in
+  `outputs/routing_network.json` and on the map.
+- **Copernicus Emergency Management Service, activation EMSR857**, AOI02
+  delineation product: independent flood map used for the comparison
+  (© European Union, Copernicus EMS; free use with attribution under the
+  [Copernicus EMS data policy](https://emergency.copernicus.eu/mapping/ems/terms-and-conditions)).
+
+**Map tiles shown in the app (not redistributed)**
+
+- **OpenStreetMap.de** tiles, © OpenStreetMap contributors (ODbL; map style
+  CC BY-SA).
+- **Esri** World Imagery, World Boundaries and Places, and World Dark Gray
+  Canvas: © Esri and its data providers, used under
+  [Esri's terms of use](https://www.esri.com/en-us/legal/terms/full-master-agreement),
+  with attribution on the map.
+
+**Software and fonts**
+
+- [Leaflet](https://leafletjs.com/) 1.9.4 (BSD 2-Clause), vendored in
+  `app/static/vendor/leaflet/` with its licence file.
+- [Archivo](https://fonts.google.com/specimen/Archivo) font (SIL Open Font
+  License 1.1), via Google Fonts.
+- Python web server: Flask (BSD-3-Clause), NumPy (BSD-3-Clause), SciPy
+  (BSD-3-Clause); in production, Gunicorn (MIT) behind Nginx (BSD-2-Clause)
+  with a Let's Encrypt certificate.
+- Python pipeline: h5py (BSD-3-Clause), rasterio (BSD-3-Clause), scikit-image
+  (BSD-3-Clause), asf_search (BSD-3-Clause), pandas (BSD-3-Clause), GeoPandas
+  (BSD-3-Clause), Shapely (BSD-3-Clause), pyosmium (BSD-2-Clause), OSMnx (MIT),
+  pyproj (MIT), Pillow (MIT-CMU), Matplotlib (Matplotlib licence, PSF-based),
+  pytest (MIT).
+- [OSRM](https://project-osrm.org/) public demo server (BSD-2-Clause), only
+  for the optional distance comparison.
+
+**Logo:** the SARVIA logo was designed by the team.
+
+**Use of AI ("Super Intelligence") tools:** listed in
+[`AI_USAGE_LOG.md`](AI_USAGE_LOG.md), with what each tool produced and where
+it is used. The project idea and approach are the team's.
+
+## Limitations
+
+- **Depth and current:** the radar shows where there is open water, not
+  whether it is deep enough for the boat or whether the current allows
+  navigation.
+- **Resolution:** 80 m boat cells miss narrow channels. Portages over dry
+  strips are an inference, not something the radar sees.
+- **Single date:** the routes use the water seen on 17 Jan 2026. The flood
+  changes, and a "dry" road is no guarantee that it is open.
+- **Road data:** roads missing from OSM do not exist for the app. Speeds come
+  from the road class, not real traffic.
+- **Isolation:** 13% of random destinations in the water get no route; they
+  are in patches of water with no possible launch or portage.
+- **Detection:** heuristic thresholds; water with vegetation, wind, terrain
+  shadow and wet soil cause errors. The 5 January scene may already have
+  flooded areas. The EMSR857 comparison (IoU 0.46) is not ground truth.
+- **Timeline:** four co-registered acquisitions show the observed evolution up
+  to 17 Jan. The series has no later compatible scene to measure the recession;
+  it does not interpolate dates and uses a strict indicator different from the
+  main estimate.
+- **Impact map:** rural OSM is incomplete (only 53 named places of village
+  size or larger in the bounding box); absence from the map is not absence of
+  people. Routes and the map treat roads outside radar coverage as dry. The
+  `collection` field is still `null`.
+- Routes are experimental and do not replace local authorities.
+
+## Tests
 
 ```powershell
 pytest -q
 ```
 
-166 testes. Mapa de impacto: `test_osm_impact.py` (cada estado e categoria num mundo sintético) e `test_impact_real.py` (saídas reais; pulado sem elas). Para as rotas: `test_rescue.py` (carro + barco, arrasto, ilhas,
-escolha entre barco e via seca), `test_routing.py` (rotas de carro,
-alternativas, mão única, entradas inválidas), `test_prepare_network.py`
-(leitura de vias, amostragem da água, grade de barco, download com falhas),
-`test_route_api.py` (códigos HTTP, fila cheia, timeout, concorrência) e
-`test_routing_real.py` (rede real; pulado se a rede não foi preparada).
+168 tests. Impact map: `test_osm_impact.py` (every state and category in a
+synthetic world) and `test_impact_real.py` (real outputs; skipped without
+them). Routes: `test_rescue.py` (car + boat, portage, islands, choosing
+between boat and dry road), `test_routing.py` (car routes, alternatives,
+one-way streets, invalid input), `test_prepare_network.py` (road reading,
+water sampling, boat grid, download with failures), `test_route_api.py` (HTTP
+codes, full queue, timeout, concurrency) and `test_routing_real.py` (real
+network; skipped if the network was not prepared). Static site:
+`test_static_site.py` (both pages, the redirect and every published layer).
 
-## Trabalho colaborativo
+## Working on the project
 
-Antes de alterar o sistema, leia [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md),
-[`docs/stats_contract.md`](docs/stats_contract.md) e os docstrings do módulo
-que será modificado. Não versione credenciais, tokens, HDF5 nem o extrato OSM
-(`data/osm/`). A rede compilada é versionada de propósito; ao recompilá-la,
-confira o tamanho (deve ficar bem abaixo de 50 MB). Registre usos de IA em
-[`AI_USAGE_LOG.md`](AI_USAGE_LOG.md).
+Before changing the system, read [`docs/technical/README.md`](docs/technical/README.md),
+[`docs/stats_contract.md`](docs/stats_contract.md) and the docstrings of the
+module you will change. Do not commit credentials, tokens, HDF5 files or the
+OSM extract (`data/osm/`). The compiled network is versioned on purpose; when
+recompiling it, check its size (it must stay well under 50 MB). Record AI use
+in [`AI_USAGE_LOG.md`](AI_USAGE_LOG.md).
 
-## Documentação especializada
+## More documentation
 
-Este README é a visão principal do projeto e reúne instalação, uso,
-funcionamento, resultados e limitações. Para aprofundar por público e nível
-técnico, consulte:
+This README is the main view of the project: installation, use, how it works,
+results and limitations. For more depth by audience:
 
-- [Índice da documentação](docs/README.md)
-- [Visão do projeto](docs/project_overview.md) e [conceitos](docs/concepts.md)
-- [Guia de uso](docs/user_guide.md)
-- [Documentação técnica](docs/technical/README.md)
-- [Revisão de prontidão para avaliação](docs/project_review.md)
+- [Documentation index](docs/README.md)
+- [Project overview](docs/project_overview.md) and [concepts](docs/concepts.md)
+- [User guide](docs/user_guide.md)
+- [Technical documentation](docs/technical/README.md)
+- [Validation report](docs/validation_report.md)
