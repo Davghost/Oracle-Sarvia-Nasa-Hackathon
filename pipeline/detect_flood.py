@@ -295,13 +295,13 @@ def main():
                 "selected_loosen": round(new_chosen_km2, 1),
                 "land_mode_adjusted_reference": round(new_rel_km2, 1),
             },
-            "notes": "Água aberta detectável = HH e HV abaixo dos limiares, derivados do vale do histograma da cena durante a cheia. "
-                     "Mudança em água aberta detectável = água(durante) e não água(antes). A área considera apenas pixels com dados nas duas datas. "
-                     "A água permanente tem brilho semelhante nas duas datas (HH -18,4 vs. -17,7 dB), enquanto o terreno está cerca de 3 dB mais brilhante em 17/01; "
-                     "por isso é usado um limiar absoluto. A estimativa principal usa --loosen "
-                     f"{a.loosen:g} dB em pixels cujo HH escureceu pelo menos {a.min_drop:g} dB em relação à mudança global da cena. "
-                     "Os cenários de sensibilidade comparam limiares absolutos estritos, a configuração --loosen selecionada "
-                     "e uma referência ajustada pela moda terrestre; o mínimo e o máximo não são um intervalo de confiança estatístico.",
+            "notes": "Detectable open water = HH and HV below the thresholds, taken from the histogram valley of the scene during the flood. "
+                     "Change in detectable open water = water(during) AND NOT water(before). Area counts only pixels with data on both dates. "
+                     "Permanent water has similar brightness on both dates (HH -18.4 vs -17.7 dB), while land is about 3 dB brighter on 17 Jan, "
+                     "so an absolute threshold is used. The main estimate uses --loosen "
+                     f"{a.loosen:g} dB on pixels whose HH darkened by at least {a.min_drop:g} dB more than the whole scene. "
+                     "The sensitivity scenarios compare strict absolute thresholds, the selected --loosen setting "
+                     "and a reference adjusted by the land mode; the minimum and maximum are not a statistical confidence interval.",
         },
         "layers": {
             "before": {"type": "image", "url": "/outputs/water_before.png", "bounds": bounds},
@@ -320,9 +320,9 @@ def main():
         },
         "limitations": [
             "NISAR data are provisional and may be reprocessed.",
-            "A cheia pode já ter começado em alguns locais na primeira cena (05/01); água aberta detectável adicional significa mudança em relação a essa data.",
-            "Florestas e plantações inundadas podem aparecer brilhantes ao radar e provavelmente não são capturadas por um limiar de escurecimento.",
-            "Vento e sombras de relevo podem causar erros. Os limiares são heurísticos; a comparação EMSR857 AOI02 mede concordância espacial, não validação científica nem verdade-terreno. As classificações representam impacto potencial, não dano confirmado.",
+            "The flood may already have started in places on the first scene (5 Jan); additional detectable open water means change since that date.",
+            "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
+            "Wind and terrain shadow can cause errors. The thresholds are heuristic; the EMSR857 AOI02 comparison measures spatial agreement, not scientific validation or ground truth. The classes show potential impact, not confirmed damage.",
         ],
     }
     (out / "stats.json").write_text(json.dumps(stats, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

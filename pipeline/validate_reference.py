@@ -146,9 +146,9 @@ def compare_geometries(mask, reference, aoi, feature_count, geometry_repairs=0):
         "overlap_fraction_ems": round(intersection_area / reference_area, 4),
         "difference_features": difference_features,
         "interpretation": (
-            "Concordância espacial, não verdade-terreno: a mudança em água aberta "
-            "detectável pelo NISAR é relativa a 05/01/2026; o EMS mapeia área "
-            "inundada por extração semiautomática. São estimativas de impacto potencial."
+            "Spatial agreement, not ground truth: NISAR's change in detectable open water "
+            "is relative to 5 Jan 2026; EMS maps flooded area by semi-automatic "
+            "extraction. These are potential-impact estimates."
         ),
     }
 

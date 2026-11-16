@@ -53,7 +53,7 @@
       "selected_loosen": 982.5,
       "land_mode_adjusted_reference": 1455.6
     },
-    "notes": "Água aberta detectável = HH e HV abaixo dos limiares. Os limiares vêm do vale do histograma da cena durante a cheia. Mudança em água aberta detectável = water(during) AND NOT water(before). A área considera apenas pixels com dados nas duas datas. A estimativa principal usa --loosen 3 dB em pixels cujo HH escureceu pelo menos 3 dB em relação à mudança global da cena. Os cenários de sensibilidade comparam limiar absoluto estrito, configuração --loosen selecionada e referência ajustada pela moda terrestre; mínimo e máximo não são intervalo de confiança estatístico."
+    "notes": "Detectable open water = HH and HV below the thresholds, taken from the histogram valley of the scene during the flood. Change in detectable open water = water(during) AND NOT water(before). Area counts only pixels with data on both dates. Permanent water has similar brightness on both dates (HH -18.4 vs -17.7 dB), while land is about 3 dB brighter on 17 Jan, so an absolute threshold is used. The main estimate uses --loosen 3 dB on pixels whose HH darkened by at least 3 dB more than the whole scene. The sensitivity scenarios compare strict absolute thresholds, the selected --loosen setting and a reference adjusted by the land mode; the minimum and maximum are not a statistical confidence interval."
   },
   "layers": {
     "before": {
@@ -176,9 +176,9 @@
   },
   "limitations": [
     "NISAR data are provisional and may be reprocessed.",
-    "A cheia pode já ter começado em alguns locais na primeira cena (05/01); água aberta detectável adicional significa mudança em relação a essa data.",
+    "The flood may already have started in places on the first scene (5 Jan); additional detectable open water means change since that date.",
     "Flooded forest and crops can look bright to the radar and are probably missed by a darkness threshold.",
-    "Vento e sombras de relevo podem causar erros. Os limiares são heurísticos; a comparação EMSR857 AOI02 mede concordância espacial, não validação científica nem verdade-terreno. As classificações representam impacto potencial, não dano confirmado."
+    "Wind and terrain shadow can cause errors. The thresholds are heuristic; the EMSR857 AOI02 comparison measures spatial agreement, not scientific validation or ground truth. The classes show potential impact, not confirmed damage."
   ],
   "validation": {
     "reference": "Copernicus EMSR857 AOI02 Massiguita",
@@ -197,7 +197,7 @@
     "iou": 0.4616,
     "overlap_fraction_nisar": 0.7557,
     "overlap_fraction_ems": 0.5425,
-    "interpretation": "Concordância espacial, não verdade-terreno: a mudança em água aberta detectável pelo NISAR é relativa a 05/01/2026; o EMS mapeia área inundada por extração semiautomática. São estimativas de impacto potencial."
+    "interpretation": "Spatial agreement, not ground truth: NISAR's change in detectable open water is relative to 5 Jan 2026; EMS maps flooded area by semi-automatic extraction. These are potential-impact estimates."
   },
   "impact": {
     "categories": {
@@ -379,7 +379,7 @@
     "license": "© OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright)",
     "radar_date": "2026-01-17",
     "estimated_at_utc": "2026-11-15T16:22:48+00:00",
-    "method": "Cada elemento mapeado recebe um estado de impacto potencial baseado na água aberta detectável pelo radar: sobre água detectável; com possível isolamento pela rede viária mapeada; a até 250 m da água detectável; acesso por via sem água detectada; sem ligação viária mapeada; ou fora da cobertura do radar. São estimativas, não dano ou isolamento confirmados."
+    "method": "Each mapped element gets one potential-impact state from the open water the radar detected: on detectable water; possibly cut off on the mapped road network; within 250 m of detectable water; road access without detected water; no mapped road link; or outside radar coverage. These are estimates, not confirmed damage or isolation."
   },
   "timeline": {
     "reference_date": "2025-12-12",

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Explore impactos e rotas | Sarvia</title>
+<title>Explore impacts and routes | Sarvia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&display=swap">
@@ -11,62 +11,62 @@
 <link rel="stylesheet" href="static/style.css">
 </head>
 <body class="workspace-page">
-<div id="banner">Os dados do NISAR são provisórios e podem ser reprocessados. <span id="mock-flag" hidden>Dados simulados, não são resultados reais</span></div>
+<div id="banner">NISAR data are provisional and may be reprocessed. <span id="mock-flag" hidden>Mock data, not real results</span></div>
 
 <div id="layout">
   <aside id="story">
     <header id="masthead">
       <p class="wordmark">Sarvia</p>
-      <nav class="site-nav" aria-label="Navegação principal">
-        <a href="index.html" aria-current="false">História</a>
-        <a href="workspace.html" aria-current="page">Impacto e rotas</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html" aria-current="false">Story</a>
+        <a href="workspace.html" aria-current="page">Impacts and routes</a>
       </nav>
-      <nav aria-label="Etapas da história"><ol id="progress"></ol></nav>
+      <nav aria-label="Story steps"><ol id="progress"></ol></nav>
     </header>
     <div class="workspace-intro">
-      <p class="eyebrow">Protótipo de apoio à decisão</p>
-      <h1>Explore impactos e rotas</h1>
-      <p>Inspecione a exposição potencial à inundação mapeada e experimente uma rota no mesmo mapa.</p>
+      <p class="eyebrow">Decision-support prototype</p>
+      <h1>Explore impacts and routes</h1>
+      <p>Inspect what the mapped flood may reach and try a route on the same map.</p>
     </div>
-    <div class="workspace-tabs" role="tablist" aria-label="Ferramentas">
-      <button id="workspace-impact-tab" type="button" role="tab" aria-selected="true" aria-controls="impact-step" data-workspace-step="4">Impactos potenciais</button>
-      <button id="workspace-route-tab" type="button" role="tab" aria-selected="false" aria-controls="routing-step" data-workspace-step="5">Explorar rotas</button>
+    <div class="workspace-tabs" role="tablist" aria-label="Tools">
+      <button id="workspace-impact-tab" type="button" role="tab" aria-selected="true" aria-controls="impact-step" data-workspace-step="4">Potential impacts</button>
+      <button id="workspace-route-tab" type="button" role="tab" aria-selected="false" aria-controls="routing-step" data-workspace-step="5">Explore routes</button>
     </div>
 
     <div id="steps">
-      <section class="step" data-step="1" data-short="Nuvens">
-        <h1>As nuvens esconderam a inundação</h1>
-        <p class="lead">Sul de Moçambique, janeiro de 2026.</p>
-        <p>Chuvas intensas causaram inundações nas bacias do Limpopo e do Incomáti. Satélites ópticos não conseguiam ver a água: segundo a NASA, o Sentinel-2 observou apenas nuvens durante a inundação.</p>
+      <section class="step" data-step="1" data-short="Clouds">
+        <h1>The clouds hid the flood</h1>
+        <p class="lead">Southern Mozambique, January 2026.</p>
+        <p>Heavy rain flooded the Limpopo and Incomati basins. Optical satellites could not see the water: NASA reports that Sentinel-2 saw only clouds while the flood was happening.</p>
         <div id="context-figures" class="facts"></div>
         <p class="source" id="context-source"></p>
       </section>
 
       <section class="step" data-step="2" data-short="Radar">
-        <h1>O radar observa através das nuvens</h1>
-        <p>NISAR sends its own signal and listens for the echo. Nuvens do not stop it, day or night. Calm water acts like a mirror and sends the signal away, so water looks <b>dark</b>.</p>
-        <p>O mapa mostra a água observada pelo radar na <b>primeira data</b>: rios, lagos e mar.</p>
-        <p><a href="how-to-read-radar.html">Como interpretar o radar</a></p>
+        <h1>Radar sees through clouds</h1>
+        <p>NISAR sends its own signal and listens for the echo. Clouds do not stop it, day or night. Calm water acts like a mirror and sends the signal away, so water looks <b>dark</b>.</p>
+        <p>The map shows the water the radar found on the <b>first date</b>: rivers, lakes and the sea.</p>
+        <p><a href="how-to-read-radar.html">How to read the radar</a></p>
       </section>
 
-      <section class="step" data-step="3" data-short="Água aberta">
-        <h1>Água aberta detectável</h1>
-        <div id="timeline-view-switch" class="timeline-switch" role="group" aria-label="Visualização do mapa de água" hidden>
-          <button id="timeline-view-button" type="button" aria-pressed="true">Linha do tempo observada</button>
-          <button id="compare-view-button" type="button" aria-pressed="false">Comparar 5 e 17 de janeiro</button>
+      <section class="step" data-step="3" data-short="Open water">
+        <h1>Detectable open water</h1>
+        <div id="timeline-view-switch" class="timeline-switch" role="group" aria-label="Water map view" hidden>
+          <button id="timeline-view-button" type="button" aria-pressed="true">Observed timeline</button>
+          <button id="compare-view-button" type="button" aria-pressed="false">Compare 5 and 17 January</button>
         </div>
-        <p id="compare-instructions" hidden>Arraste o controle pelo mapa. À esquerda está <b id="date-before">antes</b>, à direita, <b id="date-during">durante</b> a inundação. <span class="key before"></span>Azul indica água aberta detectável na primeira data; <span class="key during"></span>vermelho indica água aberta detectável somente na segunda data.</p>
-        <p class="big"><span id="big-km2">…</span> km² <small>de água aberta detectável</small></p>
+        <p id="compare-instructions" hidden>Drag the handle across the map. Left is <b id="date-before">before</b>, right is <b id="date-during">during</b> the flood. <span class="key before"></span>Blue is detectable open water on the first date; <span class="key during"></span>red is detectable open water only on the second date.</p>
+        <p class="big"><span id="big-km2">…</span> km² <small>of new detectable open water</small></p>
         <p class="range" id="range-note" hidden></p>
-        <p class="source" id="estimate-method-note">Estimativa principal: água aberta detectável entre 5 e 17 de janeiro, calculada com `--loosen 3`. A timeline abaixo usa limiar estrito e compara as observações com 12 de dezembro na cobertura comum às quatro datas; seus valores não são diretamente comparáveis.</p>
+        <p class="source" id="estimate-method-note">Main estimate: new detectable open water between 5 and 17 January, computed with <code>--loosen 3</code>. The timeline below uses a strict threshold and compares each observation with 12 December over the area all four dates cover, so its numbers are not directly comparable.</p>
         <div id="timeline-panel" class="timeline-panel" hidden>
           <div class="timeline-topline">
-            <h2>Observe a mudança da água aberta detectável</h2>
-            <button id="timeline-play" type="button" class="quiet" aria-label="Reproduzir sequência">▶ Reproduzir</button>
+            <h2>Watch the detectable open water change</h2>
+            <button id="timeline-play" type="button" class="quiet" aria-label="Play the sequence">▶ Play</button>
           </div>
-          <p class="timeline-play-hint">Reproduza as quatro datas observadas em sequência. A transição dissolve liga as imagens; não representa observações adicionais.</p>
-          <label for="timeline-slider" class="timeline-label">Selecione uma aquisição observada</label>
-          <input id="timeline-slider" type="range" min="0" max="0" step="1" value="0" aria-label="Selecione a data de aquisição do NISAR">
+          <p class="timeline-play-hint">Play the four observed dates in order. The fade between frames only links the images; it is not an extra observation.</p>
+          <label for="timeline-slider" class="timeline-label">Pick an observed acquisition</label>
+          <input id="timeline-slider" type="range" min="0" max="0" step="1" value="0" aria-label="Pick the NISAR acquisition date">
           <div id="timeline-ticks" class="timeline-ticks" aria-hidden="true"></div>
           <div class="timeline-progress-track" aria-hidden="true"><span id="timeline-progress"></span></div>
           <p id="timeline-frame-count" class="timeline-frame-count" aria-live="polite"></p>
@@ -74,30 +74,30 @@
           <p id="timeline-method" class="source timeline-note"></p>
           <p id="timeline-caveat" class="source timeline-note timeline-caveat"></p>
         </div>
-        <p id="compare-result-note" class="source" hidden>A comparação deslizante usa o par principal de 5 a 17 de janeiro. O resultado acima é a estimativa principal do projeto.</p>
-        <a class="workspace-cta primary" href="workspace.html">Explore impactos potenciais e rotas <span aria-hidden="true">→</span></a>
+        <p id="compare-result-note" class="source" hidden>The slider comparison uses the main pair, 5 to 17 January. The figure above is the project's main estimate.</p>
+        <a class="workspace-cta primary" href="workspace.html">Explore potential impacts and routes <span aria-hidden="true">→</span></a>
       </section>
 
-      <section class="step" data-step="4" data-short="Impacto" id="impact-step" role="tabpanel" aria-labelledby="workspace-impact-tab">
-        <h1>O que a inundação pode alcançar</h1>
-        <p class="caveat"><b>Impacto potencial</b>, estimado com base na água aberta detectável pelo radar em <span id="impact-date">data da inundação</span>. Não indica dano nem isolamento confirmados. <span class="badge">Estimativa</span></p>
+      <section class="step" data-step="4" data-short="Impact" id="impact-step" role="tabpanel" aria-labelledby="workspace-impact-tab">
+        <h1>What the flood may reach</h1>
+        <p class="caveat"><b>Potentially affected</b>, judged only from the open water the radar detected on <span id="impact-date">the flood date</span>. Not confirmed damage or isolation. <span class="badge">Estimate</span></p>
 
         <div id="impact-panel" hidden>
-          <ul class="impact-cats" id="impact-cats" aria-label="Categorias: clique para mostrar ou ocultar no mapa"></ul>
-          <div class="state-key" id="impact-states" role="group" aria-label="Estados mostrados no mapa"></div>
-          <p class="source" id="impact-sum">Cada elemento mapeado tem um estado; os números somam <b id="impact-total"></b>. Selecione um estado ou categoria para filtrar o mapa e depois um marcador para ver detalhes<span class="server-only"> e calcular uma rota de apoio</span>.</p>
-          <button type="button" class="roads-toggle" id="impact-roads-toggle" aria-pressed="true"><span class="sw roads"></span><span><b id="impact-roads-km"></b> km de vias mapeadas sobre água aberta detectável</span></button>
+          <ul class="impact-cats" id="impact-cats" aria-label="Categories: click to show or hide on the map"></ul>
+          <div class="state-key" id="impact-states" role="group" aria-label="States shown on the map"></div>
+          <p class="source" id="impact-sum">Each mapped element has one state; the numbers add up to <b id="impact-total"></b>. Tap a state or a category to filter the map, then a marker for details<span class="server-only"> and a support route</span>.</p>
+          <button type="button" class="roads-toggle" id="impact-roads-toggle" aria-pressed="true"><span class="sw roads"></span><span><b id="impact-roads-km"></b> km of mapped road on detectable open water</span></button>
 
           <details class="impact-more">
-            <summary>Vias por categoria</summary>
+            <summary>Roads by class</summary>
             <table class="impact-roads">
-              <thead><tr><th scope="col">Categoria</th><th scope="col" class="num">Sobre água aberta detectável</th><th scope="col" class="num">Observadas pelo radar</th></tr></thead>
+              <thead><tr><th scope="col">Class</th><th scope="col" class="num">On open water</th><th scope="col" class="num">Seen by radar</th></tr></thead>
               <tbody id="impact-roads"></tbody>
             </table>
-            <p class="source">Os tabuleiros das pontes não são avaliados diretamente: o radar observa a água sob eles. A ponte é classificada como impacto potencial quando as vias de acesso mapeadas intersectam água aberta detectável.</p>
+            <p class="source">Bridge decks are not tested directly: the radar sees the water under them. A bridge counts as potentially affected when its mapped approach roads meet detectable open water.</p>
           </details>
           <details class="impact-more">
-            <summary>O que o mapa pode ou não observar</summary>
+            <summary>What the map can and cannot see</summary>
             <p class="source" id="impact-buildings"></p>
             <p class="source" id="impact-coverage"></p>
           </details>
@@ -105,72 +105,72 @@
         </div>
 
         <section id="validation-section" hidden>
-          <h2>Comparação com mapa independente</h2>
+          <h2>Independent map comparison</h2>
           <div id="validation-metrics" class="facts"></div>
           <p id="validation-note" class="source"></p>
           <p id="validation-map-note" class="source" hidden></p>
         </section>
-        <h2>Limitações</h2>
+        <h2>Limitations</h2>
         <ul id="limits"></ul>
         <details>
-          <summary>Detalhes dos dados</summary>
+          <summary>Data details</summary>
           <dl id="numbers"></dl>
           <div id="impact" hidden></div>
         </details>
       </section>
 
-      <section class="step" data-step="5" data-short="Rotas" id="routing-step" role="tabpanel" aria-labelledby="workspace-route-tab">
-        <h1>Explore uma rota</h1>
-        <p class="intro">Defina a base da equipe. O destino pode estar dentro da inundação: o percurso segue por vias sem água detectada até a margem e pode continuar de barco. <span class="badge">Experimental</span></p>
+      <section class="step" data-step="5" data-short="Routes" id="routing-step" role="tabpanel" aria-labelledby="workspace-route-tab">
+        <h1>Explore a route</h1>
+        <p class="intro">Start from the team's base. The destination can be inside the flood: the route follows roads with no detected water to the water's edge and can continue by boat. <span class="badge">Experimental</span></p>
 
-        <p id="static-route-note" class="route-status" hidden>O cálculo de rotas requer o servidor Flask ativo e não funciona nesta página estática do GitHub Pages. Execute <code>python app/app.py</code> para usar o planejador. As rotas são experimentais e não substituem as autoridades locais.</p>
+        <p id="static-route-note" class="route-status" hidden>Route planning needs the live Flask server, so it cannot calculate routes on this static GitHub Pages site. Run the project with <code>python app/app.py</code> to use the planner. Routes are experimental and do not replace local authorities.</p>
 
         <div id="route-planner-controls">
-        <div class="directions" role="group" aria-label="Origem e destino">
+        <div class="directions" role="group" aria-label="Start and destination">
           <div class="dir-row">
             <span class="dir-dot start" aria-hidden="true"></span>
-            <label for="route-origin" class="dir-label">Base da equipe</label>
-            <input id="route-origin" placeholder="Clique no mapa ou digite lon, lat" autocomplete="off" spellcheck="false">
+            <label for="route-origin" class="dir-label">Team base</label>
+            <input id="route-origin" placeholder="Click the map, or type lon, lat" autocomplete="off" spellcheck="false">
           </div>
           <span class="dir-link" aria-hidden="true"></span>
           <div class="dir-row">
             <span class="dir-dot end" aria-hidden="true"></span>
-            <label for="route-destination" class="dir-label">Destino</label>
-            <input id="route-destination" placeholder="Clique no mapa ou digite lon, lat" autocomplete="off" spellcheck="false">
+            <label for="route-destination" class="dir-label">Destination</label>
+            <input id="route-destination" placeholder="Click the map, or type lon, lat" autocomplete="off" spellcheck="false">
           </div>
-          <button id="route-swap" type="button" class="icon-btn" aria-label="Inverter origem e destino" title="Inverter">
+          <button id="route-swap" type="button" class="icon-btn" aria-label="Swap team base and destination" title="Swap">
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 4v13M7 4 3.5 7.5M7 4l3.5 3.5M17 20V7m0 13-3.5-3.5M17 20l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
         </div>
 
-        <div class="mode-switch" role="radiogroup" aria-label="Meios de transporte disponíveis">
-          <button type="button" role="radio" aria-checked="true" data-boats="true">Carro e barco</button>
-          <button type="button" role="radio" aria-checked="false" data-boats="false">Somente carro</button>
+        <div class="mode-switch" role="radiogroup" aria-label="Vehicles the team has">
+          <button type="button" role="radio" aria-checked="true" data-boats="true">Car and boat</button>
+          <button type="button" role="radio" aria-checked="false" data-boats="false">Car only</button>
         </div>
 
         <div class="route-actions">
-          <button id="route-calculate" type="button" class="primary">Calcular rotas</button>
-          <button id="route-clear" type="button" class="quiet">Limpar</button>
-          <button id="route-cancel" type="button" class="quiet" hidden>Cancelar</button>
+          <button id="route-calculate" type="button" class="primary">Find routes</button>
+          <button id="route-clear" type="button" class="quiet">Clear</button>
+          <button id="route-cancel" type="button" class="quiet" hidden>Cancel</button>
         </div>
         <progress id="route-progress" max="100" value="0" hidden></progress>
-        <p id="route-status" class="route-status" role="status">Clique no mapa para definir a base da equipe.</p>
+        <p id="route-status" class="route-status" role="status">Click the map to set the team's base.</p>
 
-        <ol id="route-options" class="route-options" aria-label="Opções de rota"></ol>
-        <section id="route-itinerary" class="itinerary" aria-label="Instruções para a rota selecionada" hidden>
-          <h2>Instruções</h2>
+        <ol id="route-options" class="route-options" aria-label="Route options"></ol>
+        <section id="route-itinerary" class="itinerary" aria-label="Directions for the selected route" hidden>
+          <h2>Directions</h2>
           <ol id="route-steps"></ol>
         </section>
           <p class="source" id="route-assumptions"></p>
-        <p class="source">As rotas usam a água observada pelo radar na data da análise. Uma via sem água detectada não está necessariamente aberta; trechos de barco pressupõem água navegável. Isto não substitui as autoridades locais.</p>
+        <p class="source">Routes use the water the radar saw on the analysis date. A road with no detected water is not proof that it is open, and boat legs assume water deep enough to navigate. This does not replace local authorities.</p>
         <p class="source" id="route-osm-date"></p>
         </div>
       </section>
     </div>
 
     <div id="controls">
-      <button id="prev" type="button" class="quiet">Voltar</button>
-      <button id="next" type="button" class="primary">Avançar</button>
+      <button id="prev" type="button" class="quiet">Back</button>
+      <button id="next" type="button" class="primary">Next</button>
     </div>
   </aside>
 
@@ -179,41 +179,41 @@
 
     <div id="clouds" aria-hidden="true">
       <div class="cloud-field"></div>
-      <p class="cloud-caption">Durante a inundação, satélites ópticos observaram isto: nuvens, não água.</p>
+      <p class="cloud-caption">During the flood, optical satellites saw this: cloud, not water.</p>
     </div>
 
     <div id="curtain" hidden>
       <div id="divider"><span id="knob"></span></div>
-      <span class="tag left" >Antes <b id="tag-before"></b></span>
-      <span class="tag right" >Durante <b id="tag-during"></b></span>
-      <input id="slider" type="range" min="0" max="100" value="50" aria-label="Compare antes e durante">
+      <span class="tag left">Before <b id="tag-before"></b></span>
+      <span class="tag right">During <b id="tag-during"></b></span>
+      <input id="slider" type="range" min="0" max="100" value="50" aria-label="Compare before and during">
     </div>
     <div id="timeline-map-caption" class="timeline-map-caption" hidden aria-live="polite">
-      <span>Observação NISAR · <i id="timeline-map-frame"></i></span><b id="timeline-map-date"></b>
+      <span>NISAR observation · <i id="timeline-map-frame"></i></span><b id="timeline-map-date"></b>
     </div>
 
     <div id="legend" hidden>
-      <button id="legend-toggle" type="button" aria-expanded="true">Legenda</button>
+      <button id="legend-toggle" type="button" aria-expanded="true">Legend</button>
       <div id="legend-content">
-        <div id="before-legend"><span class="sw before"></span> Água já existente</div>
-        <div id="during-legend"><span class="sw during"></span> Água aberta detectável somente na segunda data</div>
+        <div id="before-legend"><span class="sw before"></span> Water already there</div>
+        <div id="during-legend"><span class="sw during"></span> Open water only on the second date</div>
         <div id="timeline-legend" hidden>
-          <div><span class="sw timeline-shared"></span> Água em 12/dez e na data selecionada</div>
-          <div><span class="sw timeline-new"></span> Água apenas na data selecionada</div>
-          <div><span class="sw timeline-receded"></span> Água apenas em 12/dez</div>
+          <div><span class="sw timeline-shared"></span> Water on 12 Dec and on the selected date</div>
+          <div><span class="sw timeline-new"></span> Water only on the selected date</div>
+          <div><span class="sw timeline-receded"></span> Water only on 12 Dec</div>
         </div>
         <div id="vegetation-legend" hidden></div>
-        <div id="roads-legend" hidden><span class="sw roads"></span> Via OSM sobre água aberta detectável</div>
+        <div id="roads-legend" hidden><span class="sw roads"></span> OSM road on detectable open water</div>
         <div id="validation-legend" hidden>
-          <div><span class="sw validation-nisar"></span> Mapeado apenas pelo NISAR</div>
-          <div><span class="sw validation-ems"></span> Mapeado apenas pelo Copernicus</div>
+          <div><span class="sw validation-nisar"></span> Mapped only by NISAR</div>
+          <div><span class="sw validation-ems"></span> Mapped only by Copernicus</div>
         </div>
         <div id="route-legend" hidden>
-        <div data-route-key="drive" hidden><span class="sw line drive"></span> De carro</div>
-        <div data-route-key="boat" hidden><span class="sw line boatleg"></span> De barco</div>
-        <div data-route-key="walk" hidden><span class="sw line walk"></span> A pé</div>
-        <div data-route-key="other" hidden><span class="sw line other"></span> Outras opções (clique para selecionar)</div>
-        <div data-route-key="blocked" hidden><span class="sw line blocked"></span> Água detectada na via</div>
+        <div data-route-key="drive" hidden><span class="sw line drive"></span> By car</div>
+        <div data-route-key="boat" hidden><span class="sw line boatleg"></span> By boat</div>
+        <div data-route-key="walk" hidden><span class="sw line walk"></span> On foot</div>
+        <div data-route-key="other" hidden><span class="sw line other"></span> Other options (click to pick)</div>
+        <div data-route-key="blocked" hidden><span class="sw line blocked"></span> Detected water on the road</div>
         </div>
       </div>
     </div>

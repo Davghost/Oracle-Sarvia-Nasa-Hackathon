@@ -16,11 +16,11 @@ def test_static_site_serves_pages_stats_and_prebuilt_layers():
     workspace = (DOCS / "workspace.html").read_text(encoding="utf-8")
     assert 'window.STATS_URL = "stats.json"' in page
     assert "static/app.js" in page
-    assert "Comparação com mapa independente" in page
-    assert "O que a inundação pode alcançar" in page
+    assert "Independent map comparison" in page
+    assert "What the flood may reach" in page
     assert "OpenStreetMap contributors" in page
-    assert 'lang="pt"' in workspace
-    assert "Explore impactos e rotas" in workspace
+    assert 'lang="en"' in workspace
+    assert "Explore impacts and routes" in workspace
     assert 'id="route-osm-date"' in workspace
     assert 'id="validation-note"' in workspace
 
@@ -41,7 +41,7 @@ def test_static_site_serves_pages_stats_and_prebuilt_layers():
     # Exercise the Flask workspace route without binding a local TCP socket.
     response = build_static.app.test_client().get("/workspace")
     assert response.status_code == 200
-    assert b"Explore impactos e rotas" in response.data
+    assert b"Explore impacts and routes" in response.data
     assert b'id="route-osm-date"' in response.data
 
 
