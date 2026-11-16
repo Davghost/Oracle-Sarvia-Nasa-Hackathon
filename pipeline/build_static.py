@@ -21,14 +21,15 @@ DOCS = ROOT / "docs"
 def fix(html, page):
     """Rewrite Flask absolute URLs to paths that work under GitHub Pages."""
     html = html.replace('href="/static/', 'href="static/').replace('src="/static/', 'src="static/')
-    html = html.replace('href="/workspace"', 'href="workspace.html"')
+    html = html.replace('href="/routes"', 'href="routes.html"')
     html = html.replace('href="/how-to-read-radar"', 'href="how-to-read-radar.html"')
     html = html.replace('href="/"', 'href="index.html"')
-    if page in {"index", "workspace"}:
+    if page in {"index", "routes"}:
+        # read stats.json next to the page and link the pages to each other
         html = html.replace(
-            '<script src="static/app.js">',
-            f'<script>window.STATS_URL = "stats.json"; window.SARVIA_MAP_CONFIG = {{}}; window.SARVIA_WORKSPACE = {str(page == "workspace").lower()};</script>\n'
-            '<script src="static/app.js">',
+            '<script src="static/core.js">',
+            '<script>window.STATS_URL = "stats.json"; window.SARVIA_MAP_CONFIG = {}; window.SARVIA_ROUTES_URL = "routes.html";</script>\n'
+            '<script src="static/core.js">',
         )
     return html
 
@@ -70,7 +71,7 @@ def main():
         local_layers.append((layer, parts, source, source.relative_to(outputs_root)))
 
     client = app.test_client()
-    pages = {"index": "/", "workspace": "/workspace", "how-to-read-radar": "/how-to-read-radar"}
+    pages = {"index": "/", "routes": "/routes", "how-to-read-radar": "/how-to-read-radar"}
     rendered_pages = {}
     for name, url in pages.items():
         response = client.get(url)
@@ -84,6 +85,10 @@ def main():
     shutil.copytree(ROOT / "app" / "static", DOCS / "static")
     for name, html in rendered_pages.items():
         (DOCS / f"{name}.html").write_text(html, encoding="utf-8")
+    # the old workspace page moved to routes.html; keep its address working
+    (DOCS / "workspace.html").write_text(
+        '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=routes.html">'
+        '<title>Route tool</title><a href="routes.html">Route tool</a>\n', encoding="utf-8")
     (DOCS / "outputs").mkdir()
     for layer, parts, source, relative in local_layers:
         destination = DOCS / "outputs" / relative

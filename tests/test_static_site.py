@@ -13,16 +13,24 @@ import build_static  # noqa: E402
 
 def test_static_site_serves_pages_stats_and_prebuilt_layers():
     page = (DOCS / "index.html").read_text(encoding="utf-8")
-    workspace = (DOCS / "workspace.html").read_text(encoding="utf-8")
-    assert 'window.STATS_URL = "stats.json"' in page
-    assert "static/app.js" in page
-    assert "Independent map comparison" in page
+    tool = (DOCS / "routes.html").read_text(encoding="utf-8")
+    for html in (page, tool):
+        assert 'window.STATS_URL = "stats.json"' in html
+        assert 'window.SARVIA_ROUTES_URL = "routes.html"' in html
+        assert "static/core.js" in html
+        assert 'lang="en"' in html
+        assert "OpenStreetMap contributors" in html
+    # the story: five screens, the last one leads to the route tool
+    assert page.count('class="step"') == 5
+    assert "static/story.js" in page
     assert "What the flood may reach" in page
-    assert "OpenStreetMap contributors" in page
-    assert 'lang="en"' in workspace
-    assert "Explore impacts and routes" in workspace
-    assert 'id="route-osm-date"' in workspace
-    assert 'id="validation-note"' in workspace
+    assert "Checked against an independent map" in page
+    assert 'id="routes-cta" href="routes.html"' in page
+    # the tool: planner, places, layer tree and map styles in the side panel
+    assert "static/routes.js" in tool
+    for element in ("route-origin", "place-search", "layer-tree", "basemaps", "route-osm-date", "static-route-note"):
+        assert f'id="{element}"' in tool
+    assert 'url=routes.html' in (DOCS / "workspace.html").read_text(encoding="utf-8")
 
     stats = json.loads((DOCS / "stats.json").read_text(encoding="utf-8"))
     assert stats["mock"] is False
@@ -38,11 +46,19 @@ def test_static_site_serves_pages_stats_and_prebuilt_layers():
             pytest.fail(f"unsupported static layer type: {layer['type']}")
     assert (DOCS / "how-to-read-radar.html").is_file()
 
-    # Exercise the Flask workspace route without binding a local TCP socket.
-    response = build_static.app.test_client().get("/workspace")
+    # Exercise the Flask pages without binding a local TCP socket.
+    client = build_static.app.test_client()
+    response = client.get("/routes")
     assert response.status_code == 200
-    assert b"Explore impacts and routes" in response.data
-    assert b'id="route-osm-date"' in response.data
+    assert b"Route tool" in response.data
+    assert b'id="route-planner-controls"' in response.data
+    assert b'window.SARVIA_ROUTES_URL = "/routes"' in response.data
+    story = client.get("/")
+    assert story.status_code == 200
+    assert b'id="routes-cta" href="/routes"' in story.data
+    old = client.get("/workspace")
+    assert old.status_code == 301
+    assert old.headers["Location"].endswith("/routes")
 
 
 def test_static_build_copies_optional_geojson_layer(tmp_path, monkeypatch):

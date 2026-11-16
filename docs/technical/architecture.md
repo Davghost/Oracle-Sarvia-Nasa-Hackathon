@@ -24,9 +24,18 @@ flowchart LR
 
 - `app/app.py`: rotas HTTP, seleção de `stats.json`, carregamento do motor de
   rotas e proxy opcional de tiles.
-- `app/templates/`: páginas HTML Flask.
-- `app/static/app.js`: navegação da história, mapa, overlays, painel de
-  camadas e interface de rotas.
+- `app/templates/`: páginas HTML Flask. `base.html` traz o cabeçalho, a faixa
+  de aviso e os scripts comuns; `index.html` (história, `/`) e `routes.html`
+  (ferramenta, `/routes`) estendem a base e compartilham `_masthead.html`.
+  `/workspace` redireciona para `/routes`.
+- `app/static/core.js`: o que as duas páginas usam: mapa e mapas-base,
+  carregamento do `stats.json` e das camadas de água, mapa de impacto OSM
+  (marcadores, cartões, filtros) e formatação.
+- `app/static/story.js`: as cinco telas da história, a cortina antes/durante e
+  a linha do tempo das quatro aquisições.
+- `app/static/routes.js`: a ferramenta: planejador de rotas (carro e barco,
+  marcadores arrastáveis, links `?to=&from=`), busca e filtro de lugares,
+  árvore de camadas e estilos de mapa no painel lateral.
 - `app/static/style.css`: estilos da aplicação.
 - `app/static/vendor/leaflet/`: Leaflet servido localmente.
 - `pipeline/`: obtenção, leitura e análise offline das fontes geoespaciais.
@@ -50,10 +59,12 @@ tiles configurados no servidor sem expor tokens no JavaScript.
 
 `pipeline/build_static.py` renderiza os templates Flask, muda os caminhos para
 URLs relativas, injeta `stats.json` e copia overlays e arquivos estáticos para
-`docs/`. Ela gera `index.html` para a história, `workspace.html` para a área de
-ferramenta e a página de leitura SAR. Essa publicação não executa Python nem
-possui endpoint de rotas ou o proxy de tiles autenticado. A aba de impactos
-usa os dados pré-gerados; a aba de rotas explica que o cálculo depende do Flask.
+`docs/`. Ela gera `index.html` para a história, `routes.html` para a
+ferramenta, a página de leitura SAR e um `workspace.html` que só redireciona
+para `routes.html`. Essa publicação não executa Python nem possui endpoint de
+rotas ou o proxy de tiles autenticado. Camadas, lugares e filtros usam os dados
+pré-gerados; o planejador é substituído por um link para a ferramenta ao vivo,
+levando o destino escolhido.
 
 ## Interfaces entre componentes
 

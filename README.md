@@ -294,7 +294,7 @@ stats.json, overlays PNG, flood_new_water.tif, water_during.tif
 app/app.py  /api/stats            app/app.py  /api/route  (routing.py)
    \___________________   ______________/
                        v v
-             Leaflet + app/static/app.js
+   Leaflet + app/static/core.js (story.js em /, routes.js em /routes)
 ```
 
 Todo processamento pesado é offline. As requisições web não abrem HDF5, não

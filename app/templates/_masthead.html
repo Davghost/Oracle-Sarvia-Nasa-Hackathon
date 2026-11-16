@@ -1,0 +1,7 @@
+<div class="brand">
+  <a class="wordmark" href="{{ url_for('index') }}">Sarvia</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="{{ url_for('index') }}"{% if page == 'story' %} aria-current="page"{% endif %}>Story</a>
+    <a href="{{ url_for('routes') }}"{% if page == 'routes' %} aria-current="page"{% endif %}>Route tool</a>
+  </nav>
+</div>

@@ -43,9 +43,15 @@ de 982,5 km².
   apenas via que não cruza a máscara observada; não comprova condição real.
 - O frontend aceita camada `vegetation`, mas não existe raster NDVI
   Sentinel-2 validado no `stats.json` atual.
+- A interface tem duas páginas: a história em cinco telas (`/`: nuvens,
+  radar, água, impacto, resgate), que termina no botão "Open the route tool",
+  e a ferramenta de rotas (`/routes`), com o mapa em tela cheia e, no painel
+  lateral, planejador, busca e filtro de lugares, árvore de camadas e estilos
+  de mapa. `/workspace` redireciona para `/routes`. O código do mapa é
+  compartilhado em `app/static/core.js`.
 - A cópia de `docs/` publica a história em `index.html` e a ferramenta em
-  `workspace.html`, com overlays pré-gerados. Em GitHub Pages, a aba de rotas
-  informa que o cálculo depende do Flask, ausente nessa hospedagem estática.
+  `routes.html`, com overlays pré-gerados. Em GitHub Pages, o planejador
+  informa que o cálculo depende do Flask e leva à ferramenta ao vivo.
 
 Consulte `docs/technical/data_and_methods.md` antes de citar números ou
 interpretar mapas.

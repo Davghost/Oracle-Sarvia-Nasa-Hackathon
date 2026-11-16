@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Route tool | Sarvia{% endblock %}
+{% block body_class %}tool-page{% endblock %}
+{% block content %}
+<div id="layout">
+  <aside id="tool" class="tool">
+    <header class="tool-head">
+      {% include "_masthead.html" %}
+      <button id="panel-toggle" type="button" class="panel-toggle" aria-expanded="true" aria-controls="tool-body">
+        <span class="when-open">Hide panel</span><span class="when-closed">Show panel</span>
+      </button>
+    </header>
+
+    <div id="tool-body" class="tool-body">
+      <p class="caveat"><b>Estimates</b> from the open water the radar detected on <span id="tool-date">the flood date</span>. A road with no detected water is not proof that it is open. Not confirmed damage. <span class="badge">Estimate</span></p>
+
+      <details class="panel" id="panel-route" open>
+        <summary><span class="panel-title">Route</span><span class="panel-hint" id="route-hint">car and boat</span></summary>
+        <div class="panel-body">
+          <div id="static-route-note" class="route-status" hidden>
+            Route planning needs the live server, so this static copy cannot calculate routes.
+            <a id="live-tool-link" href="https://sarvia.duckdns.org/routes">Open the live route tool</a>, or run <code>python app/app.py</code>.
+          </div>
+
+          <div id="route-planner-controls">
+            <div class="directions" role="group" aria-label="Start and destination">
+              <div class="dir-row">
+                <span class="dir-dot start" aria-hidden="true"></span>
+                <label for="route-origin" class="dir-label">Team base</label>
+                <input id="route-origin" placeholder="Click the map, or type lon, lat" autocomplete="off" spellcheck="false">
+              </div>
+              <span class="dir-link" aria-hidden="true"></span>
+              <div class="dir-row">
+                <span class="dir-dot end" aria-hidden="true"></span>
+                <label for="route-destination" class="dir-label">Destination</label>
+                <input id="route-destination" placeholder="Click the map, or type lon, lat" autocomplete="off" spellcheck="false">
+              </div>
+              <button id="route-swap" type="button" class="icon-btn" aria-label="Swap team base and destination" title="Swap">
+                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M7 4v13M7 4 3.5 7.5M7 4l3.5 3.5M17 20V7m0 13-3.5-3.5M17 20l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
+
+            <div class="mode-switch" role="radiogroup" aria-label="Vehicles the team has">
+              <button type="button" role="radio" aria-checked="true" data-boats="true">Car and boat</button>
+              <button type="button" role="radio" aria-checked="false" data-boats="false">Car only</button>
+            </div>
+
+            <div class="route-actions">
+              <button id="route-calculate" type="button" class="primary">Find routes</button>
+              <button id="route-clear" type="button" class="quiet">Clear</button>
+              <button id="route-cancel" type="button" class="quiet" hidden>Cancel</button>
+            </div>
+            <progress id="route-progress" max="100" value="0" hidden></progress>
+            <p id="route-status" class="route-status" role="status">Click the map to set the team's base.</p>
+
+            <ol id="route-options" class="route-options" aria-label="Route options"></ol>
+            <section id="route-itinerary" class="itinerary" aria-label="Directions for the selected route" hidden>
+              <h2>Directions</h2>
+              <ol id="route-steps"></ol>
+            </section>
+            <p class="source" id="route-assumptions"></p>
+            <p class="source">Drag the base or the destination on the map to recalculate. Boat legs assume water deep enough to navigate. This does not replace local authorities.</p>
+          </div>
+        </div>
+      </details>
+
+      <details class="panel" id="panel-places" open>
+        <summary><span class="panel-title">Places</span><span class="panel-hint" id="places-hint"></span></summary>
+        <div class="panel-body">
+          <div class="search">
+            <label for="place-search" class="visually-hidden">Find a place</label>
+            <input id="place-search" type="search" placeholder="Find a school, clinic, village or bridge" autocomplete="off" spellcheck="false">
+          </div>
+          <ul id="place-results" class="place-results" aria-label="Matching places" hidden></ul>
+          <p class="sub-title">Show places that are</p>
+          <div class="state-key" id="impact-states" role="group" aria-label="Filter places by state"></div>
+        </div>
+      </details>
+
+      <details class="panel" id="panel-layers" open>
+        <summary><span class="panel-title">Layers</span><span class="panel-hint" id="layers-hint"></span></summary>
+        <div class="panel-body">
+          <ul id="layer-tree" class="layer-tree" role="tree" aria-label="Map layers"></ul>
+        </div>
+      </details>
+
+      <details class="panel" id="panel-basemap">
+        <summary><span class="panel-title">Map style</span><span class="panel-hint" id="basemap-hint"></span></summary>
+        <div class="panel-body">
+          <div id="basemaps" class="basemaps" role="radiogroup" aria-label="Map style"></div>
+        </div>
+      </details>
+
+      <footer class="tool-foot">
+        <p class="source attribution">Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, ODbL.</p>
+        <p class="source" id="route-osm-date"></p>
+      </footer>
+    </div>
+  </aside>
+
+  <main id="mapwrap">
+    <div id="map"></div>
+    <div id="legend" class="route-legend" hidden>
+      <div data-route-key="drive" hidden><span class="sw line drive"></span> By car</div>
+      <div data-route-key="boat" hidden><span class="sw line boatleg"></span> By boat</div>
+      <div data-route-key="walk" hidden><span class="sw line walk"></span> On foot</div>
+      <div data-route-key="other" hidden><span class="sw line other"></span> Other options (click to pick)</div>
+      <div data-route-key="blocked" hidden><span class="sw line blocked"></span> Detected water on the road</div>
+    </div>
+    <div id="layer-status" role="status" aria-live="polite" hidden></div>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='routes.js') }}"></script>{% endblock %}

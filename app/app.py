@@ -12,7 +12,7 @@ from urllib.request import Request, urlopen
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, render_template, request, send_from_directory
+from flask import Flask, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline"))
 import routing  # noqa: E402
@@ -83,14 +83,20 @@ def stats_path() -> Path:
 
 @app.get("/")
 def index():
-    """Render the interactive flood-story page."""
-    return render_template("index.html", map_config=map_config(), workspace=False)
+    """Render the five-screen flood story."""
+    return render_template("index.html", map_config=map_config(), page="story")
+
+
+@app.get("/routes")
+def routes():
+    """Render the route tool: the operational map with layers, places and routes."""
+    return render_template("routes.html", map_config=map_config(), page="routes")
 
 
 @app.get("/workspace")
 def workspace():
-    """Render the impact and route-planning workspace."""
-    return render_template("index.html", map_config=map_config(), workspace=True)
+    """Old address of the impact and route workspace, kept so links still work."""
+    return redirect(url_for("routes"), code=301)
 
 
 @app.get("/how-to-read-radar")
