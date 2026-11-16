@@ -574,6 +574,8 @@ function readLinkedRoute() {
 }
 
 (async () => {
+  // the tool opens on satellite imagery with road names: what a team sees on the ground
+  setBasemap(BASEMAPS.some(b => b.id === 'hybrid') ? 'hybrid' : 'light');
   renderBasemaps();
   $('panel-toggle').addEventListener('click', () => setPanel($('tool').classList.contains('collapsed')));
   stats = await loadStats();
